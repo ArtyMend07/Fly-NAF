@@ -1,31 +1,35 @@
 import mss
-import cv2
 import numpy as np
+import cv2
 
 class FNAFVision:
-    def __init__(self, monitor_index=1, region=None):
+    def __init__(self, target_x: int, target_y: int, bbox_size: int, threshold: float):
         self.sct = mss.mss()
-        self.monitor = region if region else self.sct.monitors[monitor_index]
+        self.monitor = self.sct.monitors[1]
+        
+        self.target_x = target_x
+        self.target_y = target_y
+        self.bbox_size = bbox_size
+        self.threshold = threshold
+        
+    def get_sensory_rates(self) -> float:
+        offset = self.bbox_size // 2
+        bbox = {
+            'top': self.target_y - offset, 
+            'left': self.target_x - offset, 
+            'width': self.bbox_size, 
+            'height': self.bbox_size
+        }
+        
+        img = self.sct.grab(bbox)
+        frame = np.array(img)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
+        brightness = float(np.mean(gray))
+        
+        print(f"[VISION DEBUG] Looking at X={self.target_x}, Y={self.target_y} | Current Brightness: {brightness:.1f}", end='\r')
+        
+        if brightness > self.threshold:
+            print("\n[VISION ALERT] BRIGHTNESS THRESHOLD EXCEEDED! Triggering Fly Brain!")
+            return 1.0
             
-    def capture_frame(self):
-        sct_img = self.sct.grab(self.monitor)
-        return np.array(sct_img)
-
-    def detect_animatronic_at_left_door(self, frame):
-        height, width = frame.shape[:2]
-        left_door_region = frame[height//3:height//2, width//10:width//4]
-        
-        gray = cv2.cvtColor(left_door_region, cv2.COLOR_BGR2GRAY)
-        brightness = np.mean(gray)
-        
-        return brightness > 150
-
-    def get_sensory_rates(self):
-        frame = self.capture_frame()
-        danger = self.detect_animatronic_at_left_door(frame)
-        return 1.0 if danger else 0.0
-
-if __name__ == "__main__":
-    vision = FNAFVision()
-    frame = vision.capture_frame()
-    print(f"Sensory rate: {vision.get_sensory_rates()}")
+        return 0.0
