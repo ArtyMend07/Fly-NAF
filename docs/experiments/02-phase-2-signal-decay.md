@@ -28,3 +28,7 @@ To overcome this, I must mimic Spatial Summation by mapping a massive cluster of
 
 This requirement for massive excitatory drive is perfectly supported by recent literature on Drosophila biomechanics (Azevedo et al., 2020; PMID: 32490810). According to the Size Principle for recruitment of fly leg motor neurons, small neurons (postural, low force) have low thresholds, while large, fast neurons (ballistic, high force) have very high thresholds. 
 Because slamming the FNAF door button requires a violent, ballistic leg kick, the simulation *must* recruit the large, fast motor neurons. A single sensory neuron's input is biologically filtered out as it can only provide enough drive for a slow postural twitch. By clustering 50+ sensory neurons and firing them simultaneously, we simulate the massive excitatory drive required to recruit the high-threshold ballistic motor neurons, validating our spatial summation architecture.
+
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
+|---------|-------------|-----------|------|-------------|-------------|
+| 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |

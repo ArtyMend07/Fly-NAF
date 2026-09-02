@@ -27,3 +27,7 @@ This document outlines the strategic phases for the cybernetic integration of th
 - Implement computer vision tracking for in-game power levels.
 - Translate battery depletion into simulated biological fatigue by dampening the firing rates dynamically.
 - Prove embodied connectomics by forcing the biological network to manage digital resources under stress.
+
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
+|---------|-------------|-----------|------|-------------|-------------|
+| 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |

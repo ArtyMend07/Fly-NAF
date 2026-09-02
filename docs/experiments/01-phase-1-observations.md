@@ -16,3 +16,7 @@ Initial execution resulted in the OS mouse clicking slightly off-target, despite
 An *in-silico* test (`analyze_pathways.py`) was run to trace the signal from the Sugar GRNs (sensory) to the P9 neurons (motor).
 **Observation:** Despite injecting a biologically maximum saturation (10,000 Hz, equating to a 1.0 firing probability per step) into the sensory neurons for 100 milliseconds, the signal failed to reach the motor cortex. Out of 138,639 neurons, the sensory burst awakened exactly 611 interneurons, but the activation wave died out completely (0 spikes at P9).
 **Impact:** This empirically validates the robust inhibitory filtering of the fly's connectome. The biological network does not allow a simple "sugar" stimulus to trigger a violent leg contraction reflex. This necessitated the Phase 1 "Bypass" (ADR-003) and mandates the Graph Search routing planned for Phase 2.
+
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
+|---------|-------------|-----------|------|-------------|-------------|
+| 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |

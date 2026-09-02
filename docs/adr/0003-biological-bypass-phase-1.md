@@ -19,3 +19,7 @@ For Phase 1 (Proof of Concept), I will enact a "Biological Bypass". The OpenCV v
 **Negative:**
 - Philosophically breaks the premise of "playing the game through the mind of a fly", as I am just puppeteering the motor cortex.
 - Mandates the creation of Phase 2 (Graph Search), where I must programmatically mine the 100MB parquet connectome to discover which actual sensory neurons possess unobstructed excitatory pathways to the motor cortex.
+
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
+|---------|-------------|-----------|------|-------------|-------------|
+| 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |

@@ -20,3 +20,7 @@ Because the FNAF hallway spotlight does not directly illuminate this specific ed
 **Negative:**
 - Highly fragile to in-game camera panning or window resizing. If the absolute coordinates shift by even a few pixels, the system will target a dead zone and fail.
 - Requires recalibration if the user switches monitors or display scaling.
+
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
+|---------|-------------|-----------|------|-------------|-------------|
+| 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |

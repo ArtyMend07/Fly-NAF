@@ -17,3 +17,7 @@ I will bypass normalized coordinates and use `ctypes.windll.user32.SetCursorPos(
 
 **Negative:**
 - `SetCursorPos` can be overridden or ignored by exclusive full-screen environments that rely on raw mouse deltas (Pointer Lock). If the game client traps the mouse at the OS level, this method may fail to move the cursor visually.
+
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
+|---------|-------------|-----------|------|-------------|-------------|
+| 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |

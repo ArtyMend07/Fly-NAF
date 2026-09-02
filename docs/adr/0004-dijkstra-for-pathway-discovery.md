@@ -21,3 +21,7 @@ I will apply Dijkstra's Algorithm over a directed graph constructed exclusively 
 **Negative:**
 - Dijkstra on a 15M-edge graph with 138k nodes is memory-intensive. Building the adjacency list requires loading and filtering the full parquet file into RAM.
 - The algorithm may fail to find a path if the excitatory subgraph is disconnected between the Sugar GRN cluster and the P9 cluster within the configured `max_hops` limit.
+
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
+|---------|-------------|-----------|------|-------------|-------------|
+| 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |
