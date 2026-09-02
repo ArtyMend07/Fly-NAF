@@ -33,7 +33,9 @@ class BrainAdapter:
         )
         
     def step(self, rates: torch.Tensor, steps: int = 1) -> torch.Tensor:
-        spikes = None
+        accumulated_spikes = torch.zeros_like(rates)
         for _ in range(steps):
             spikes = self.model.step(rates)
-        return spikes
+            if spikes is not None:
+                accumulated_spikes += spikes
+        return accumulated_spikes
