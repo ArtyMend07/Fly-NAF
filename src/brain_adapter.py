@@ -15,6 +15,11 @@ class BrainAdapter:
         self.weights = load_connectome_weights(
             conn_path, comp_path, wt_dir, csr=True, device=self.device
         )
+        
+        # approximate high-conductance state (arousal/octopamine neuromodulation)
+        arousal_multiplier = 10.0
+        self.weights = self.weights * arousal_multiplier
+        
         self.num_neurons = self.weights.shape[0]
         
         print(f"[SYSTEM] Brain loaded. Total Neurons: {self.num_neurons}")

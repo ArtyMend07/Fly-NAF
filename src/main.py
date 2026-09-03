@@ -34,8 +34,8 @@ def main():
         device
     )
     
-    sensory_indices = adapter.map_neuron_ids_to_indices(config.SENSORY_NEURONS['sugar_grns'])
-    motor_indices = adapter.map_neuron_ids_to_indices(config.MOTOR_NEURONS['p9_walking'])
+    sensory_indices = adapter.map_neuron_ids_to_indices(config.SENSORY_NEURONS['left_eye_cluster'])
+    motor_indices = adapter.map_neuron_ids_to_indices(config.MOTOR_NEURONS['dnp01_giant_fiber'])
     
     adapter.initialize_model(exc_indices=sensory_indices)
     

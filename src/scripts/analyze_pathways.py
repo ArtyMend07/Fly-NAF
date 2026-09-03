@@ -1,3 +1,9 @@
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+import config
 import torch
 import time
 from neural.models import FlyBrainModel
@@ -15,24 +21,28 @@ def analyze_pathway():
     weights = load_connectome_weights(conn_path, comp_path, wt_dir, csr=True, device=device)
     num_neurons = weights.shape[0]
     
-    sugar_ids = [720575940624963786, 720575940630233916, 720575940637568838, 
-                 720575940638202345, 720575940617000768, 720575940630797113]
-    exc_indices = [flyid2i[n] for n in sugar_ids if n in flyid2i]
+    eye_ids = config.SENSORY_NEURONS['left_eye_cluster']
+    exc_indices = [flyid2i[n] for n in eye_ids if n in flyid2i]
     
-    p9_ids = [720575940627652358, 720575940635872101]
+    p9_ids = [config.MOTOR_NEURONS['dnp01_giant_fiber'][0]]
     motor_indices = [flyid2i[n] for n in p9_ids if n in flyid2i]
+    
+    print(f"[ANALYSIS] Initializing LIF Brain with {len(exc_indices)} simultaneous sensory inputs...")
+    
+    arousal_multiplier = 10.0
+    weights = weights * arousal_multiplier
     
     model = FlyBrainModel(num_neurons, weights, exc_indices=exc_indices, device=device)
     
-    base_rate = 10000.0
+    base_rate = 200.0
     rates = torch.zeros(1, num_neurons, device=device)
     rates[:, exc_indices] = base_rate
     
-    print("[ANALYSIS] Injecting stimulus and recording total spikes per neuron...")
+    print("[ANALYSIS] Injecting stimulus (200 Hz) into the cluster and recording spikes...")
     
     total_spikes_per_neuron = torch.zeros(num_neurons, device=device)
     
-    for _ in range(1000):
+    for _ in range(5000):
         spikes = model.step(rates)
         if spikes is not None:
             total_spikes_per_neuron += spikes[0]
@@ -54,14 +64,16 @@ def analyze_pathway():
     for m_idx in motor_indices:
         print(f"  Motor Neuron {i2flyid[m_idx]} (Index {m_idx}): {total_spikes_per_neuron[m_idx].item()} spikes")
 
-    print("\n[STRUCTURAL BOTTLENECK ANALYSIS]")
     downstream_active = [idx.item() for idx in active_neurons if idx.item() not in exc_indices]
     
+    motor_fired = any(total_spikes_per_neuron[m_idx].item() > 0 for m_idx in motor_indices)
+    
+    print("\n[PATHWAY ANALYSIS]")
     if len(downstream_active) == 0:
-        print("  CRITICAL FAILURE: The sensory neurons spiked, but they failed to trigger even a SINGLE downstream interneuron.")
-        print("  Why? Because the outgoing synaptic weights from these specific Sugar GRNs are structurally too weak to overcome the resting threshold of their neighbors, or they are disconnected in this specific sub-graph.")
+        print("  CRITICAL FAILURE: No interneurons recruited.")
+    elif motor_fired:
+        print("  SUCCESS: Signal propagated through the network and reached the motor target.")
     else:
-        print("  The signal reached interneurons, but died before reaching the motor cortex.")
-
+        print("  FAILURE: Signal propagated through interneurons but failed to reach the motor target.")
 if __name__ == '__main__':
     analyze_pathway()
