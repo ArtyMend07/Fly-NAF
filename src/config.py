@@ -18,7 +18,7 @@ VISION_CALIBRATION = {
 MOTOR_CALIBRATION = {
     'left_door_button_x': 264,
     'left_door_button_y': 440,
-    'left_light_button_x': 258,
+    'left_light_button_x': 293,
     'left_light_button_y': 567,
     'right_door_button_x': 1604,
     'right_door_button_y': 444,
@@ -52,4 +52,15 @@ FORAGING_PARAMS = {
     'max_interval_sec': 7.0,
     'mse_threshold': 1500.0,
     'light_inspection_time': 0.6
+}
+
+VISION_DYNAMICS = {
+    # Number of frames sampled per sensory check (temporal integration window)
+    'flicker_integration_frames': 5,
+    # Delay between samples in seconds (~30 Hz sampling rate)
+    'flicker_integration_delay_sec': 0.03,
+    # Number of frames sampled during calibration to guarantee peak brightness
+    'calibration_peak_frames': 10,
+    # Delay between calibration samples in seconds
+    'calibration_peak_delay_sec': 0.03,
 }

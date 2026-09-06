@@ -1,4 +1,4 @@
-﻿import time
+import time
 import threading
 import torch
 import random
@@ -40,12 +40,16 @@ def foraging_thread_loop(state: SharedState, vision: FNAFVision, controller: FNA
     insp_time = config.FORAGING_PARAMS["light_inspection_time"]
     
     # 1. Wake Up Routine (Night 1, 12 AM) - Capture strict baseline
+    print("[SYSTEM] Enter the game NOW. Calibrating baseline in 10 seconds...")
+    for i in range(10, 0, -1):
+        print(f"[SYSTEM] T-{i}...")
+        time.sleep(1.0)
+        
     print("[SYSTEM] Executing Wake-Up Routine (Calibration)...")
-    time.sleep(1.0)
     
     # Left
     controller.set_left_light(True)
-    time.sleep(0.1)
+    time.sleep(0.4)
     vision.capture_left_reference()
     print("[SYSTEM] Left reference captured.")
     controller.set_left_light(False)
@@ -53,7 +57,7 @@ def foraging_thread_loop(state: SharedState, vision: FNAFVision, controller: FNA
     
     # Right
     controller.set_right_light(True)
-    time.sleep(0.1)
+    time.sleep(0.4)
     vision.capture_right_reference()
     print("[SYSTEM] Right reference captured.")
     controller.set_right_light(False)
@@ -70,14 +74,14 @@ def foraging_thread_loop(state: SharedState, vision: FNAFVision, controller: FNA
         
         if target == "left":
             controller.set_left_light(True)
-            time.sleep(0.1) 
+            time.sleep(0.4) 
             with state.lock: state.is_checking_left = True
             time.sleep(insp_time)
             with state.lock: state.is_checking_left = False
             controller.set_left_light(False)
         else:
             controller.set_right_light(True)
-            time.sleep(0.1)
+            time.sleep(0.4)
             with state.lock: state.is_checking_right = True
             time.sleep(insp_time)
             with state.lock: state.is_checking_right = False
@@ -120,6 +124,11 @@ def main():
     
     print("[SYSTEM] Brain Core Online.")
     
+    # Synaptic Refractory Periods (Cooldowns)
+    l_refractory_timer = 0.0
+    r_refractory_timer = 0.0
+    refractory_duration = 2.0
+    
     try:
         while True:
             t_start = time.perf_counter()
@@ -133,18 +142,26 @@ def main():
             
             spikes = adapter.step(rates, steps=steps_per_frame)
             
+            current_time = time.time()
+            
             if spikes is not None:
                 if spikes[0, l_motor_idx].any():
-                    print("\n[BRAIN ALERT] LEFT GIANT FIBER FIRED! CLOSING LEFT DOOR!")
-                    controller.trigger_left_door()
-                    with state.lock: state.left_rate = 0.0
-                    time.sleep(0.5)
-                    
+                    if current_time > l_refractory_timer:
+                        print("\n[BRAIN ALERT] LEFT GIANT FIBER FIRED! CLOSING LEFT DOOR!")
+                        controller.trigger_left_door()
+                        l_refractory_timer = current_time + refractory_duration
+                        with state.lock: state.left_rate = 0.0
+                    else:
+                        print("\n[BRAIN ALERT] LEFT GIANT FIBER BLOCKED BY SYNAPTIC FATIGUE (Refractory Period).")
+                        
                 if spikes[0, r_motor_idx].any():
-                    print("\n[BRAIN ALERT] RIGHT GIANT FIBER FIRED! CLOSING RIGHT DOOR!")
-                    controller.trigger_right_door()
-                    with state.lock: state.right_rate = 0.0
-                    time.sleep(0.5)
+                    if current_time > r_refractory_timer:
+                        print("\n[BRAIN ALERT] RIGHT GIANT FIBER FIRED! CLOSING RIGHT DOOR!")
+                        controller.trigger_right_door()
+                        r_refractory_timer = current_time + refractory_duration
+                        with state.lock: state.right_rate = 0.0
+                    else:
+                        print("\n[BRAIN ALERT] RIGHT GIANT FIBER BLOCKED BY SYNAPTIC FATIGUE (Refractory Period).")
                         
             elapsed = time.perf_counter() - t_start
             if elapsed < 0.01:
