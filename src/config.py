@@ -7,15 +7,23 @@ CONNECTIVITY_PARQUET = os.path.join(DATA_DIR, '2025_Connectivity_783.parquet')
 COMPLETENESS_CSV = os.path.join(DATA_DIR, '2025_Completeness_783.csv')
 
 VISION_CALIBRATION = {
-    'bonnie_target_x': 425,
-    'bonnie_target_y': 486,
-    'bbox_size': 10,
-    'brightness_threshold': 50.0
+    'left_target_x': 545,
+    'left_target_y': 603,
+    'left_bbox_size': 951,
+    'right_target_x': 1096,
+    'right_target_y': 535,
+    'right_bbox_size': 471
 }
 
 MOTOR_CALIBRATION = {
     'left_door_button_x': 264,
-    'left_door_button_y': 440
+    'left_door_button_y': 440,
+    'left_light_button_x': 258,
+    'left_light_button_y': 567,
+    'right_door_button_x': 1604,
+    'right_door_button_y': 444,
+    'right_light_button_x': 1601,
+    'right_light_button_y': 572
 }
 
 SENSORY_NEURONS = {
@@ -37,4 +45,11 @@ SIMULATION_PARAMS = {
     'base_sensory_rate_hz': 200.0,
     'steps_per_frame': 100,
     'target_fps': 100
+}
+
+FORAGING_PARAMS = {
+    'min_interval_sec': 4.0,
+    'max_interval_sec': 7.0,
+    'mse_threshold': 1500.0,
+    'light_inspection_time': 0.6
 }
