@@ -22,32 +22,39 @@ class FNAFController:
         self.is_left_light_on = False
         self.is_right_light_on = False
         
-    def _move_mouse(self, x: int, y: int):
+    def _move_mouse(self, x: int, y: int, delay: float = 0.05):
         self.user32.SetCursorPos(x, y)
-        time.sleep(0.02)
+        if delay > 0:
+            time.sleep(delay)
         
     def _click(self):
         self.user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-        time.sleep(0.02)
+        time.sleep(0.1)  # Aumentado para 100ms para garantir que o Clickteam Fusion (motor do FNAF) registre o clique
         self.user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
     def trigger_left_door(self):
-        self._move_mouse(self.l_door_x, self.l_door_y)
+        # Se vai fechar a porta esquerda,  porque j est olhando para l. Atraso quase zero.
+        self._move_mouse(self.l_door_x, self.l_door_y, delay=0.05)
         self._click()
         
     def trigger_right_door(self):
-        self._move_mouse(self.r_door_x, self.r_door_y)
+        # Se vai fechar a porta direita,  porque j est olhando para l. Atraso quase zero.
+        self._move_mouse(self.r_door_x, self.r_door_y, delay=0.05)
         self._click()
         
     def set_left_light(self, state: bool):
         if self.is_left_light_on != state:
-            self._move_mouse(self.l_light_x, self.l_light_y)
+            # Se for ACENDER (True), a cmera pode estar do outro lado, exige Pan = 1.2s
+            # Se for APAGAR (False), a cmera j est l. Pan = 0.05s
+            pan_delay = 1.2 if state else 0.05
+            self._move_mouse(self.l_light_x, self.l_light_y, delay=pan_delay)
             self._click()
             self.is_left_light_on = state
             
     def set_right_light(self, state: bool):
         if self.is_right_light_on != state:
-            self._move_mouse(self.r_light_x, self.r_light_y)
+            pan_delay = 1.2 if state else 0.05
+            self._move_mouse(self.r_light_x, self.r_light_y, delay=pan_delay)
             self._click()
             self.is_right_light_on = state
 

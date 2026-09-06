@@ -5,39 +5,38 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import config
 from neural.data_loader import get_hash_tables
-from graph_search import load_excitatory_graph, dijkstra
+from graph_search import load_excitatory_graph, find_true_sensory_nodes, find_sensory_cluster
 
 def run():
     print("[PHASE 2] Loading anatomical hash tables...")
     flyid2i, i2flyid = get_hash_tables(config.COMPLETENESS_CSV)
 
     print("[PHASE 2] Loading 15M synaptic edges into excitatory graph...")
-    graph = load_excitatory_graph(config.CONNECTIVITY_PARQUET)
+    graph, nodes_with_incoming = load_excitatory_graph(config.CONNECTIVITY_PARQUET)
     print(f"[PHASE 2] Graph built. Unique source nodes: {len(graph)}")
 
-    sensory_indices = [flyid2i[n] for n in config.SENSORY_NEURONS['sugar_grns'] if n in flyid2i]
-    motor_indices = [flyid2i[n] for n in config.MOTOR_NEURONS['p9_walking'] if n in flyid2i]
+    print("[PHASE 2] Mining true sensory entry nodes (In-Degree=0, Out-Degree>=5)...")
+    sensory_candidates = find_true_sensory_nodes(graph, nodes_with_incoming, min_out_degree=5)
+    print(f"[PHASE 2] Candidates found: {len(sensory_candidates)}")
 
-    print(f"[PHASE 2] Running Dijkstra from {len(sensory_indices)} sensory nodes to {len(motor_indices)} motor nodes...")
-    result = dijkstra(graph, sensory_indices, motor_indices, max_hops=15)
+    motor_root_id = config.MOTOR_NEURONS['p9_walking'][0]
+    motor_index = flyid2i[motor_root_id]
 
-    if result is None:
-        print("[PHASE 2] FAILED: No excitatory path found within hop limit.")
-        print("          Consider relaxing max_hops or expanding sensory neuron candidates.")
+    print(f"[PHASE 2] Running cluster search toward motor neuron {motor_root_id}...")
+    print(f"          This will evaluate {len(sensory_candidates)} candidates. May take a few minutes.")
+    cluster = find_sensory_cluster(graph, sensory_candidates, motor_index, cluster_size=50, max_hops=15)
+
+    if not cluster:
+        print("[PHASE 2] FAILED: No sensory candidate reached the motor neuron within hop limit.")
         return
 
-    total_cost, path = result
-    print(f"\n[PHASE 2] PATH FOUND. Total synaptic cost: {total_cost:.6f}")
-    print(f"[PHASE 2] Biological hops: {len(path) - 1}")
-    print(f"\n[PHASE 2] Full pathway (Index -> Root ID):")
-    for step, idx in enumerate(path):
-        label = "[SENSORY]" if idx in sensory_indices else "[MOTOR]" if idx in motor_indices else "      "
-        print(f"  Step {step:02d}: Index={idx} | Root ID={i2flyid[idx]} {label}")
+    print(f"\n[PHASE 2] TOP {len(cluster)} SENSORY CLUSTER FOUND.")
+    print(f"[PHASE 2] Paste this array into config.py as 'left_eye_cluster':\n")
+    root_ids = [i2flyid[idx] for _, idx in cluster]
+    print(f"    {root_ids}\n")
 
-    gateway_index = path[0]
-    gateway_root_id = i2flyid[gateway_index]
-    print(f"\n[PHASE 2] Optimal Sensory Gateway: Index={gateway_index} | Root ID={gateway_root_id}")
-    print(f"          Update config.SENSORY_NEURONS to use this node as the stimulus entry point.")
+    for rank, (cost, idx) in enumerate(cluster):
+        print(f"  Rank {rank+1:02d}: Index={idx} | Root ID={i2flyid[idx]} | Cost={cost:.6f}")
 
 if __name__ == '__main__':
     run()
