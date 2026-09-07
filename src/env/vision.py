@@ -25,7 +25,13 @@ class FNAFVision:
 
         self.ref_left = None
         self.ref_right = None
-        
+        self._ref_camera_closed = None
+
+        self._cam_x = config.CAMERA_DETECTION["patch_x"]
+        self._cam_y = config.CAMERA_DETECTION["patch_y"]
+        self._cam_size = config.CAMERA_DETECTION["patch_size"]
+        self._cam_mse_trigger = config.CAMERA_DETECTION["mse_trigger"]
+
         self.debug_dir = os.path.join(config.PROJECT_ROOT, "logs", "vision_debug")
         os.makedirs(self.debug_dir, exist_ok=True)
 
@@ -65,6 +71,19 @@ class FNAFVision:
 
     def capture_right_reference(self):
         self.ref_right = self._capture_peak_reference(self.r_x, self.r_y, self.r_bbox)
+
+    def capture_camera_closed_reference(self):
+        self._ref_camera_closed = self._grab_gray(self._cam_x, self._cam_y, self._cam_size)
+
+    def is_camera_up(self) -> bool:
+        if self._ref_camera_closed is None:
+            return False
+        current = self._grab_gray(self._cam_x, self._cam_y, self._cam_size)
+        mse = float(np.mean((current - self._ref_camera_closed) ** 2))
+        if mse > self._cam_mse_trigger:
+            print(f"\n[VISION] CAMERA DETECTED (MSE: {mse:.1f}). INHIBITING GIANT FIBERS.")
+            return True
+        return False
 
     def get_left_sensory_rate(self) -> float:
         if self.ref_left is None:

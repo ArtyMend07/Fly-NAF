@@ -2,23 +2,23 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-# ============================================================================
-# PyTorch Model Parameters (matching Drosophila benchmark defaults)
-# ============================================================================
+
+
+
 MODEL_PARAMS = {
-    'tauSyn': 5.0,        # ms
-    'tDelay': 1.8,        # ms
-    'v0': -52.0,          # mV
-    'vReset': -52.0,      # mV
-    'vRest': -52.0,       # mV
-    'vThreshold': -45.0,  # mV
-    'tauMem': 20.0,       # ms
-    'tRefrac': 2.2,       # ms
+    'tauSyn': 5.0,        
+    'tDelay': 1.8,        
+    'v0': -52.0,          
+    'vReset': -52.0,      
+    'vRest': -52.0,       
+    'vThreshold': -45.0,  
+    'tauMem': 20.0,       
+    'tRefrac': 2.2,       
     'scalePoisson': 250,
     'wScale': 0.275,
 }
 
-DT = 0.1  # Simulation timestep in ms
+DT = 0.1  
 
 class PoissonSpikeGenerator(nn.Module):
     """Generates one timestep of Poisson-distributed spikes from firing rates."""
@@ -165,7 +165,6 @@ class FlyBrainModel(nn.Module):
         self.batch = batch
         self.size = size
         self.weights = weights
-        
         self.neurons = AlphaLIF(
             batch,
             size,
@@ -176,7 +175,6 @@ class FlyBrainModel(nn.Module):
         )
         self.poisson = PoissonSpikeGenerator(self.dt, MODEL_PARAMS['scalePoisson'], device=device)
         self.scale = MODEL_PARAMS['wScale']
-        
         self.conductance = None
         self.delay_buffer = None
         self.spikes = None
@@ -209,5 +207,4 @@ class FlyBrainModel(nn.Module):
                 self.v,
                 self.refrac,
             )
-            
         return self.spikes

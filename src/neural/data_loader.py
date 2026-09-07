@@ -18,7 +18,6 @@ def load_connectome_weights(conn_path, comp_path, wt_dir, csr=True, device='cpu'
     """
     wt_dir = Path(wt_dir)
     wt_dir.mkdir(parents=True, exist_ok=True)
-    
     coo_path = wt_dir / 'weight_coo.pkl'
     csr_path = wt_dir / 'weight_csr.pkl'
 

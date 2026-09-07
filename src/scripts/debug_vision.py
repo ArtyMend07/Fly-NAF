@@ -12,7 +12,6 @@ def run_debug():
     target_y = config.VISION_CALIBRATION["bonnie_target_y"]
     bbox_size = config.VISION_CALIBRATION["bbox_size"]
     offset = bbox_size // 2
-    
     bbox = {
         "top": target_y - offset, 
         "left": target_x - offset, 
@@ -26,7 +25,6 @@ def run_debug():
     print(f"[SYSTEM] Press 'q' in the image window or Ctrl+C here to exit.")
 
     cv2.namedWindow("Fly's Left Eye (LPLC2 Vision)", cv2.WINDOW_NORMAL)
-    # Mover a janela para o canto superior direito (x=1000, y=50) para no causar espelho infinito com a porta esquerda!
     cv2.moveWindow("Fly's Left Eye (LPLC2 Vision)", 1000, 50)
 
     with mss.MSS() as sct:
@@ -34,9 +32,7 @@ def run_debug():
             while True:
                 img = sct.grab(bbox)
                 frame = np.array(img)
-                
                 cv2.imshow("Fly's Left Eye (LPLC2 Vision)", frame)
-                
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
         except KeyboardInterrupt:
@@ -46,4 +42,3 @@ def run_debug():
 
 if __name__ == "__main__":
     run_debug()
-

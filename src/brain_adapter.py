@@ -7,21 +7,15 @@ from neural.data_loader import get_hash_tables, load_connectome_weights
 class BrainAdapter:
     def __init__(self, comp_path: str, conn_path: str, wt_dir: str, device: str = 'cpu'):
         self.device = device
-        
         print("[SYSTEM] Loading anatomical indices...")
         self.flyid2i, self.i2flyid = get_hash_tables(comp_path)
-        
         print("[SYSTEM] Loading sparse connectome weights...")
         self.weights = load_connectome_weights(
             conn_path, comp_path, wt_dir, csr=True, device=self.device
         )
-        
-        # approximate high-conductance state (arousal/octopamine neuromodulation)
         arousal_multiplier = 10.0
         self.weights = self.weights * arousal_multiplier
-        
         self.num_neurons = self.weights.shape[0]
-        
         print(f"[SYSTEM] Brain loaded. Total Neurons: {self.num_neurons}")
         self.model = None
 
@@ -36,7 +30,6 @@ class BrainAdapter:
             exc_indices=exc_indices, 
             device=self.device
         )
-        
     def step(self, rates: torch.Tensor, steps: int = 1) -> torch.Tensor:
         accumulated_spikes = torch.zeros_like(rates)
         for _ in range(steps):

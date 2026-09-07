@@ -16,7 +16,6 @@ def load_excitatory_graph(conn_path: str) -> Dict[int, List[Tuple[float, int]]]:
         src = int(row['Presynaptic_Index'])
         dst = int(row['Postsynaptic_Index'])
         weight = float(row['Excitatory x Connectivity'])
-        # Dijkstra minimizes cost. Stronger synapses = shorter distance.
         cost = 1.0 / weight
         graph[src].append((cost, dst))
 
