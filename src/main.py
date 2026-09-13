@@ -1,160 +1,240 @@
-import time
-import threading
-import torch
+import asyncio
+import logging
+import math
 import random
+import time
+from dataclasses import dataclass, field
 
+import torch
+
+import config
 from brain_adapter import BrainAdapter
 from env.vision import FNAFVision
-from env.input_controller import FNAFController
-import config
+from env.input_controller import FNAFController, start_worker
 
-class SharedState:
-    def __init__(self):
-        self.left_rate = 0.0
-        self.right_rate = 0.0
-        self.camera_inhibit_rate = 0.0
-        self.is_checking_left = False
-        self.is_checking_right = False
-        self.lock = threading.Lock()
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s',
+    datefmt='%H:%M:%S',
+)
+_log = logging.getLogger(__name__)
 
-def vision_thread_loop(state: SharedState, vision: FNAFVision):
-    while True:
-        try:
-            with state.lock:
-                check_l = state.is_checking_left
-                check_r = state.is_checking_right
+_WARMUP_COUNTDOWN = 10
 
-            l_val = vision.get_left_sensory_rate() if check_l else 0.0
-            r_val = vision.get_right_sensory_rate() if check_r else 0.0
-            cam_val = config.SIMULATION_PARAMS["base_sensory_rate_hz"] if vision.is_camera_up() else 0.0
 
-            with state.lock:
-                state.left_rate = l_val
-                state.right_rate = r_val
-                state.camera_inhibit_rate = cam_val
+@dataclass
+class SensoryState:
+    left_rate: float = 0.0
+    right_rate: float = 0.0
+    cam_inhib: float = 0.0
+    check_left: bool = False
+    check_right: bool = False
+    camera_open: bool = False
 
-            time.sleep(1.0 / 30.0)
-        except Exception:
-            break
 
-def foraging_thread_loop(state: SharedState, vision: FNAFVision, controller: FNAFController):
-    min_inv = config.FORAGING_PARAMS["min_interval_sec"]
-    max_inv = config.FORAGING_PARAMS["max_interval_sec"]
-    insp_time = config.FORAGING_PARAMS["light_inspection_time"]
-    print("[SYSTEM] Enter the game NOW. Calibrating baseline in 10 seconds...")
-    for i in range(10, 0, -1):
-        print(f"[SYSTEM] T-{i}...")
-        time.sleep(1.0)
-    print("[SYSTEM] Executing Wake-Up Routine (Calibration)...")
+@dataclass
+class MotorRefrac:
+    left: float = 0.0
+    right: float = 0.0
+    camera: float = 0.0
+
+
+class ConnectomeEngine:
+    def __init__(self, device: str):
+        self._device = device
+        self._adapter = BrainAdapter(
+            config.COMPLETENESS_CSV,
+            config.CONNECTIVITY_PARQUET,
+            config.DATA_DIR,
+            device,
+        )
+        sensory = config.SENSORY_NEURONS
+        motor = config.MOTOR_NEURONS
+
+        self._l_sensory_idx = self._adapter.map_neuron_ids_to_indices(sensory.left_eye_cluster)
+        self._r_sensory_idx = self._adapter.map_neuron_ids_to_indices(sensory.right_eye_cluster)
+        all_sensory = self._l_sensory_idx + self._r_sensory_idx
+
+        self._l_motor_idx = self._adapter.map_neuron_ids_to_indices([motor.dnp01_giant_fiber[0]])
+        self._r_motor_idx = self._adapter.map_neuron_ids_to_indices([motor.dnp01_giant_fiber[1]])
+        self._explore_idx = self._adapter.map_neuron_ids_to_indices(motor.dnp09_explore)
+        self._l_inhib_idx = self._adapter.map_neuron_ids_to_indices(sensory.camera_inhibitor_left)
+        self._r_inhib_idx = self._adapter.map_neuron_ids_to_indices(sensory.camera_inhibitor_right)
+
+        self._adapter.initialize_model(exc_indices=all_sensory)
+
+        self._rates = torch.zeros(1, self._adapter.num_neurons, device=device)
+        self._base_rate = config.SIMULATION_PARAMS.base_sensory_rate_hz
+        self._steps = config.SIMULATION_PARAMS.steps_per_frame
+        self.frame_dt = 1.0 / config.SIMULATION_PARAMS.target_fps
+
+    def step(self, state: SensoryState, current_time: float) -> torch.Tensor:
+        self._rates[:, self._l_sensory_idx] = self._base_rate * state.left_rate
+        self._rates[:, self._r_sensory_idx] = self._base_rate * state.right_rate
+        self._rates[:, self._l_inhib_idx] = state.cam_inhib
+        self._rates[:, self._r_inhib_idx] = state.cam_inhib
+
+        cpg = config.CPG_DYNAMICS
+        cpg_wave = (math.sin(current_time * cpg.frequency_hz * 2 * math.pi) + 1) / 2
+        cpg_current = cpg.peak_current if cpg_wave > cpg.spike_threshold else cpg.base_current
+        self._rates[:, self._explore_idx] = cpg_current
+
+        return self._adapter.step(self._rates, steps=self._steps)
+
+    @property
+    def l_motor_idx(self):
+        return self._l_motor_idx
+
+    @property
+    def r_motor_idx(self):
+        return self._r_motor_idx
+
+    @property
+    def explore_idx(self):
+        return self._explore_idx
+
+
+async def _vision_task(vision: FNAFVision, state: SensoryState, shutdown: asyncio.Event):
+    delay = config.VISION_DYNAMICS.capture_delay_sec
+    while not shutdown.is_set():
+        cam_up = vision.is_camera_up()
+        state.camera_open = cam_up
+        state.left_rate = vision.get_left_sensory_rate() if state.check_left else 0.0
+        state.right_rate = vision.get_right_sensory_rate() if state.check_right else 0.0
+        state.cam_inhib = config.SIMULATION_PARAMS.base_sensory_rate_hz if cam_up else 0.0
+        await asyncio.sleep(delay)
+
+
+async def _calibrate(vision: FNAFVision, controller: FNAFController):
+    settle = config.FORAGING_PARAMS.light_activation_settle_sec
+
+    _log.info('calibrating in %d seconds', _WARMUP_COUNTDOWN)
+    for i in range(_WARMUP_COUNTDOWN, 0, -1):
+        _log.info('T-%d', i)
+        await asyncio.sleep(1.0)
 
     controller.set_left_light(True)
-    time.sleep(0.4)
-    vision.capture_left_reference()
-    print("[SYSTEM] Left reference captured.")
+    await asyncio.sleep(settle)
+    await asyncio.get_event_loop().run_in_executor(None, vision.capture_left_reference)
+    _log.info('left reference captured')
     controller.set_left_light(False)
-    time.sleep(0.5)
+    await asyncio.sleep(settle + 0.1)
 
     controller.set_right_light(True)
-    time.sleep(0.4)
-    vision.capture_right_reference()
-    print("[SYSTEM] Right reference captured.")
+    await asyncio.sleep(settle)
+    await asyncio.get_event_loop().run_in_executor(None, vision.capture_right_reference)
+    _log.info('right reference captured')
     controller.set_right_light(False)
 
+    await asyncio.sleep(settle)
     vision.capture_camera_closed_reference()
-    print("[SYSTEM] Camera-closed reference captured.")
+    _log.info('camera-closed reference captured')
 
-    print("[SYSTEM] Wake-Up Routine complete. Entering paranoia loop.")
-    sides = ["left", "right"]
-    while True:
-        sleep_duration = random.uniform(min_inv, max_inv)
-        time.sleep(sleep_duration)
+
+async def _foraging_task(
+    vision: FNAFVision,
+    controller: FNAFController,
+    state: SensoryState,
+    shutdown: asyncio.Event,
+):
+    await _calibrate(vision, controller)
+
+    settle = config.FORAGING_PARAMS.light_activation_settle_sec
+    sides = ['left', 'right']
+
+    while not shutdown.is_set():
+        interval = random.uniform(
+            config.FORAGING_PARAMS.min_interval_sec,
+            config.FORAGING_PARAMS.max_interval_sec,
+        )
+        await asyncio.sleep(interval)
+
         target = random.choice(sides)
-        if target == "left":
+        if state.camera_open:
+            continue  # Impede a apropriação do mouse para acender luzes quando o player está nas câmeras
+
+        if target == 'left':
             controller.set_left_light(True)
-            time.sleep(0.4) 
-            with state.lock: state.is_checking_left = True
-            time.sleep(insp_time)
-            with state.lock: state.is_checking_left = False
+            await asyncio.sleep(settle)
+            state.check_left = True
+            await asyncio.sleep(config.FORAGING_PARAMS.light_inspection_time)
+            state.check_left = False
             controller.set_left_light(False)
         else:
             controller.set_right_light(True)
-            time.sleep(0.4)
-            with state.lock: state.is_checking_right = True
-            time.sleep(insp_time)
-            with state.lock: state.is_checking_right = False
+            await asyncio.sleep(settle)
+            state.check_right = True
+            await asyncio.sleep(config.FORAGING_PARAMS.light_inspection_time)
+            state.check_right = False
             controller.set_right_light(False)
 
-def main():
-    print("[SYSTEM] Starting FNAF Fly Brain Connectome...")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    adapter = BrainAdapter(
-        config.COMPLETENESS_CSV, 
-        config.CONNECTIVITY_PARQUET, 
-        config.DATA_DIR, 
-        device
-    )
-    l_sensory_idx = adapter.map_neuron_ids_to_indices(config.SENSORY_NEURONS["left_eye_cluster"])
-    r_sensory_idx = adapter.map_neuron_ids_to_indices(config.SENSORY_NEURONS["right_eye_cluster"])
-    all_sensory = l_sensory_idx + r_sensory_idx
 
-    l_motor_idx = adapter.map_neuron_ids_to_indices([config.MOTOR_NEURONS["dnp01_giant_fiber"][0]])
-    r_motor_idx = adapter.map_neuron_ids_to_indices([config.MOTOR_NEURONS["dnp01_giant_fiber"][1]])
+async def _engine_task(
+    engine: ConnectomeEngine,
+    controller: FNAFController,
+    state: SensoryState,
+    shutdown: asyncio.Event,
+):
+    refrac = MotorRefrac()
+    motor_dur = config.FORAGING_PARAMS.motor_refractory_sec
+    cam_dur = config.FORAGING_PARAMS.camera_refractory_sec
 
-    l_inhib_idx = adapter.map_neuron_ids_to_indices(config.SENSORY_NEURONS["camera_inhibitor_left"])
-    r_inhib_idx = adapter.map_neuron_ids_to_indices(config.SENSORY_NEURONS["camera_inhibitor_right"])
-    adapter.initialize_model(exc_indices=all_sensory)
+    while not shutdown.is_set():
+        t_start = time.perf_counter()
+        now = time.time()
+
+        loop = asyncio.get_event_loop()
+        spikes = await loop.run_in_executor(None, engine.step, state, now)
+
+        if spikes[0, engine.explore_idx].any() and now > refrac.camera:
+            controller.toggle_camera()
+            refrac.camera = now + cam_dur
+
+        if spikes[0, engine.l_motor_idx].any() and now > refrac.left:
+            if not state.camera_open:
+                _log.warning('left giant fiber fired')
+                controller.trigger_left_door()
+                refrac.left = now + motor_dur
+            state.left_rate = 0.0
+
+        if spikes[0, engine.r_motor_idx].any() and now > refrac.right:
+            if not state.camera_open:
+                _log.warning('right giant fiber fired')
+                controller.trigger_right_door()
+                refrac.right = now + motor_dur
+            state.right_rate = 0.0
+
+        elapsed = time.perf_counter() - t_start
+        remaining = engine.frame_dt - elapsed
+        if remaining > 0:
+            await asyncio.sleep(remaining)
+        else:
+            await asyncio.sleep(0)
+
+
+async def _run():
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    _log.info('brain core online, device=%s', device)
+
+    start_worker()
+    engine = ConnectomeEngine(device)
     vision = FNAFVision()
     controller = FNAFController()
-    state = SharedState()
-    v_thread = threading.Thread(target=vision_thread_loop, args=(state, vision), daemon=True)
-    v_thread.start()
-    f_thread = threading.Thread(target=foraging_thread_loop, args=(state, vision, controller), daemon=True)
-    f_thread.start()
-    base_rate = config.SIMULATION_PARAMS["base_sensory_rate_hz"]
-    steps_per_frame = config.SIMULATION_PARAMS["steps_per_frame"]
-    rates = torch.zeros(1, adapter.num_neurons, device=device)
-    print("[SYSTEM] Brain Core Online.")
-    l_refractory_timer = 0.0
-    r_refractory_timer = 0.0
-    refractory_duration = 2.0
+    state = SensoryState()
+    shutdown = asyncio.Event()
+
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(_vision_task(vision, state, shutdown))
+        tg.create_task(_foraging_task(vision, controller, state, shutdown))
+        tg.create_task(_engine_task(engine, controller, state, shutdown))
+
+
+def main():
     try:
-        while True:
-            t_start = time.perf_counter()
-
-            with state.lock:
-                l_mult = state.left_rate
-                r_mult = state.right_rate
-                cam_inhib = state.camera_inhibit_rate
-
-            rates[:, l_sensory_idx] = base_rate * l_mult
-            rates[:, r_sensory_idx] = base_rate * r_mult
-            rates[:, l_inhib_idx] = cam_inhib
-            rates[:, r_inhib_idx] = cam_inhib
-
-            spikes = adapter.step(rates, steps=steps_per_frame)
-            current_time = time.time()
-            if spikes is not None:
-                if spikes[0, l_motor_idx].any():
-                    if current_time > l_refractory_timer:
-                        print("\n[BRAIN ALERT] LEFT GIANT FIBER FIRED! CLOSING LEFT DOOR!")
-                        controller.trigger_left_door()
-                        l_refractory_timer = current_time + refractory_duration
-                        with state.lock: state.left_rate = 0.0
-                    else:
-                        print("\n[BRAIN ALERT] LEFT GIANT FIBER BLOCKED BY SYNAPTIC FATIGUE (Refractory Period).")
-                if spikes[0, r_motor_idx].any():
-                    if current_time > r_refractory_timer:
-                        print("\n[BRAIN ALERT] RIGHT GIANT FIBER FIRED! CLOSING RIGHT DOOR!")
-                        controller.trigger_right_door()
-                        r_refractory_timer = current_time + refractory_duration
-                        with state.lock: state.right_rate = 0.0
-                    else:
-                        print("\n[BRAIN ALERT] RIGHT GIANT FIBER BLOCKED BY SYNAPTIC FATIGUE (Refractory Period).")
-            elapsed = time.perf_counter() - t_start
-            if elapsed < 0.01:
-                time.sleep(0.01 - elapsed)
+        asyncio.run(_run())
     except KeyboardInterrupt:
-        print("\n[SYSTEM] Shutdown initiated.")
+        _log.info('shutdown')
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

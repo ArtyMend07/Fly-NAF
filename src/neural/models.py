@@ -2,31 +2,16 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+import config
 
+_P = config.NEURAL_PARAMS
 
-
-MODEL_PARAMS = {
-    'tauSyn': 5.0,        
-    'tDelay': 1.8,        
-    'v0': -52.0,          
-    'vReset': -52.0,      
-    'vRest': -52.0,       
-    'vThreshold': -45.0,  
-    'tauMem': 20.0,       
-    'tRefrac': 2.2,       
-    'scalePoisson': 250,
-    'wScale': 0.275,
-}
-
-DT = 0.1  
 
 class PoissonSpikeGenerator(nn.Module):
-    """Generates one timestep of Poisson-distributed spikes from firing rates."""
-
-    def __init__(self, dt, scale, device='cpu'):
+    def __init__(self, device='cpu'):
         super().__init__()
-        self.prob_scale = dt / 1000.0
-        self.scale = scale
+        self.prob_scale = _P.dt / 1000.0
+        self.scale = _P.scale_poisson
         self.device = device
 
     def forward(self, rates, generator=None):
@@ -34,12 +19,10 @@ class PoissonSpikeGenerator(nn.Module):
 
 
 class AlphaSynapse(nn.Module):
-    """Alpha-function synapse dynamics with configurable delay."""
-
-    def __init__(self, batch, size, dt, params, device='cpu'):
+    def __init__(self, batch, size, device='cpu'):
         super().__init__()
-        self.time_factor = dt / params['tauSyn']
-        self.steps_delay = int(params['tDelay'] / dt)
+        self.time_factor = _P.dt / _P.tau_syn
+        self.steps_delay = int(_P.t_delay / _P.dt)
         self.size = size
         self.device = device
         self.batch = batch
@@ -61,36 +44,30 @@ class AlphaSynapse(nn.Module):
 
 
 class LIFNeuron(nn.Module):
-    """Leaky Integrate-and-Fire neuron with surrogate gradient (ATan)."""
-
-    def __init__(self, batch, size, dt, params, device='cpu'):
+    def __init__(self, batch, size, device='cpu'):
         super().__init__()
         self.size = size
-        self.dt = dt
-        self.tau_mem = params['tauMem']
-        self.v_reset = params['vReset']
-        self.v_rest = params['vRest']
-        self.v_threshold = params['vThreshold']
-        self.v_0 = params['v0']
-        self.time_factor = dt / self.tau_mem
+        self.tau_mem = _P.tau_mem
+        self.v_reset = _P.v_reset
+        self.v_rest = _P.v_rest
+        self.v_threshold = _P.v_threshold
+        self.v_0 = _P.v0
+        self.time_factor = _P.dt / self.tau_mem
         self.spike_gradient = self.ATan.apply
         self.device = device
         self.batch = batch
 
     def state_init(self):
-        v = torch.zeros(self.batch, self.size, device=self.device) + self.v_0
+        v = torch.full((self.batch, self.size), self.v_0, device=self.device)
         spikes = torch.zeros(self.batch, self.size, device=self.device)
         return spikes, v
 
     def forward(self, conductance, voltage_stim, v):
         v = v + voltage_stim
         v = v + self.time_factor * (conductance - (v - self.v_rest))
-
         spike = self.spike_gradient(v - self.v_threshold)
-
         reset = ((v - self.v_reset) * spike).detach()
         v = v - reset
-
         return spike, v
 
     @staticmethod
@@ -104,19 +81,17 @@ class LIFNeuron(nn.Module):
         @staticmethod
         def backward(ctx, grad_output):
             (v,) = ctx.saved_tensors
-            grad = 1 / (1 + (np.pi * v).pow_(2)) * grad_output
+            grad = 1 / (1 + (np.pi * v).pow(2)) * grad_output
             return grad
 
 
 class AlphaLIF(nn.Module):
-    """LIF neuron with alpha-function synapse dynamics and refractory period."""
-
-    def __init__(self, batch, size, dt, params, exc_indices=None, device='cpu'):
+    def __init__(self, batch, size, exc_indices=None, device='cpu'):
         super().__init__()
         self.size = size
-        self.synapse = AlphaSynapse(batch, size, dt, params, device=device)
-        self.neuron = LIFNeuron(batch, size, dt, params, device=device)
-        base_refrac = int(round(params['tRefrac'] / dt))
+        self.synapse = AlphaSynapse(batch, size, device=device)
+        self.neuron = LIFNeuron(batch, size, device=device)
+        base_refrac = int(round(_P.t_refrac / _P.dt))
 
         self.refrac_steps = torch.full(
             (size,),
@@ -146,12 +121,7 @@ class AlphaLIF(nn.Module):
             delay_buffer,
             (refrac >= self.refrac_steps.unsqueeze(0)).float()
         )
-
-        spikes, v_new = self.neuron(
-            conductance,
-            voltage_stim,
-            v
-        )
+        spikes, v_new = self.neuron(conductance, voltage_stim, v)
         conductance_reset = (conductance_new * spikes).detach()
         conductance_new = conductance_new - conductance_reset
         return conductance_new, delay_buffer, spikes, v_new, refrac
@@ -160,34 +130,19 @@ class AlphaLIF(nn.Module):
 class FlyBrainModel(nn.Module):
     def __init__(self, size, weights, exc_indices=None, device='cpu', batch=1):
         super().__init__()
-        self.dt = DT
         self.device = device
         self.batch = batch
         self.size = size
         self.weights = weights
-        self.neurons = AlphaLIF(
-            batch,
-            size,
-            self.dt,
-            MODEL_PARAMS,
-            exc_indices=exc_indices,
-            device=device
-        )
-        self.poisson = PoissonSpikeGenerator(self.dt, MODEL_PARAMS['scalePoisson'], device=device)
-        self.scale = MODEL_PARAMS['wScale']
-        self.conductance = None
-        self.delay_buffer = None
-        self.spikes = None
-        self.v = None
-        self.refrac = None
+        self.neurons = AlphaLIF(batch, size, exc_indices=exc_indices, device=device)
+        self.poisson = PoissonSpikeGenerator(device=device)
+        self.scale = _P.w_scale
+        self.reset_state()
 
     def reset_state(self):
         self.conductance, self.delay_buffer, self.spikes, self.v, self.refrac = self.neurons.state_init()
 
     def step(self, sensory_rates):
-        if self.conductance is None:
-            self.reset_state()
-
         with torch.no_grad():
             poisson_spikes = self.poisson(sensory_rates)
             voltage_stim = self.scale * poisson_spikes
