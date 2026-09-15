@@ -40,3 +40,6 @@ class BrainAdapter:
         for _ in range(steps):
             accumulated_spikes += self.model.step(rates)
         return accumulated_spikes
+
+    def membrane_potential(self) -> torch.Tensor:
+        return self.model.v

@@ -15,7 +15,8 @@ class PoissonSpikeGenerator(nn.Module):
         self.device = device
 
     def forward(self, rates, generator=None):
-        return torch.bernoulli(rates * self.prob_scale, generator=generator) * self.scale
+        probs = torch.clamp(rates * self.prob_scale, 0.0, 1.0)
+        return torch.bernoulli(probs, generator=generator) * self.scale
 
 
 class AlphaSynapse(nn.Module):
