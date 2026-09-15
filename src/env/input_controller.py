@@ -24,7 +24,15 @@ def _worker():
         time.sleep(config.MOTOR_CALIBRATION.click_delay_sec)
         user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
+    def _slide(x: int, y_from: int, y_to: int, steps: int = 20, delay: float = 0.008):
+        for i in range(1, steps + 1):
+            y = y_from + int((y_to - y_from) * i / steps)
+            user32.SetCursorPos(x, y)
+            time.sleep(delay)
+
+
     light_state = {'left': False, 'right': False}
+    camera_state = {'open': False}
 
     while True:
         cmd = _CMD_QUEUE.get()
@@ -42,8 +50,6 @@ def _worker():
             state = cmd.get('state', False)
             if light_state['left'] != state:
                 _move(config.MOTOR_CALIBRATION.left_light_button_x, config.MOTOR_CALIBRATION.left_light_button_y)
-                if state:
-                    time.sleep(config.MOTOR_CALIBRATION.pan_delay_sec)
                 _click()
                 light_state['left'] = state
 
@@ -51,14 +57,24 @@ def _worker():
             state = cmd.get('state', False)
             if light_state['right'] != state:
                 _move(config.MOTOR_CALIBRATION.right_light_button_x, config.MOTOR_CALIBRATION.right_light_button_y)
-                if state:
-                    time.sleep(config.MOTOR_CALIBRATION.pan_delay_sec)
                 _click()
                 light_state['right'] = state
 
-        elif action == 'toggle_camera':
-            _move(config.MOTOR_CALIBRATION.camera_hover_x, config.MOTOR_CALIBRATION.camera_hover_y)
-            _move(config.MOTOR_CALIBRATION.camera_hover_x, config.MOTOR_CALIBRATION.screen_center_y)
+        elif action == 'open_camera':
+            cx = config.MOTOR_CALIBRATION.camera_hover_x
+            top = config.MOTOR_CALIBRATION.screen_center_y
+            bot = config.MOTOR_CALIBRATION.camera_hover_y
+            if not camera_state['open']:
+                _slide(cx, top, bot)
+                camera_state['open'] = True
+
+        elif action == 'close_camera':
+            cx = config.MOTOR_CALIBRATION.camera_hover_x
+            top = config.MOTOR_CALIBRATION.screen_center_y
+            bot = config.MOTOR_CALIBRATION.camera_hover_y
+            if camera_state['open']:
+                _slide(cx, bot, top)
+                camera_state['open'] = False
 
         else:
             _log.warning('unknown command action: %s', action)
@@ -84,5 +100,8 @@ class FNAFController:
     def set_right_light(self, state: bool):
         _CMD_QUEUE.put({'action': 'set_right_light', 'state': state})
 
-    def toggle_camera(self):
-        _CMD_QUEUE.put({'action': 'toggle_camera'})
+    def open_camera(self):
+        _CMD_QUEUE.put({'action': 'open_camera'})
+
+    def close_camera(self):
+        _CMD_QUEUE.put({'action': 'close_camera'})
