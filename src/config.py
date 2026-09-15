@@ -12,48 +12,57 @@ COMPLETENESS_CSV = os.path.join(DATA_DIR, '2025_Completeness_783.csv')
 
 @dataclass(frozen=True)
 class VisionCalibration:
-    left_target_x: int = 545
-    left_target_y: int = 603
-    left_bbox_size: int = 951
-    right_target_x: int = 1096
-    right_target_y: int = 535
-    right_bbox_size: int = 471
+    left_target_x: int = 192
+    left_target_y: int = 324
+    left_bbox_size: int = 578
+    right_target_x: int = 851
+    right_target_y: int = 328
+    right_bbox_size: int = 335
 
 
 @dataclass(frozen=True)
 class MotorCalibration:
-    left_door_button_x: int = 264
-    left_door_button_y: int = 440
-    left_light_button_x: int = 293
-    left_light_button_y: int = 567
-    right_door_button_x: int = 1604
-    right_door_button_y: int = 444
-    right_light_button_x: int = 1601
-    right_light_button_y: int = 572
-    camera_hover_x: int = 960
-    camera_hover_y: int = 1000
+    left_door_button_x: int = 55
+    left_door_button_y: int = 343
+    left_light_button_x: int = 52
+    left_light_button_y: int = 450
+    right_door_button_x: int = 1210
+    right_door_button_y: int = 346
+    right_light_button_x: int = 1217
+    right_light_button_y: int = 467
+    camera_hover_x: int = 552
+    camera_hover_y: int = 665
+    camera_1c_x: int = 925
+    camera_1c_y: int = 484
+    camera_4b_x: int = 1086
+    camera_4b_y: int = 639
     screen_center_y: int = 540
     click_delay_sec: float = 0.05
-    pan_delay_sec: float = 1.2
+    pan_delay_sec: float = 1.0
 
 
 @dataclass(frozen=True)
 class SimulationParams:
-    base_sensory_rate_hz: float = 200.0
-    steps_per_frame: int = 20
-    target_fps: int = 20
+    base_sensory_rate_hz: float = 1000.0
+    steps_per_frame: int = 2
+    target_fps: int = 10
     arousal_multiplier: float = 10.0
 
 
 @dataclass(frozen=True)
 class ForagingParams:
-    min_interval_sec: float = 4.0
-    max_interval_sec: float = 7.0
+    subliminal_noise_hz: float = 8.0
+    subliminal_bias_threshold: float = 0.05
+    saccade_leak_per_frame: float = 0.8
     mse_threshold: float = 1500.0
     light_inspection_time: float = 0.6
     light_activation_settle_sec: float = 0.4
     motor_refractory_sec: float = 2.0
-    camera_refractory_sec: float = 3.0
+    camera_refractory_sec: float = 15.0
+    saccade_refractory_sec: float = 1.0
+    camera_watch_max_sec: float = 1.5
+    camera_watch_min_sec: float = 0.8
+    camera_release_forage_bias: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -67,7 +76,7 @@ class VisionDynamics:
 @dataclass(frozen=True)
 class NeuralParams:
     tau_syn: float = 5.0
-    t_delay: float = 1.8
+    t_delay: float = 1.0
     v0: float = -52.0
     v_reset: float = -52.0
     v_rest: float = -52.0
@@ -76,23 +85,26 @@ class NeuralParams:
     t_refrac: float = 2.2
     scale_poisson: int = 250
     w_scale: float = 0.275
-    dt: float = 0.1
+    dt: float = 1.0
 
 
 @dataclass(frozen=True)
 class CameraDetection:
-    patch_x: int = 960
-    patch_y: int = 400
+    patch_x: int = 521
+    patch_y: int = 300
     patch_size: int = 200
-    mse_trigger: float = 800.0
+    mse_trigger: float = 100.0
 
 
 @dataclass(frozen=True)
 class CpgDynamics:
-    frequency_hz: float = 0.1
+    frequency_hz: float = 0.03
     base_current: float = 50.0
-    peak_current: float = 300.0
+    peak_current: float = 200.0
     spike_threshold: float = 0.85
+    leak_per_frame: float = 0.97
+    integral_trigger: float = 25.0
+    release_drive_threshold: float = 0.4
 
 
 @dataclass(frozen=True)
@@ -169,7 +181,6 @@ class MotorNeurons:
         720575940635872101,
         720575940627652358,
     ])
-
 
 VISION_CALIBRATION = VisionCalibration()
 MOTOR_CALIBRATION = MotorCalibration()
