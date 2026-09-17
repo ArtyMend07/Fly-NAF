@@ -32,6 +32,7 @@ class MotorCalibration:
     right_light_button_y: int = 467
     camera_hover_x: int = 552
     camera_hover_y: int = 665
+    camera_bar_dwell_sec: float = 0.25
     camera_1c_x: int = 925
     camera_1c_y: int = 484
     camera_4b_x: int = 1086
@@ -46,23 +47,22 @@ class SimulationParams:
     base_sensory_rate_hz: float = 1000.0
     steps_per_frame: int = 2
     target_fps: int = 10
-    arousal_multiplier: float = 10.0
+    arousal_multiplier: float = 3.0
 
 
 @dataclass(frozen=True)
 class ForagingParams:
-    subliminal_noise_hz: float = 8.0
-    subliminal_bias_threshold: float = 0.05
-    saccade_leak_per_frame: float = 0.8
+    subliminal_noise_hz: float = 1.0
     mse_threshold: float = 1500.0
     light_inspection_time: float = 0.6
     light_activation_settle_sec: float = 0.4
     motor_refractory_sec: float = 2.0
     camera_refractory_sec: float = 15.0
     saccade_refractory_sec: float = 1.0
-    camera_watch_max_sec: float = 1.5
+    camera_watch_max_sec: float = 6.0
     camera_watch_min_sec: float = 0.8
     camera_release_forage_bias: float = 0.5
+
 
 
 @dataclass(frozen=True)
@@ -94,17 +94,63 @@ class CameraDetection:
     patch_y: int = 300
     patch_size: int = 200
     mse_trigger: float = 100.0
+    close_settle_sec: float = 1.0
+    stuck_warn_sec: float = 5.0
+    lower_retry_sec: float = 3.0
 
 
 @dataclass(frozen=True)
-class CpgDynamics:
-    frequency_hz: float = 0.03
-    base_current: float = 50.0
-    peak_current: float = 200.0
-    spike_threshold: float = 0.85
-    leak_per_frame: float = 0.97
-    integral_trigger: float = 25.0
-    release_drive_threshold: float = 0.4
+class BrainView:
+    enabled: bool = True
+    port: int = 8770
+    width: int = 620
+    height: int = 1040
+    ingame_width: int = 280
+    ingame_height: int = 150
+    ingame_margin: int = 8
+    focus_handback_sec: float = 12.0
+    stream_interval_sec: float = 0.05
+    launch_browser: bool = True
+
+
+@dataclass(frozen=True)
+class OverlayPanel:
+    enabled: bool = True
+    width: int = 300
+    height: int = 352
+    opacity: float = 0.95
+    refresh_sec: float = 0.05
+    spike_hold_sec: float = 0.35
+
+
+@dataclass(frozen=True)
+class ExploreDynamics:
+    bound: float = 1.0
+    drive_leak_per_frame: float = 0.95
+    gain_ratio: float = 1.00
+    baseline_tau_frames: float = 500.0
+    scale_tau_frames: float = 300.0
+    release_ratio: float = 0.40
+
+
+@dataclass(frozen=True)
+class SearchDynamics:
+    bound: float = 1.0
+    drive_leak_per_frame: float = 0.90
+    gain_ratio: float = 0.70
+    baseline_tau_frames: float = 500.0
+    scale_tau_frames: float = 300.0
+    habituation_leak_per_frame: float = 0.985
+    habituation_gain: float = 3.0
+    evidence_gain: float = 4.0
+    starvation_sec: float = 16.0
+
+
+@dataclass(frozen=True)
+class DoorDynamics:
+    hold_leak_per_frame: float = 0.972
+    release_threshold: float = 0.25
+    reopen_settle_sec: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -189,6 +235,10 @@ FORAGING_PARAMS = ForagingParams()
 VISION_DYNAMICS = VisionDynamics()
 NEURAL_PARAMS = NeuralParams()
 CAMERA_DETECTION = CameraDetection()
-CPG_DYNAMICS = CpgDynamics()
+OVERLAY_PANEL = OverlayPanel()
+BRAIN_VIEW = BrainView()
+EXPLORE_DYNAMICS = ExploreDynamics()
+SEARCH_DYNAMICS = SearchDynamics()
+DOOR_DYNAMICS = DoorDynamics()
 SENSORY_NEURONS = SensoryNeurons()
 MOTOR_NEURONS = MotorNeurons()
