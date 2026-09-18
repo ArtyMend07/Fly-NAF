@@ -17,7 +17,9 @@ from env.overlay import (
     capture_regions,
     find_browser,
     find_game_window,
+    foreground_window,
     hold_foreground,
+    is_window,
     ingame_overlay_rect,
     motor_regions,
     pick_overlay_position,
@@ -53,6 +55,7 @@ class SensoryState:
     l_sensory_count: int = 0
     r_sensory_count: int = 0
     forage_bias: float = 0.0
+    office_centred: bool = True
     blind_until: dict = field(default_factory=lambda: {'left': 0.0, 'right': 0.0})
 
 
@@ -101,12 +104,19 @@ class ConnectomeEngine:
         self.frame_dt = 1.0 / config.SIMULATION_PARAMS.target_fps
         self.eye_membrane_diff = 0.0
         self.explore_membrane = 0.0
+        self.frames = 0
+        self.driven_frames = {'left': 0, 'right': 0}
 
     @property
     def sensory_span(self) -> int:
         return len(self._l_sensory_idx) * self._steps
 
     def step(self, state: SensoryState, current_time: float) -> torch.Tensor:
+        self.frames += 1
+        if state.left_rate > 0.0:
+            self.driven_frames['left'] += 1
+        if state.right_rate > 0.0:
+            self.driven_frames['right'] += 1
         self._rates.zero_()
 
         self._rates[:, self._l_sensory_idx] = self._base_rate * state.left_rate
@@ -147,10 +157,13 @@ class ConnectomeEngine:
         return self._r_sensory_idx
 
 
-async def _vision_task(vision: FNAFVision, state: SensoryState, shutdown: asyncio.Event):
+async def _vision_task(
+    vision: FNAFVision, controller: FNAFController, state: SensoryState, shutdown: asyncio.Event
+):
     delay = config.VISION_DYNAMICS.capture_delay_sec
     while not shutdown.is_set():
-        cam_up = vision.is_camera_up()
+        state.office_centred = controller.facing() == 'centre'
+        cam_up = state.office_centred and vision.is_camera_up()
         now = time.time()
         looking_left = state.check_left and now >= state.blind_until['left']
         looking_right = state.check_right and now >= state.blind_until['right']
@@ -184,14 +197,17 @@ async def _calibrate_eye_references_live(vision: FNAFVision, controller: FNAFCon
 async def _calibrate(vision: FNAFVision, controller: FNAFController):
     settle = config.FORAGING_PARAMS.light_activation_settle_sec
 
+    await _countdown_to_the_night(config.BRAIN_VIEW.start_countdown_sec)
+
     if vision.load_reference_from_disk():
         _log.info('loaded left/right eye references from disk, skipping live calibration')
     else:
         await _calibrate_eye_references_live(vision, controller, settle)
 
+    await _await_motor(controller.centre_view())
     await asyncio.sleep(settle)
     vision.capture_camera_closed_reference()
-    _log.info('camera-closed reference captured')
+    _log.info('office reference captured with the view centred')
 
 
 async def _await_motor(done, timeout_sec: float = 6.0):
@@ -201,32 +217,65 @@ async def _await_motor(done, timeout_sec: float = 6.0):
     return finished
 
 
-async def _reanchor_office_reference(vision: FNAFVision, settle_sec: float) -> bool:
+async def _office_comes_back(
+    vision: FNAFVision, controller, settle_sec: float, confirm_sec: float
+) -> bool:
     vision.clear_buffers()
-    await asyncio.sleep(settle_sec)
-    if vision.is_camera_up():
+    deadline = time.time() + confirm_sec
+    agreed = 0
+    while time.time() < deadline:
+        await asyncio.sleep(settle_sec / 2.0)
+        if controller is not None and controller.facing() != 'centre':
+            agreed = 0
+            continue
+        if vision.is_camera_up():
+            agreed = 0
+            continue
+        agreed += 1
+        if agreed >= 2:
+            return True
+    return False
+
+
+async def _reanchor_office_reference(
+    vision: FNAFVision, settle_sec: float, confirm_sec: float = 0.0, controller=None
+) -> bool:
+    if not await _office_comes_back(vision, controller, settle_sec, max(confirm_sec, settle_sec)):
         return False
     vision.capture_camera_closed_reference()
     return True
 
 
 async def _lower_monitor(
-    vision: FNAFVision, controller: FNAFController, settle_sec: float
+    vision: FNAFVision, controller: FNAFController, settle_sec: float,
+    confirm_sec: float, attempt: int, gesture_budget: int,
 ) -> bool:
-    await _await_motor(controller.close_camera(force=True))
-    if await _reanchor_office_reference(vision, settle_sec):
+    gesture = None
+    if attempt < gesture_budget:
+        if attempt % 2 == 0:
+            gesture = 'sliding off the tablet bar'
+            await _await_motor(controller.close_camera(force=True))
+        else:
+            gesture = 'tapping the tablet bar'
+            await _await_motor(controller.nudge_camera_bar())
+
+    if await _reanchor_office_reference(vision, settle_sec, confirm_sec, controller):
         return True
 
-    await _await_motor(controller.nudge_camera_bar())
-    if await _reanchor_office_reference(vision, settle_sec):
-        return True
+    if gesture is None:
+        return False
 
     _log.warning(
-        'the monitor did not come down on either gesture, office patch still %.0f mse '
-        'away from its reference; lower the tablet by hand to hand control back',
-        vision.camera_mse(),
+        'the monitor is still up after %s, attempt %d of %d, office patch %.0f mse from '
+        'its reference', gesture, attempt + 1, gesture_budget, vision.camera_mse(),
     )
     return False
+
+
+def _release_reason(explore, bored: bool) -> str:
+    if not bored:
+        return 'cap'
+    return 'drive' if explore.spent else 'search'
 
 
 class MonitorControl:
@@ -242,6 +291,9 @@ class MonitorControl:
         self._refractory_sec = foraging.camera_refractory_sec
         self._settle_sec = config.CAMERA_DETECTION.close_settle_sec
         self._retry_sec = config.CAMERA_DETECTION.lower_retry_sec
+        self._confirm_sec = config.CAMERA_DETECTION.lower_confirm_sec
+        self._gesture_budget = config.CAMERA_DETECTION.lower_gesture_attempts
+        self._attempts = 0
         self.is_open = False
         self.ready_at = 0.0
         self._releasing = False
@@ -282,12 +334,22 @@ class MonitorControl:
             if now < self._cap_at and not bored:
                 return
             self._releasing = True
-            self._telemetry.record_camera_release(watched_for, explore.spent)
+            self._telemetry.record_camera_release(watched_for, _release_reason(explore, bored))
         if now < self._retry_at:
             return
+        if self._attempts == self._gesture_budget:
+            _log.warning(
+                'neither gesture brought the monitor down in %d tries, so the fly has stopped '
+                'reaching for it and is just watching the screen. Lower the tablet by hand and '
+                'it picks up from there.', self._gesture_budget,
+            )
         self._lowering = asyncio.create_task(
-            _lower_monitor(self._vision, self._controller, self._settle_sec)
+            _lower_monitor(
+                self._vision, self._controller, self._settle_sec, self._confirm_sec,
+                self._attempts, self._gesture_budget,
+            )
         )
+        self._attempts += 1
 
     def _collect_lowering(self, now: float):
         if self._lowering is None or not self._lowering.done():
@@ -298,10 +360,42 @@ class MonitorControl:
             self._telemetry.record_monitor_stuck()
             self._retry_at = now + self._retry_sec
             return
+        if self._attempts > 1:
+            _log.info('the office is back after %d lowering attempts', self._attempts)
         self.is_open = False
         self._releasing = False
+        self._attempts = 0
         self._state.camera_open = False
         self.ready_at = now + self._refractory_sec
+
+
+async def _observe_hallway(
+    engine: ConnectomeEngine, vision: FNAFVision, state: SensoryState, side: str
+) -> tuple:
+    foraging = config.FORAGING_PARAMS
+    vision.reset_peak_mse(side)
+    opened_at_frame = engine.frames
+    opened_at_driven = engine.driven_frames[side]
+    deadline = time.time() + foraging.light_inspection_max_sec
+
+    if side == 'left':
+        state.check_left = True
+    else:
+        state.check_right = True
+
+    fired = False
+    while engine.frames - opened_at_frame < foraging.light_inspection_frames:
+        if state.l_spike if side == 'left' else state.r_spike:
+            fired = True
+            break
+        if time.time() >= deadline:
+            break
+        await asyncio.sleep(engine.frame_dt / 2)
+
+    state.check_left = False
+    state.check_right = False
+    return (vision.peak_mse(side), engine.frames - opened_at_frame,
+            engine.driven_frames[side] - opened_at_driven, fired)
 
 
 async def _saccade_task(
@@ -340,16 +434,14 @@ async def _saccade_task(
         await _await_motor(switch(True))
         await asyncio.sleep(config.FORAGING_PARAMS.light_activation_settle_sec)
 
-        if side == 'left':
-            state.check_left = True
-            await asyncio.sleep(config.FORAGING_PARAMS.light_inspection_time)
-            state.check_left = False
-        else:
-            state.check_right = True
-            await asyncio.sleep(config.FORAGING_PARAMS.light_inspection_time)
-            state.check_right = False
-
+        contrast, frames, driven, fired = await _observe_hallway(engine, vision, state, side)
         switch(False)
+
+        threshold = config.FORAGING_PARAMS.mse_threshold
+        _log.info('%s hallway read %.0f against a %.0f threshold, eye driven %d of %d frames%s',
+                  side, contrast, threshold, driven, frames,
+                  ', giant fiber answered' if fired else '')
+        telemetry.record_look_contrast(side, contrast, frames, driven)
 
         saccade.ready_at = time.time() + config.FORAGING_PARAMS.saccade_refractory_sec
         saccade.side = None
@@ -409,6 +501,7 @@ async def _engine_task(
             frame_elapsed,
         )
         look_pending = saccade.side is not None or saccade.busy
+        telemetry.record_frame(state.cam_inhib > 0, look_pending)
         monitor.update(now, explore, state.forage_bias, look_pending)
 
         can_look = not look_pending and not monitor.is_open and now >= saccade.ready_at
@@ -498,8 +591,28 @@ async def _engine_task(
             await asyncio.sleep(0)
 
 
-def _restore_game_focus(panel: int, timeout_sec: float):
+async def _countdown_to_the_night(seconds: float):
+    _log.info('the panel is up. Go to the game and start the night, beginning in %.0fs', seconds)
+    remaining = int(seconds)
+    while remaining > 0:
+        await asyncio.sleep(1.0)
+        remaining -= 1
+        if remaining and (remaining <= 3 or remaining % 5 == 0):
+            _log.info('T-%d', remaining)
+
     game = find_game_window()
+    if game and game == foreground_window():
+        _log.info('starting, the night is on screen in %r', window_title(game) or '<untitled>')
+        return
+    _log.warning(
+        'starting anyway, but %s is not the window in front, so every capture will read '
+        'whatever is', config.BRAIN_VIEW.game_process,
+    )
+
+
+def _restore_game_focus(game: int, panel: int, timeout_sec: float):
+    if not game or game == panel or not is_window(game):
+        game = find_game_window()
     if not game or game == panel:
         _log.warning(
             'nothing recognisable sits under the office capture patch, so focus cannot be '
@@ -547,6 +660,9 @@ def _launch_brain_view_window(port: int) -> bool:
         _log.warning('no Edge or Chrome install found, open %s manually', url)
         return False
 
+    game = find_game_window() if topmost else 0
+    playing = bool(game) and game == foreground_window()
+
     profile = os.path.join(config.PROJECT_ROOT, 'logs', 'brain_view_profile')
     process = subprocess.Popen([
         browser,
@@ -566,7 +682,8 @@ def _launch_brain_view_window(port: int) -> bool:
     hwnd = pin_as_overlay(
         ('Connectome Live Activity', f'127.0.0.1:{port}'), x, y, width, height,
     )
-    _restore_game_focus(abs(hwnd), params.focus_handback_sec)
+    if playing:
+        _restore_game_focus(game, abs(hwnd), params.focus_handback_sec)
     if hwnd == 0:
         _log.warning(
             'brain view window never appeared within the wait (browser exit code %s), '
@@ -631,7 +748,7 @@ async def _run(telemetry: ConnectomeTelemetry):
     saccade = SaccadeRequest()
 
     async with asyncio.TaskGroup() as tg:
-        tg.create_task(_vision_task(vision, state, shutdown))
+        tg.create_task(_vision_task(vision, controller, state, shutdown))
         tg.create_task(_saccade_task(
             engine, vision, controller, state, shutdown, telemetry, calibration_done,
             saccade, view_ready,

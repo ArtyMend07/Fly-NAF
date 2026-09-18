@@ -54,11 +54,12 @@ class SimulationParams:
 class ForagingParams:
     subliminal_noise_hz: float = 1.0
     mse_threshold: float = 1500.0
-    light_inspection_time: float = 0.6
+    light_inspection_frames: int = 12
+    light_inspection_max_sec: float = 8.0
     light_activation_settle_sec: float = 0.4
     motor_refractory_sec: float = 2.0
     camera_refractory_sec: float = 15.0
-    saccade_refractory_sec: float = 1.0
+    saccade_refractory_sec: float = 2.5
     camera_watch_max_sec: float = 6.0
     camera_watch_min_sec: float = 0.8
     camera_release_forage_bias: float = 0.5
@@ -93,10 +94,12 @@ class CameraDetection:
     patch_x: int = 521
     patch_y: int = 300
     patch_size: int = 200
-    mse_trigger: float = 100.0
+    mse_trigger: float = 1200.0
     close_settle_sec: float = 1.0
     stuck_warn_sec: float = 5.0
     lower_retry_sec: float = 3.0
+    lower_confirm_sec: float = 3.0
+    lower_gesture_attempts: int = 4
 
 
 @dataclass(frozen=True)
@@ -109,6 +112,9 @@ class BrainView:
     ingame_height: int = 150
     ingame_margin: int = 8
     focus_handback_sec: float = 12.0
+    start_countdown_sec: float = 10.0
+    game_process: str = 'FiveNightsatFreddys'
+    game_title: str = 'Five Nights at Freddy'
     stream_interval_sec: float = 0.05
     launch_browser: bool = True
 
@@ -143,7 +149,7 @@ class SearchDynamics:
     habituation_leak_per_frame: float = 0.985
     habituation_gain: float = 3.0
     evidence_gain: float = 4.0
-    starvation_sec: float = 16.0
+    starvation_sec: float = 30.0
 
 
 @dataclass(frozen=True)
