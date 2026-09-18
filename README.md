@@ -94,14 +94,15 @@ The full version, with per-region firing bars and counters, is served at `http:/
 
 ## Licensing and credits
 
-The code in this repository is released under the MIT License, in `LICENSE`.
+This project is licensed under the GNU General Public License version 3 or any later version, in `LICENSE`.
+
+It has to be. `src/neural/models.py` is adapted from `code/run_pytorch.py` in [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain), which carries the LIF neuron with alpha synapses, the delay buffer and the surrogate gradient. That repository is licensed under GPL version 2 or any later version, so this one inherits it, and version 3 is taken under the "or later" clause. The data files also come from its `data` folder.
 
 The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It stays subject to FlyWire's own terms and citation requirements, and anyone using this project has to obtain it from the sources listed above.
-
-The data files are taken from the `data` folder of [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain), which is also the reference this project follows for how the network is modelled. That repository is licensed under GPL v2 and no code from it is included here, so its terms do not extend to this one.
 
 Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project.
 
 | Versão | Descrição | Autor(es) | Data | Revisor(es) | Data de Revisão |
 |---|---|---|---|---|---|
 | 1.0 | README completo com dependência de dados, calibração e execução | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
+| 1.1 | Correção da licença para GPL v3 após identificar obra derivada do fly-brain | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
