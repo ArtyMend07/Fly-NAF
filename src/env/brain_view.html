@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<title>Connectome Live Activity</title>
+<style>
+  :root {
+    --bg: #07070a;
+    --panel: #0c0c11;
+    --line: #1b1b24;
+    --label: #6a6d78;
+    --value: #e8e9ee;
+    --optic: #4a9eff;
+    --central: #ffc94a;
+    --sensory: #4ade80;
+    --motor: #ff5c4a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); overflow: hidden; }
+  body {
+    font-family: 'Consolas', 'SF Mono', monospace;
+    color: var(--value);
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  h1 {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    font-weight: 600;
+    color: var(--value);
+  }
+  #state {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--label);
+  }
+  #stage { flex: 1; position: relative; min-height: 0; }
+  canvas { display: block; }
+  #legend {
+    position: absolute;
+    left: 16px;
+    bottom: 14px;
+    font-size: 10px;
+    line-height: 1.85;
+    color: var(--label);
+  }
+  #legend i {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  #regions {
+    padding: 14px 16px 4px;
+    border-top: 1px solid var(--line);
+  }
+  .rrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    color: var(--label);
+  }
+  .rrow .name { width: 104px; flex: none; }
+  .rrow .track {
+    flex: 1;
+    height: 6px;
+    background: #14141b;
+    position: relative;
+    overflow: hidden;
+  }
+  .rrow .fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%;
+    transition: width 90ms linear;
+  }
+  .rrow .pct { width: 38px; text-align: right; color: var(--value); font-size: 9px; }
+  #counters {
+    display: flex;
+    border-top: 1px solid var(--line);
+  }
+  .counter {
+    flex: 1;
+    padding: 12px 16px;
+    border-right: 1px solid var(--line);
+  }
+  .counter:last-child { border-right: none; }
+  .counter b {
+    display: block;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .counter span {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--label);
+  }
+  #lamps {
+    display: flex;
+    gap: 18px;
+    padding: 10px 16px 14px;
+    border-top: 1px solid var(--line);
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    color: var(--label);
+  }
+  .lamp i {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #23232d;
+    margin-right: 7px;
+    vertical-align: middle;
+  }
+  .lamp.on i { background: var(--motor); box-shadow: 0 0 8px var(--motor); }
+  .lamp.cam.on i { background: #a855f7; box-shadow: 0 0 8px #a855f7; }
+
+  body.mini header,
+  body.mini #legend,
+  body.mini #regions,
+  body.mini #counters,
+  body.mini #lamps { display: none; }
+  #mini-lamps {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    gap: 5px;
+  }
+  body.mini #mini-lamps { display: flex; }
+  #mini-lamps i {
+    display: block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #23232d;
+  }
+  #mini-lamps i.on.gf { background: var(--motor); box-shadow: 0 0 6px var(--motor); }
+  #mini-lamps i.on.cam { background: #a855f7; box-shadow: 0 0 6px #a855f7; }
+  #mini-legend {
+    display: none;
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 4px 7px 5px;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8px;
+    letter-spacing: 0.02em;
+    color: #9a9dab;
+    text-shadow: 0 0 4px rgba(7, 7, 10, 0.95), 0 0 2px rgba(7, 7, 10, 0.95);
+    pointer-events: none;
+  }
+  body.mini #mini-legend { display: flex; }
+  #mini-legend i {
+    display: inline-block;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    margin-right: 3px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body class="notranslate">
+  <header>
+    <h1>FLY CONNECTOME &mdash; LIVE ACTIVITY</h1>
+    <div id="state">IDLE</div>
+  </header>
+
+  <div id="stage">
+    <div id="legend">
+      <div><i style="background:var(--optic)"></i>optic lobe</div>
+      <div><i style="background:var(--central)"></i>central brain</div>
+      <div><i style="background:var(--sensory)"></i>sensory in (the hallway)</div>
+      <div><i style="background:var(--motor)"></i>descending + motor out (the door)</div>
+    </div>
+    <div id="mini-lamps">
+      <i id="mlamp-l" class="gf"></i>
+      <i id="mlamp-r" class="gf"></i>
+      <i id="mlamp-cam" class="cam"></i>
+    </div>
+
+    <div id="mini-legend">
+      <span><i style="background:var(--optic)"></i>optic</span>
+      <span><i style="background:var(--central)"></i>central</span>
+      <span><i style="background:var(--sensory)"></i>eye</span>
+      <span><i style="background:var(--motor)"></i>door</span>
+    </div>
+  </div>
+
+  <div id="regions">
+    <div class="rrow"><span class="name">OPTIC LOBE</span><span class="track"><i class="fill" id="f0" style="background:var(--optic)"></i></span><span class="pct" id="p0">0%</span></div>
+    <div class="rrow"><span class="name">CENTRAL BRAIN</span><span class="track"><i class="fill" id="f1" style="background:var(--central)"></i></span><span class="pct" id="p1">0%</span></div>
+    <div class="rrow"><span class="name">SENSORY IN</span><span class="track"><i class="fill" id="f2" style="background:var(--sensory)"></i></span><span class="pct" id="p2">0%</span></div>
+    <div class="rrow"><span class="name">MOTOR OUT</span><span class="track"><i class="fill" id="f3" style="background:var(--motor)"></i></span><span class="pct" id="p3">0%</span></div>
+  </div>
+
+  <div id="counters">
+    <div class="counter"><b id="fired">0</b><span>NEURONS FIRED</span></div>
+    <div class="counter"><b id="spikes">0</b><span>SPIKES</span></div>
+  </div>
+
+  <div id="lamps">
+    <div class="lamp" id="lamp-l"><i></i>GF LEFT</div>
+    <div class="lamp" id="lamp-r"><i></i>GF RIGHT</div>
+    <div class="lamp cam" id="lamp-cam"><i></i>CAMERA</div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const PALETTE = [
+  [0.29, 0.62, 1.00],
+  [1.00, 0.79, 0.29],
+  [0.29, 0.87, 0.50],
+  [1.00, 0.36, 0.29],
+];
+const DECAY = 0.90;
+const BASE_QUIET = 0.016;
+const BASE_BUSY = 0.030;
+const GLOW_QUIET = 0.10;
+const GLOW_BUSY = 0.16;
+const ACTIVITY_FULL = 0.030;
+const TUNED_PIXELS = 180 * 180;
+let activity = 0;
+let densityScale = 1;
+
+if (new URLSearchParams(location.search).get('mini') === '1') {
+  document.body.classList.add('mini');
+}
+
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x07070a, 1);
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 100);
+const pivot = new THREE.Group();
+scene.add(pivot);
+
+let intensity = null;
+let points = null;
+let count = 0;
+let regionOf = null;
+const population = [0, 0, 0, 0];
+const smoothed = [0, 0, 0, 0];
+
+const material = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  uniforms: {
+    uSize: { value: 1.6 },
+    uBase: { value: BASE_QUIET },
+    uGlow: { value: GLOW_QUIET },
+    uSpike: { value: 0.8 },
+    uLift: { value: 1.1 },
+  },
+  vertexShader: `
+    attribute float aRegion;
+    attribute float aIntensity;
+    uniform float uSize;
+    uniform float uSpike;
+    varying vec3 vColor;
+    varying float vGlow;
+    vec3 palette(float r) {
+      if (r < 0.5) return vec3(0.29, 0.62, 1.00);
+      if (r < 1.5) return vec3(1.00, 0.79, 0.29);
+      if (r < 2.5) return vec3(0.29, 0.87, 0.50);
+      return vec3(1.00, 0.36, 0.29);
+    }
+    void main() {
+      vColor = palette(aRegion);
+      vGlow = aIntensity;
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = (uSize + aIntensity * uSpike) * (3.0 / -mv.z);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    uniform float uBase;
+    uniform float uGlow;
+    uniform float uLift;
+    varying vec3 vColor;
+    varying float vGlow;
+    void main() {
+      vec2 d = gl_PointCoord - vec2(0.5);
+      float r = dot(d, d);
+      if (r > 0.25) discard;
+      float falloff = 1.0 - smoothstep(0.0, 0.25, r);
+      float alpha = uBase + vGlow * uGlow;
+      gl_FragColor = vec4(vColor * (0.45 + vGlow * uLift), alpha * falloff);
+    }
+  `,
+});
+
+let fitRadius = 1.0;
+
+function applyBrightness() {
+  material.uniforms.uBase.value =
+    (BASE_QUIET + (BASE_BUSY - BASE_QUIET) * activity) * densityScale;
+  material.uniforms.uGlow.value =
+    (GLOW_QUIET + (GLOW_BUSY - GLOW_QUIET) * activity) * densityScale;
+}
+
+function resize() {
+  const w = stage.clientWidth;
+  const h = stage.clientHeight;
+  const ratio = Math.min(window.devicePixelRatio, 2);
+  const span = Math.min(w, h) * ratio;
+  densityScale = Math.min(12, Math.max(1, (span * span) / TUNED_PIXELS));
+  applyBrightness();
+  renderer.setSize(w, h);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+  const fovRad = (camera.fov * Math.PI) / 180;
+  const fitHeight = fitRadius / Math.tan(fovRad / 2);
+  camera.position.set(0, 0, Math.max(fitHeight, fitHeight / camera.aspect) * 1.12);
+  camera.lookAt(0, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+fetch('/geometry').then(r => r.arrayBuffer()).then(buf => {
+  const view = new DataView(buf);
+  count = view.getUint32(0, true);
+  const positions = new Float32Array(buf, 4, count * 3);
+  const regions = new Uint8Array(buf, 4 + count * 12, count);
+
+  const regionAttr = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    regionAttr[i] = regions[i];
+    population[regions[i]]++;
+  }
+  regionOf = regions;
+  intensity = new Float32Array(count);
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('aRegion', new THREE.BufferAttribute(regionAttr, 1));
+  geometry.setAttribute('aIntensity', new THREE.BufferAttribute(intensity, 1));
+  geometry.computeBoundingSphere();
+
+  points = new THREE.Points(geometry, material);
+  pivot.add(points);
+
+  fitRadius = geometry.boundingSphere ? geometry.boundingSphere.radius : 1;
+  resize();
+  connect();
+});
+
+const firedEl = document.getElementById('fired');
+const spikesEl = document.getElementById('spikes');
+const stateEl = document.getElementById('state');
+const lampL = document.getElementById('lamp-l');
+const lampR = document.getElementById('lamp-r');
+const lampCam = document.getElementById('lamp-cam');
+const mlampL = document.getElementById('mlamp-l');
+const mlampR = document.getElementById('mlamp-r');
+const mlampCam = document.getElementById('mlamp-cam');
+
+function connect() {
+  const source = new EventSource('/stream');
+  source.onmessage = (event) => {
+    const frame = JSON.parse(event.data);
+    if (intensity && frame.s) {
+      const raw = atob(frame.s);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      const idx = new Uint32Array(bytes.buffer);
+      const hits = [0, 0, 0, 0];
+      let firing = 0;
+      for (let i = 0; i < idx.length; i++) {
+        const target = idx[i];
+        if (target < count) {
+          intensity[target] = 1.0;
+          hits[regionOf[target]]++;
+          firing++;
+        }
+      }
+      activity = activity * 0.85 + Math.min(1, (firing / count) / ACTIVITY_FULL) * 0.15;
+      applyBrightness();
+      for (let r = 0; r < 4; r++) {
+        const share = population[r] ? hits[r] / population[r] : 0;
+        smoothed[r] = smoothed[r] * 0.6 + share * 0.4;
+        const shown = Math.min(smoothed[r] * 100, 100);
+        document.getElementById('f' + r).style.width = shown.toFixed(1) + '%';
+        document.getElementById('p' + r).textContent = shown.toFixed(1) + '%';
+      }
+    }
+    firedEl.textContent = frame.fired.toLocaleString();
+    spikesEl.textContent = frame.spikes.toLocaleString();
+    stateEl.textContent = frame.camera ? 'MONITOR UP' : ('GAZE ' + frame.gaze);
+    lampL.classList.toggle('on', frame.gf_l);
+    lampR.classList.toggle('on', frame.gf_r);
+    lampCam.classList.toggle('on', frame.camera);
+    mlampL.classList.toggle('on', frame.gf_l);
+    mlampR.classList.toggle('on', frame.gf_r);
+    mlampCam.classList.toggle('on', frame.camera);
+  };
+  source.onerror = () => { stateEl.textContent = 'OFFLINE'; };
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (points && intensity) {
+    for (let i = 0; i < count; i++) {
+      if (intensity[i] > 0.002) intensity[i] *= DECAY;
+      else intensity[i] = 0;
+    }
+    points.geometry.attributes.aIntensity.needsUpdate = true;
+    pivot.rotation.y = Math.sin(performance.now() * 0.00013) * 0.55;
+    renderer.render(scene, camera);
+  }
+}
+animate();
+</script>
+</body>
+</html>
