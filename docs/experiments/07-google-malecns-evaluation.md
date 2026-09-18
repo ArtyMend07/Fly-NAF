@@ -13,6 +13,6 @@ First off, trying to simulate an entire spinal cord and all those extra leg mech
 
 It's a cool discovery, but I'll stick to what I have for now. Maybe I'll look into it in the future if I ever need to simulate actual joint movements (or when I buy a better PC).
 
-| Versão | Descrição | Autor(es) | Data | Revisor(es) | Data de Revisão |
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | Initial thoughts on the MaleCNS dataset | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-13 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-13 |

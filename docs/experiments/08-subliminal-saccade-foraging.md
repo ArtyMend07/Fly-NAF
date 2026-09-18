@@ -33,6 +33,30 @@ The new system produces the same rough timing statistics emergently, but the whi
 - The `subliminal_noise_hz` and `subliminal_bias_threshold` parameters in `config.py` need calibration. At 8 Hz noise and threshold 0.3, checking intervals were roughly equivalent to the old 4-7 second range in bench tests. This may shift after real game runs.
 - If the brain becomes heavily stressed, noise-driven saccade dynamics might be disrupted. 
 
+## Follow-up, 2026-09-16: it did not actually work...
+
+The first night that printed the bias next to every light check showed `+0.00`
+on 25 of 27 checks, arriving every 2.1 seconds, strictly alternating. The
+starvation guard from ADR 0008 was picking every single side and the bias was
+only being printed beside it. Two checks logged a bias whose sign pointed at
+the opposite side from the one taken, which is the proof.
+
+I think the idea in this document was right, but the wiring was not. The integrator lived
+in `_saccade_task`, the same coroutine that awaits the motor for the two
+seconds a look takes, and the eye only sees during a look — so the fly was
+asleep for exactly the window in which its own evidence arrived, and zeroed
+what little survived at every decision. Outside a look both eye clusters get
+nothing but the 8 Hz noise, so the bias sat at zero by construction.
+
+What replaced it keeps the premise of this experiment and fixes the reading.
+The signal is the same spontaneous activity, but read as the *difference in
+membrane potential between the two eye populations* rather than as a spike
+ratio, and it turns out to be a far better signal than it looked here: lag-1
+autocorrelation 0.985, sign holding for about two seconds at a time. It is
+integrated to a bound in `SearchDrive`, outside the coroutine that blocks.
+ADR 0012 has the measurements.
+
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
-| 1.0 | Documentacao da substituicao do random por ruido sublimiar | [Artur Mendonca Arruda](https://github.com/ArtyMend07) | 2026-09-15 | [Artur Mendonca Arruda](https://github.com/ArtyMend07) | 2026-09-15 |
+| 1.0 | Documented replacing the random draw with subthreshold noise | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-15 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-15 |
+| 1.1 | Follow-up on the bias never leaving zero in practice, and why | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-16 |

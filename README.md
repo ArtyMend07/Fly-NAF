@@ -18,7 +18,7 @@ Raising the tablet also drives the GABAergic inhibitor clusters at full rate, wh
 
 ## What this is not
 
-There is no policy, no reward, no training and no learning. The connectome is fixed at what FlyWire measured. Every constant in `src/config.py` was fitted against measurements of the simulated network rather than chosen by feel, and the reasoning for each one is recorded in `docs/adr/`.
+There is no policy, no reward, no training and no learning. The connectome is fixed at what FlyWire measured. Every constant in `src/config.py` was fitted against measurements of the simulated network rather than chosen by feel.
 
 ## Requirements
 
@@ -90,7 +90,7 @@ The full version, with per-region firing bars and counters, is served at `http:/
 
 ## Documentation
 
-`docs/adr/` holds the architecture decisions in Michael Nygard's format, each one carrying the measurement that drove it. `docs/experiments/` holds the investigations, including the failures. Reading ADR 0012 through 0016 in order gives the clearest account of how the current behaviour was arrived at.
+`docs/adr/` holds the architecture decisions in Michael Nygard's format, each one carrying the measurement that drove it, and `docs/experiments/` holds the investigations, including the failures. ADR 0006 explains why inhibition is done with GABAergic clusters rather than a boolean flag, and experiment 03 covers the LPLC2 to DNp01 escape pathway the door reflex rides on.
 
 ## Licensing and credits
 
@@ -104,7 +104,7 @@ The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/
 
 Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project.
 
-| Versão | Descrição | Autor(es) | Data | Revisor(es) | Data de Revisão |
+| Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
-| 1.0 | README completo com dependência de dados, calibração e execução | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
-| 1.1 | Correção da licença para GPL v3 após identificar obra derivada do fly-brain | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
+| 1.0 | Full README covering the data dependency, calibration and running | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
+| 1.1 | Licence corrected to GPL v3 after identifying code derived from fly-brain | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
