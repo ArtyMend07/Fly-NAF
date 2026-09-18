@@ -1,7 +1,8 @@
 --- FNAF CALIBRATION DATA ---
-Position: X=264  Y=440  | Color: R=0   G=0   B=151
-Position: X=425  Y=486  | Color: R=0   G=0   B=0  
-Position: X=258  Y=567  | Color: R=81  G=81  B=81 
-Position: X=1604 Y=444  | Color: R=0   G=0   B=145
-Position: X=1085 Y=508  | Color: R=0   G=0   B=0  
-Position: X=1601 Y=572  | Color: R=89  G=89  B=89 
+Position: X=55   Y=343  | Color: R=0   G=0   B=186
+Position: X=52   Y=450  | Color: R=97  G=97  B=97 
+Position: X=1210 Y=346  | Color: R=0   G=0   B=175
+Position: X=1217 Y=467  | Color: R=105 G=105 B=105
+Position: X=552  Y=665  | Color: R=141 G=117 B=111
+Position: X=925  Y=484  | Color: R=66  G=66  B=66 
+Position: X=1086 Y=639  | Color: R=255 G=255 B=255
