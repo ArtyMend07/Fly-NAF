@@ -92,9 +92,15 @@ The full version, with per-region firing bars and counters, is served at `http:/
 
 `docs/adr/` holds the architecture decisions in Michael Nygard's format, each one carrying the measurement that drove it. `docs/experiments/` holds the investigations, including the failures. Reading ADR 0012 through 0016 in order gives the clearest account of how the current behaviour was arrived at.
 
-## Credits
+## Licensing and credits
 
-The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). The neural engine is adapted from [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain). Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project.
+The code in this repository is released under the MIT License, in `LICENSE`.
+
+The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It stays subject to FlyWire's own terms and citation requirements, and anyone using this project has to obtain it from the sources listed above.
+
+The data files are taken from the `data` folder of [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain), which is also the reference this project follows for how the network is modelled. That repository is licensed under GPL v2 and no code from it is included here, so its terms do not extend to this one.
+
+Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project.
 
 | Versão | Descrição | Autor(es) | Data | Revisor(es) | Data de Revisão |
 |---|---|---|---|---|---|
