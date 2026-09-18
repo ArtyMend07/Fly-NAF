@@ -1,7 +1,7 @@
 [project]
-name = "fnaf-fly-brain-connectome"
+name = "fly-naf"
 version = "0.1.0"
-description = "Add your description here"
+description = "A whole-brain Drosophila connectome simulation that plays Five Nights at Freddy's 1"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

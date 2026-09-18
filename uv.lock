@@ -528,7 +528,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fnaf-fly-brain-connectome"
+name = "fly-naf"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
