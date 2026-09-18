@@ -33,5 +33,5 @@ The computational model succeeded not only in isolating, but in physiologically 
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---------|-------------|-----------|------|-------------|-------------|
 | 1.0 | Organic simulation of the LPLC2-DNp01 escape | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |
-| 1.1 | Translated to English | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |
+| 1.1 | Editorial pass for consistency with the rest of the documentation | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |
 

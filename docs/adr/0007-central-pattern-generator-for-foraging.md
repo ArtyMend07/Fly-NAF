@@ -1,7 +1,7 @@
 # ADR 0007: Central Pattern Generator for Foraging
 
 ## Status
-Proposed
+Superseded by ADR 0010. The CPG's own premise, that a fixed timer is unbiological, held; the sine wave turned out to be a fixed timer wearing a different name, and measurement showed DNp09 fires spontaneously without it.
 
 ## Context
 The fly currently operates exclusively on reactive reflexes (stimulus -> response). To survive Nights 3 to 5, it needs to proactively open the camera to check on Foxy. In standard bot development, this is handled by a fixed timer (`time.sleep(5)` or `last_check + 5s`). This approach is deterministic and unbiological. Flies do not run precise timers; their spontaneous exploration (foraging) is driven by rhythmic internal states and neural noise.

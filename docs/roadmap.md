@@ -9,7 +9,7 @@ This document outlines the strategic phases for the cybernetic integration of th
 - Real-time screen capture via OpenCV.
 - Tensor injection into the PyTorch simulation engine.
 - Low-level OS mouse control via Win32 ctypes.
-- Implemented a temporary biological bypass (ADR-003) to inject visual stimuli directly into the motor cortex due to signal decay in default sensory pathways.
+- Implemented a temporary biological bypass (ADR 0003) to inject visual stimuli directly into the motor cortex due to signal decay in default sensory pathways.
 
 ## Phase 2: Biological Graph Routing
 **Status:** Pending
@@ -31,3 +31,4 @@ This document outlines the strategic phases for the cybernetic integration of th
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---------|-------------|-----------|------|-------------|-------------|
 | 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |
+| 1.1 | ADR reference style aligned with the rest of the documentation | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 |

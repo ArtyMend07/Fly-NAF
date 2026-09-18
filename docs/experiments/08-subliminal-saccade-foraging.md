@@ -43,7 +43,7 @@ the opposite side from the one taken, which is the proof.
 
 I think the idea in this document was right, but the wiring was not. The integrator lived
 in `_saccade_task`, the same coroutine that awaits the motor for the two
-seconds a look takes, and the eye only sees during a look — so the fly was
+seconds a look takes, and the eye only sees during a look, so the fly was
 asleep for exactly the window in which its own evidence arrived, and zeroed
 what little survived at every decision. Outside a look both eye clusters get
 nothing but the 8 Hz noise, so the bias sat at zero by construction.
@@ -60,3 +60,4 @@ ADR 0012 has the measurements.
 |---|---|---|---|---|---|
 | 1.0 | Documented replacing the random draw with subthreshold noise | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-15 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-15 |
 | 1.1 | Follow-up on the bias never leaving zero in practice, and why | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-16 |
+| 1.2 | Editorial pass for consistency with the rest of the documentation | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 |
