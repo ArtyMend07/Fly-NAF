@@ -692,8 +692,9 @@ def _launch_brain_view_window(port: int) -> bool:
         return False
     if hwnd < 0:
         _log.warning(
-            'brain view window found but it would not stay at %d,%d %dx%d, '
-            'it will not be on top of the game', x, y, width, height,
+            'brain view window found but it would not settle at %d,%d %dx%d without its '
+            'frame and on top; it will show as an ordinary window over the game',
+            x, y, width, height,
         )
         return False
 

@@ -273,7 +273,9 @@ def apply_overlay_style(hwnd: int, x: int, y: int, w: int, h: int) -> bool:
     rect = ctypes.wintypes.RECT()
     user32.GetWindowRect(hwnd, ctypes.byref(rect))
     placed = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top) == (x, y, w, h)
-    return placed and bool(user32.GetWindowLongW(hwnd, _GWL_EXSTYLE) & _WS_EX_TOPMOST)
+    still_framed = bool(user32.GetWindowLongW(hwnd, _GWL_STYLE) & (_WS_CAPTION | _WS_THICKFRAME))
+    on_top = bool(user32.GetWindowLongW(hwnd, _GWL_EXSTYLE) & _WS_EX_TOPMOST)
+    return placed and on_top and not still_framed
 
 
 def pin_as_overlay(window_titles, x: int, y: int, w: int, h: int,
@@ -294,12 +296,11 @@ def pin_as_overlay(window_titles, x: int, y: int, w: int, h: int,
 
 def keep_pinned(hwnd: int, x: int, y: int, w: int, h: int, stop: object,
                 interval_sec: float = 2.0):
-    user32 = _user32()
-    topmost = ctypes.wintypes.HWND(-1)
+    user32 = ctypes.windll.user32
     while not stop.is_set():
         if not user32.IsWindow(hwnd):
             return
-        user32.SetWindowPos(hwnd, topmost, x, y, w, h, _SWP_NOACTIVATE | _SWP_FRAMECHANGED)
+        apply_overlay_style(hwnd, x, y, w, h)
         stop.wait(interval_sec)
 
 
