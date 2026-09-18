@@ -96,7 +96,9 @@ The full version, with per-region firing bars and counters, is served at `http:/
 
 This project is licensed under the GNU General Public License version 3 or any later version, in `LICENSE`.
 
-It has to be. `src/neural/models.py` is adapted from `code/run_pytorch.py` in [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain), which carries the LIF neuron with alpha synapses, the delay buffer and the surrogate gradient. That repository is licensed under GPL version 2 or any later version, so this one inherits it, and version 3 is taken under the "or later" clause. The data files also come from its `data` folder.
+It has to be. Two files under `src/neural/` are adapted from `code/run_pytorch.py` in [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain). `models.py` carries the LIF neuron with alpha synapses, the delay buffer and the surrogate gradient, and `data_loader.py` carries the connectome loading. That repository is licensed under GPL version 2 or any later version, so this one inherits it, and version 3 is taken under the "or later" clause. The data files also come from its `data` folder.
+
+Everything else here is original. An audit of all twenty source files against the upstream project found no meaningful overlap outside those two.
 
 The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It stays subject to FlyWire's own terms and citation requirements, and anyone using this project has to obtain it from the sources listed above.
 
