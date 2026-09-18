@@ -12,9 +12,9 @@ COMPLETENESS_CSV = os.path.join(DATA_DIR, '2025_Completeness_783.csv')
 
 @dataclass(frozen=True)
 class VisionCalibration:
-    left_target_x: int = 192
+    left_target_x: int = 240
     left_target_y: int = 324
-    left_bbox_size: int = 578
+    left_bbox_size: int = 481
     right_target_x: int = 851
     right_target_y: int = 328
     right_bbox_size: int = 335

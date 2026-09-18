@@ -171,6 +171,11 @@ class FNAFVision:
             return 0.0, None
         return max(mses, key=lambda x: x[0])
 
+    def _write_threat_evidence(self, side: str, current, reference, mse: float):
+        stamp = f'{side}_{time.strftime("%H%M%S")}_{int(mse)}'
+        cv2.imwrite(os.path.join(self.debug_dir, f'seen_{stamp}.png'), current.astype(np.uint8))
+        cv2.imwrite(os.path.join(self.debug_dir, f'ref_{stamp}.png'), reference.astype(np.uint8))
+
     def reset_peak_mse(self, side: str):
         self._peak_mse[side] = 0.0
 
@@ -186,8 +191,7 @@ class FNAFVision:
         self._peak_mse['left'] = max(self._peak_mse['left'], mse)
         if mse > self.mse_threshold:
             if not self._threat_written_left:
-                cv2.imwrite(os.path.join(self.debug_dir, 'panic_left.png'), current.astype(np.uint8))
-                cv2.imwrite(os.path.join(self.debug_dir, 'ref_left.png'), self.ref_left.astype(np.uint8))
+                self._write_threat_evidence('left', current, self.ref_left, mse)
                 self._threat_written_left = True
             return 1.0
         self._threat_written_left = False
@@ -202,8 +206,7 @@ class FNAFVision:
         self._peak_mse['right'] = max(self._peak_mse['right'], mse)
         if mse > self.mse_threshold:
             if not self._threat_written_right:
-                cv2.imwrite(os.path.join(self.debug_dir, 'panic_right.png'), current.astype(np.uint8))
-                cv2.imwrite(os.path.join(self.debug_dir, 'ref_right.png'), self.ref_right.astype(np.uint8))
+                self._write_threat_evidence('right', current, self.ref_right, mse)
                 self._threat_written_right = True
             return 1.0
         self._threat_written_right = False
