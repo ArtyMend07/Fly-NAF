@@ -33,7 +33,7 @@ def main():
 
     print(f'threat threshold (MSE): {threshold:.0f}')
     print(f'camera-up threshold   : {config.CAMERA_DETECTION.mse_trigger:.0f}')
-    print('Capturing the camera-closed reference in 3s — stay in the office.')
+    print('Capturing the camera-closed reference in 3s, stay in the office.')
     time.sleep(3.0)
     vision.capture_camera_closed_reference()
     print('Ready. Hold a light on and watch the side that is lit. Ctrl+C to stop.\n')
