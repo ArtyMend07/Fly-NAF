@@ -88,6 +88,20 @@ A borderless, click-through overlay is pinned over the office showing all 138,63
 
 The full version, with per-region firing bars and counters, is served at `http://127.0.0.1:8770/` and can be opened in any browser at the same time.
 
+## Tests
+
+There is no test framework dependency. Every file under `tests/` is a script
+that runs its own cases and prints `ok` when they all hold.
+
+```bash
+uv run python tests/test_hallway_detection.py
+```
+
+Most of them stub out the vision and motor layers and finish in under a second.
+Four of them, `test_inhibition.py`, `test_pathways.py`, `test_engine_rate_reset.py`
+and `test_search_loop_wiring.py`, load the real connectome, so they need the
+FlyWire data in place and take a few minutes each.
+
 ## Documentation
 
 `docs/adr/` holds the architecture decisions in Michael Nygard's format, each one carrying the measurement that drove it, and `docs/experiments/` holds the investigations, including the failures. ADR 0006 explains why inhibition is done with GABAergic clusters rather than a boolean flag, and experiment 03 covers the LPLC2 to DNp01 escape pathway the door reflex rides on.
@@ -108,3 +122,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 |---|---|---|---|---|---|
 | 1.0 | Full README covering the data dependency, calibration and running | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
 | 1.1 | Licence corrected to GPL v3 after identifying code derived from fly-brain | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
+| 1.2 | Documented how the test scripts are run and what they depend on | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 |
