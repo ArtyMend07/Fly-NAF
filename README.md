@@ -4,6 +4,11 @@ A whole-brain *Drosophila melanogaster* connectome simulation that plays Five Ni
 
 All 138,639 neurons of the FlyWire 783 connectome run as leaky integrate-and-fire units with their real synaptic weights. The screen is fed into the fly's visual clusters, and the mouse is driven by reading its descending neurons. Nothing in the loop decides anything on the fly's behalf.
 
+## Best run so far
+
+The fly reached 4 AM on night 2. The run is recorded at
+https://www.youtube.com/watch?v=4UNPlA-YJtw.
+
 ## What the fly actually does
 
 Three behaviours come out of the network, and each one is a different pathway.
@@ -123,3 +128,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.0 | Full README covering the data dependency, calibration and running | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
 | 1.1 | Licence corrected to GPL v3 after identifying code derived from fly-brain | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
 | 1.2 | Documented how the test scripts are run and what they depend on | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 |
+| 1.3 | Recorded the best run reached so far | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-19 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-19 |
