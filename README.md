@@ -2,7 +2,7 @@
 
 A whole-brain *Drosophila melanogaster* connectome simulation that plays Five Nights at Freddy's 1.
 
-All 138,639 neurons of the FlyWire 783 connectome run as leaky integrate-and-fire units with their real synaptic weights. The screen is fed into the fly's visual clusters, and the mouse is driven by reading its descending neurons. Nothing in the loop decides anything on the fly's behalf.
+All 138,639 neurons of the FlyWire 783 connectome run as leaky integrate-and-fire units with their real synaptic weights. The screen is fed into the fly's visual clusters, and the mouse is driven by reading its descending neurons.
 
 ## Best run so far
 
@@ -23,7 +23,7 @@ Raising the tablet also drives the GABAergic inhibitor clusters at full rate, wh
 
 ## What this is not
 
-There is no policy, no reward, no training and no learning. The connectome is fixed at what FlyWire measured. Every constant in `src/config.py` was fitted against measurements of the simulated network rather than chosen by feel.
+There is no policy, no reward, no training and no learning whatsoever. The connectome is fixed at what FlyWire measured. Every constant in `src/config.py` was fitted against measurements of the simulated network rather than chosen by feel.
 
 ## Requirements
 
