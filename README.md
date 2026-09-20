@@ -34,7 +34,7 @@ There is no policy, no reward, no training and no learning whatsoever. The conne
 
 ## The connectome data is not in this repository
 
-The simulation needs roughly 110 MB of FlyWire data that is deliberately not committed here. It comes from [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain), which is where the neural engine this project builds on lives, and from the FlyWire annotation supplement.
+The simulation needs roughly 140 MB of FlyWire data that is deliberately not committed here. It comes from [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain), which is where the neural engine this project builds on lives, and from the FlyWire annotation supplement.
 
 `src/config.py` resolves the data path relative to the parent of this repository, so the layout on disk has to look like this. The folder this repository sits in can have any name.
 
@@ -42,14 +42,16 @@ The simulation needs roughly 110 MB of FlyWire data that is deliberately not com
 <parent folder>/
 ├── fly-brain/                  git clone https://github.com/eonsystemspbc/fly-brain
 │   └── data/
-│       ├── 2025_Connectivity_783.parquet     96 MB, signed synaptic weights
-│       ├── 2025_Completeness_783.csv          3 MB, the neuron index
-│       └── soma_coordinates_783.csv          10 MB, soma positions for the 3D panel
-├── flywire_annotations/
+│       ├── 2025_Connectivity_783.parquet     97 MB, signed synaptic weights
+│       ├── 2025_Completeness_783.csv          4 MB, the neuron index
+│       └── soma_coordinates_783.csv          11 MB, soma positions for the 3D panel
+├── flywire_annotations/        git clone https://github.com/flyconnectome/flywire_annotations
 │   └── supplemental_files/
-│       └── Supplemental_file1_neuron_annotations.tsv   super_class per neuron
+│       └── Supplemental_file1_neuron_annotations.tsv   31 MB, super_class per neuron
 └── Fly-NAF/                    this repository
 ```
+
+Only two of those files ship inside the `fly-brain` clone. `soma_coordinates_783.csv` is not one of them, and has to be fetched separately from the FlyWire Codex release at `https://storage.googleapis.com/flywire-data/codex/data/fafb/783/coordinates.csv.gz`, then decompressed and renamed. The 3D panel is the only thing that reads it.
 
 The annotations file is also found if you keep it under `fly-brain/data/flywire_annotations/` instead. Only the three data files and the annotation TSV are read. Everything else in the `fly-brain` clone is ignored.
 
@@ -57,12 +59,13 @@ The annotations file is also found if you keep it under `fly-brain/data/flywire_
 
 ```bash
 git clone https://github.com/eonsystemspbc/fly-brain.git
+git clone https://github.com/flyconnectome/flywire_annotations.git
 git clone <this repository> Fly-NAF
 cd Fly-NAF
 uv sync
 ```
 
-Then place the FlyWire annotations beside the two clones as shown above.
+Then fetch `soma_coordinates_783.csv` into `fly-brain/data/` as described above.
 
 ## Calibration
 
@@ -129,3 +132,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.1 | Licence corrected to GPL v3 after identifying code derived from fly-brain | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
 | 1.2 | Documented how the test scripts are run and what they depend on | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 |
 | 1.3 | Recorded the best run reached so far | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-19 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-19 |
+| 1.4 | Corrected where each data file comes from | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 |
