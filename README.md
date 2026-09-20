@@ -55,6 +55,16 @@ Only two of those files ship inside the `fly-brain` clone. `soma_coordinates_783
 
 The annotations file is also found if you keep it under `fly-brain/data/flywire_annotations/` instead. Only the three data files and the annotation TSV are read. Everything else in the `fly-brain` clone is ignored.
 
+## Then why are those files not in the repository?
+
+Three reasons, and the first one settles it on its own.
+
+FlyWire releases the connectome under CC BY-NC 4.0, which allows sharing with attribution but forbids commercial use. This project is GPL v3, and the GPL does not allow extra restrictions to be layered on top of it. Shipping the data here would put two incompatible licences in the same repository.
+
+The `flywire_annotations` supplement carries no licence file at all, so redistributing that one would be worse still.
+
+And `2025_Connectivity_783.parquet` is 97 MB against a hard limit of 100 MB per file on GitHub, so it would stop working on whichever release grows it past that line.
+
 ## Setup
 
 ```bash
@@ -122,7 +132,7 @@ It has to be. Two files under `src/neural/` are adapted from `code/run_pytorch.p
 
 Everything else here is original. An audit of all twenty source files against the upstream project found no meaningful overlap outside those two.
 
-The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It stays subject to FlyWire's own terms and citation requirements, and anyone using this project has to obtain it from the sources listed above.
+The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It is released under CC BY-NC 4.0 and stays subject to FlyWire's own terms and citation requirements, so anyone using this project has to obtain it from the sources listed above.
 
 Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project.
 
@@ -133,3 +143,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.2 | Documented how the test scripts are run and what they depend on | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 |
 | 1.3 | Recorded the best run reached so far | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-19 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-19 |
 | 1.4 | Corrected where each data file comes from | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 |
+| 1.5 | Explained why the connectome data cannot be committed here | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 |
