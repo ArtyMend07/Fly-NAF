@@ -1,0 +1,132 @@
+=== Connectome Session Report ===
+Session Duration : 577.3 seconds
+Timestamp        : 2026-09-18 22:02:53
+
+--- Quantitative Breakdown ---
+Left Door Panics (Bonnie)  : 1
+Right Door Panics (Chica)  : 9
+Left Door Releases         : 1
+Right Door Releases        : 9
+Mean Door Hold             : 5.0s
+Total Door-Closed Time     : 49.6s
+Spontaneous Camera Pulls   : 10
+Mean Monitor Watch         : 1.1s, 2% of the night blind
+Monitor Raised By          : 0 DNp09 spikes, 10 accumulated drive
+Monitor Lowered By         : 1 drive faded, 9 hallway won, 0 power cap
+Left Light Checks          : 24
+Right Light Checks         : 26
+
+--- Who Decided To Look ---
+Spontaneous hemispheric drift         :  31 (62%)
+What the last look revealed           :   0 (0%)
+Starvation guard (not the connectome) :  19 (38%)
+Brain-driven share                    : 62%
+Interval between looks                : median 8.1s, min 4.7s, max 25.4s
+
+--- Where The Night Went ---
+Engine rate                           : 6.4 frames/sec, 3723 frames
+Inhibitors driven                     : 6% of frames (silences both descending neurons)
+Busy with a light                     : 26% of frames (the monitor cannot rise then)
+
+--- What The Eye Measured ---
+Threat threshold (MSE)                : 1500
+Left hallway                          : 23 looks, median 149, peak 4347, 2 over the threshold
+Right hallway                         : 26 looks, median 294, peak 11563, 9 over the threshold
+Engine frames per look                : median 12, min 7, max 12
+Frames the eye drove the cluster      : median 0, peak 12, 3 long enough to slam a door
+
+--- Chronological Event Log ---
+[  22.5s] Spontaneous hemispheric drift drove a right light check (search drive: -1.67).
+[  31.2s] Spontaneous hemispheric drift drove a right light check (search drive: -1.15).
+[  40.8s] Spontaneous hemispheric drift drove a left light check (search drive: +1.02).
+[  51.6s] Spontaneous hemispheric drift drove a right light check (search drive: -1.04).
+[  70.4s] Spontaneous hemispheric drift drove a right light check (search drive: -1.14).
+[  75.7s] Starvation guard (not the connectome) drove a left light check (search drive: +1.75).
+[  83.0s] Spontaneous hemispheric drift drove a right light check (search drive: -1.04).
+[  88.7s] Spontaneous hemispheric drift drove a left light check (search drive: +2.09).
+[  94.5s] Spontaneous hemispheric drift drove a right light check (search drive: -1.66).
+[ 104.5s] Spontaneous hemispheric drift drove a right light check (search drive: -1.03).
+[ 109.7s] Spontaneous hemispheric drift drove a left light check (search drive: +1.11).
+[ 117.1s] Spontaneous hemispheric drift drove a left light check (search drive: +1.09).
+[ 130.7s] Spontaneous hemispheric drift drove a right light check (search drive: -1.01).
+[ 147.4s] Starvation guard (not the connectome) drove a left light check (search drive: -0.58).
+[ 153.6s] Spontaneous hemispheric drift drove a left light check (search drive: +1.34).
+[ 158.4s] Spontaneous hemispheric drift drove a right light check (search drive: -1.95).
+[ 175.6s] Spontaneous hemispheric drift drove a right light check (search drive: -1.02).
+[ 177.9s] DNp09 drive accumulated to 1.32. Monitor raised for environmental scan.
+[ 178.8s] Monitor lowered after 0.9s, the fly wanted to check a hallway.
+[ 183.7s] Starvation guard (not the connectome) drove a left light check (search drive: +0.04).
+[ 189.9s] Spontaneous hemispheric drift drove a right light check (search drive: -1.51).
+[ 192.7s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 195.5s] Spontaneous hemispheric drift drove a right light check (search drive: -1.51).
+[ 197.6s] Escape drive decayed after 4.9s. Right door reopened.
+[ 200.2s] Spontaneous hemispheric drift drove a left light check (search drive: +1.05).
+[ 219.7s] Spontaneous hemispheric drift drove a left light check (search drive: +1.11).
+[ 223.8s] Visual threat detected. Giant fiber fired. Left door slammed.
+[ 226.7s] Starvation guard (not the connectome) drove a right light check (search drive: +0.46).
+[ 228.8s] Escape drive decayed after 5.1s. Left door reopened.
+[ 229.8s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 234.6s] Escape drive decayed after 4.9s. Right door reopened.
+[ 249.8s] Starvation guard (not the connectome) drove a left light check (search drive: +0.27).
+[ 254.4s] DNp09 drive accumulated to 1.02. Monitor raised for environmental scan.
+[ 255.3s] Monitor lowered after 0.9s, the fly wanted to check a hallway.
+[ 259.4s] Monitor stayed up after both lowering gestures. Retrying.
+[ 265.2s] Starvation guard (not the connectome) drove a right light check (search drive: +0.12).
+[ 268.5s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 273.4s] Escape drive decayed after 5.0s. Right door reopened.
+[ 279.8s] Starvation guard (not the connectome) drove a left light check (search drive: -0.20).
+[ 283.0s] DNp09 drive accumulated to 1.05. Monitor raised for environmental scan.
+[ 283.8s] Monitor lowered after 0.8s, the fly wanted to check a hallway.
+[ 287.5s] Monitor stayed up after both lowering gestures. Retrying.
+[ 295.3s] Starvation guard (not the connectome) drove a right light check (search drive: +0.40).
+[ 298.1s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 303.0s] Escape drive decayed after 5.0s. Right door reopened.
+[ 309.9s] Starvation guard (not the connectome) drove a left light check (search drive: +0.36).
+[ 324.4s] DNp09 drive accumulated to 1.02. Monitor raised for environmental scan.
+[ 326.5s] Monitor lowered after 2.1s, the exploratory drive faded.
+[ 330.3s] Monitor stayed up after both lowering gestures. Retrying.
+[ 335.0s] Starvation guard (not the connectome) drove a right light check (search drive: +0.53).
+[ 338.1s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 340.7s] Starvation guard (not the connectome) drove a left light check (search drive: -0.59).
+[ 343.1s] Escape drive decayed after 5.0s. Right door reopened.
+[ 362.4s] DNp09 drive accumulated to 1.01. Monitor raised for environmental scan.
+[ 363.9s] Monitor lowered after 1.5s, the fly wanted to check a hallway.
+[ 365.2s] Starvation guard (not the connectome) drove a right light check (search drive: -0.66).
+[ 371.0s] Starvation guard (not the connectome) drove a left light check (search drive: +1.13).
+[ 387.4s] Spontaneous hemispheric drift drove a right light check (search drive: -1.06).
+[ 393.5s] Spontaneous hemispheric drift drove a left light check (search drive: +1.03).
+[ 401.1s] Spontaneous hemispheric drift drove a right light check (search drive: -1.03).
+[ 405.6s] DNp09 drive accumulated to 1.08. Monitor raised for environmental scan.
+[ 407.0s] Monitor lowered after 1.4s, the fly wanted to check a hallway.
+[ 415.4s] Spontaneous hemispheric drift drove a left light check (search drive: +1.01).
+[ 421.2s] Spontaneous hemispheric drift drove a right light check (search drive: -1.44).
+[ 424.1s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 424.4s] DNp09 drive accumulated to 1.07. Monitor raised for environmental scan.
+[ 425.3s] Monitor lowered after 0.9s, the fly wanted to check a hallway.
+[ 426.9s] Spontaneous hemispheric drift drove a right light check (search drive: -1.01).
+[ 429.0s] Escape drive decayed after 4.9s. Right door reopened.
+[ 432.5s] Spontaneous hemispheric drift drove a left light check (search drive: +1.27).
+[ 443.5s] Spontaneous hemispheric drift drove a left light check (search drive: +1.04).
+[ 455.4s] DNp09 drive accumulated to 1.02. Monitor raised for environmental scan.
+[ 456.4s] Monitor lowered after 1.0s, the fly wanted to check a hallway.
+[ 458.0s] Starvation guard (not the connectome) drove a right light check (search drive: +0.12).
+[ 461.1s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 463.9s] Spontaneous hemispheric drift drove a right light check (search drive: -1.56).
+[ 465.8s] Escape drive decayed after 5.0s. Right door reopened.
+[ 469.2s] Spontaneous hemispheric drift drove a left light check (search drive: +2.55).
+[ 493.8s] Starvation guard (not the connectome) drove a right light check (search drive: -0.25).
+[ 496.4s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 496.7s] DNp09 drive accumulated to 1.04. Monitor raised for environmental scan.
+[ 498.3s] Monitor lowered after 1.0s, the fly wanted to check a hallway.
+[ 499.7s] Starvation guard (not the connectome) drove a left light check (search drive: -0.80).
+[ 501.3s] Escape drive decayed after 4.9s. Right door reopened.
+[ 514.0s] Spontaneous hemispheric drift drove a left light check (search drive: +1.00).
+[ 518.8s] Spontaneous hemispheric drift drove a right light check (search drive: -1.08).
+[ 521.2s] Visual threat detected. Giant fiber fired. Right door slammed.
+[ 526.2s] Escape drive decayed after 5.0s. Right door reopened.
+[ 526.9s] DNp09 drive accumulated to 1.07. Monitor raised for environmental scan.
+[ 527.7s] Monitor lowered after 0.9s, the fly wanted to check a hallway.
+[ 531.3s] Monitor stayed up after both lowering gestures. Retrying.
+[ 544.2s] Starvation guard (not the connectome) drove a left light check (search drive: -0.44).
+[ 550.2s] Starvation guard (not the connectome) drove a right light check (search drive: -1.06).
+[ 574.4s] Starvation guard (not the connectome) drove a left light check (search drive: -0.34).
