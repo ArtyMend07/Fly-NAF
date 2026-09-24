@@ -2,7 +2,7 @@
 
 A whole-brain *Drosophila melanogaster* connectome simulation that plays Five Nights at Freddy's 1.
 
-All 138,639 neurons of the FlyWire 783 connectome run as leaky integrate-and-fire units with their real synaptic weights. The screen is fed into the fly's visual clusters, and the mouse is driven by reading its descending neurons.
+138,639 of the 139,255 proofread neurons in the FlyWire 783 connectome run as leaky integrate-and-fire units, wired by the measured synaptic weights. That is 99.56% of the brain, and the ones left out are almost all sensory afferents rather than interneurons. Nothing else is subset. The screen is fed into the fly's visual clusters, and the mouse is driven by reading its descending neurons.
 
 ## Best run so far
 
@@ -24,6 +24,10 @@ Raising the tablet also drives the GABAergic inhibitor clusters at full rate, wh
 ## What this is not
 
 There is no policy, no reward, no training and no learning whatsoever. The connectome is fixed at what FlyWire measured. Every constant in `src/config.py` was fitted against measurements of the simulated network rather than chosen by feel.
+
+One thing is not a measurement. `arousal_multiplier` in `src/config.py` multiplies every weight in the matrix by 3, standing in for the neuromodulatory tone a brain in a body would have. The sign and the topology are untouched, the gain is uniform, and no edge is treated differently from any other, but the magnitude is not what FlyWire recorded.
+
+FlyWire maps the brain and stops at the neck. There is no ventral nerve cord here, so the descending neurons are read where they leave the brain rather than driving a simulated body.
 
 ## Requirements
 
@@ -98,13 +102,23 @@ Leave the terminal focused. The brain loads, the activity panel opens over the o
 
 The first run after a calibration change performs live calibration, which turns each hallway light on in turn to record what an empty hallway looks like. **Both hallways have to be empty at that moment**, otherwise an animatronic gets recorded as the normal state and the fly stays blind for the rest of the night.
 
-Every run writes a report to `logs/session_telemetry_*.txt` covering who decided each look, what the eye measured against the threshold, how long the eye drove the cluster, and how much of the night the inhibitors were active.
+Every run writes a report to `logs/session_telemetry_*.txt` covering who decided each look, what the eye measured against the threshold, how long the eye drove the cluster, and how much of the night the inhibitors were active. One real report is kept at `docs/example-session-report.txt` so the format and the numbers can be read without running anything.
 
 ## The live activity panel
 
 A borderless, click-through overlay is pinned over the office showing all 138,639 somata in their real anatomical positions, lit as they fire. Brightness follows both the firing share and the on-screen point density, so the panel reads as an instrument rather than a white blob.
 
 The full version, with per-region firing bars and counters, is served at `http://127.0.0.1:8770/` and can be opened in any browser at the same time.
+
+## Verifying what is in the loop
+
+The claim at the top of this file is checkable without installing the game.
+
+```bash
+uv run python src/scripts/verify_connectome.py
+```
+
+It prints the neuron count, the edge count, the coverage against the FlyWire annotations, the super class of every neuron left out, the dimensions of the matrix handed to the engine, how many rows were dropped before it, and the gain in force. It needs the connectome data in place and nothing else.
 
 ## Tests
 
@@ -144,3 +158,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.3 | Recorded the best run reached so far | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-19 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-19 |
 | 1.4 | Corrected where each data file comes from | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 |
 | 1.5 | Explained why the connectome data cannot be committed here | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-20 |
+| 1.6 | Stated the neuron coverage exactly, disclosed the global gain and added the verification script | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-24 |
