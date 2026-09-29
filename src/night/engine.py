@@ -69,6 +69,10 @@ class ConnectomeEngine:
         return spikes
 
     @property
+    def num_neurons(self) -> int:
+        return self._adapter.num_neurons
+
+    @property
     def synapses(self):
         return self._adapter.weights
 

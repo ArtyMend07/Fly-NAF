@@ -34,7 +34,7 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
     calibration_done = asyncio.Event()
     view_ready = asyncio.Event()
     tracer = CascadeTracer.from_csr(engine.synapses) if config.BRAIN_VIEW.enabled else None
-    feed = SpikeFeed(engine._adapter.num_neurons, tracer)
+    feed = SpikeFeed(engine.num_neurons, tracer)
     highlights = {'gaze': '--', 'gf_l': False, 'gf_r': False, 'camera': False}
     saccade = SaccadeRequest()
 
