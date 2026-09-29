@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-import main
+from night import panel
 
 GAME = 4242
 PANEL = 99
@@ -21,11 +21,11 @@ def _run(game, valid_handles=(GAME,), point_lookup=0, held=True):
         calls['held'].append(hwnd)
         return held
 
-    with patch.object(main, 'find_game_window', side_effect=fake_lookup), \
-         patch.object(main, 'hold_foreground', side_effect=fake_hold), \
-         patch.object(main, 'is_window', side_effect=lambda h: h in valid_handles), \
-         patch.object(main, 'window_title', side_effect=lambda h: f'window {h}'):
-        main._restore_game_focus(game, PANEL, timeout_sec=1.0)
+    with patch.object(panel, 'find_game_window', side_effect=fake_lookup), \
+         patch.object(panel, 'hold_foreground', side_effect=fake_hold), \
+         patch.object(panel, 'is_window', side_effect=lambda h: h in valid_handles), \
+         patch.object(panel, 'window_title', side_effect=lambda h: f'window {h}'):
+        panel.restore_game_focus(game, PANEL, timeout_sec=1.0)
 
     return calls
 

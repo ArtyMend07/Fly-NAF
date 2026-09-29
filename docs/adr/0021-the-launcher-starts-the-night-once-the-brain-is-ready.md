@@ -107,6 +107,12 @@ first run of the sweep removed ten stale profiles, 460 megabytes in all. A
 fresh profile is also a first run to Edge, which answers it with a sync
 consent bubble over the panel, and `--disable-sync` suppresses it.
 
+A window whose title merely contains the name of the game is not the game. A
+browser tab open on this repository's page carries the name in its title, and it
+made the lookup report a running game, so the launcher skipped opening it and
+went straight to the brain. The title fallback now requires the whole title to be
+the game's, and the process name stays the primary test.
+
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | Recorded the launcher and the corrected window measurement | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 |
@@ -114,3 +120,4 @@ consent bubble over the panel, and `--disable-sync` suppresses it.
 | 1.2 | Tied the browser's lifetime to the Python process with a job object | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 |
 | 1.3 | Recorded the profile sweep, the sync bubble and the Linux parent death signal | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 |
 | 1.4 | Replaced the drawn head with the NeuroMechFly model in a night office scene | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
+| 1.5 | Required the whole window title to match the game | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |

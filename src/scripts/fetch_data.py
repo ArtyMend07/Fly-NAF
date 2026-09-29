@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+import zipfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -14,6 +15,10 @@ import config
 PARENT = os.path.dirname(config.PROJECT_ROOT)
 FLY_BRAIN = os.path.join(PARENT, 'fly-brain')
 ANNOTATIONS = os.path.join(PARENT, 'flywire_annotations')
+REPOSITORIES = (
+    ('https://github.com/eonsystemspbc/fly-brain', FLY_BRAIN),
+    ('https://github.com/flyconnectome/flywire_annotations', ANNOTATIONS),
+)
 SOMA_CSV = os.path.join(config.DATA_DIR, 'soma_coordinates_783.csv')
 SOMA_URL = 'https://storage.googleapis.com/flywire-data/codex/data/fafb/783/coordinates.csv.gz'
 SOMA_HEADER = 'root_id,position'
@@ -43,13 +48,63 @@ def _have(path: str) -> bool:
     return os.path.isfile(path)
 
 
+def _git_available() -> bool:
+    return shutil.which('git') is not None
+
+
+def _present(target: str) -> bool:
+    return os.path.isdir(target) and bool(os.listdir(target))
+
+
 def _clone(url: str, target: str) -> bool:
-    if os.path.isdir(os.path.join(target, '.git')):
-        print('already cloned: %s' % target)
-        return True
     print('cloning %s into %s' % (url, target))
-    result = subprocess.run(['git', 'clone', '--depth', '1', url, target])
+    result = subprocess.run(['git', 'clone', '--depth', '1', url + '.git', target])
     return result.returncode == 0
+
+
+def _extract_without_top_folder(archive: str, target: str):
+    root = os.path.abspath(target)
+    with zipfile.ZipFile(archive) as bundle:
+        top = bundle.namelist()[0].split('/')[0] + '/'
+        for member in bundle.infolist():
+            relative = member.filename[len(top):]
+            if not relative:
+                continue
+            destination = os.path.abspath(os.path.join(root, *relative.split('/')))
+            if os.path.commonpath([root, destination]) != root:
+                raise ValueError('unsafe path in archive: %s' % member.filename)
+            if member.is_dir():
+                os.makedirs(destination, exist_ok=True)
+                continue
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            with bundle.open(member) as source, open(destination, 'wb') as output:
+                shutil.copyfileobj(source, output)
+
+
+def _download_zip(url: str, target: str) -> bool:
+    archive = target + '.zip'
+    staging = target + '.part'
+    print('downloading %s as a zip file into %s' % (url, target))
+    try:
+        urllib.request.urlretrieve(url + '/archive/HEAD.zip', archive)
+        shutil.rmtree(staging, ignore_errors=True)
+        _extract_without_top_folder(archive, staging)
+        os.replace(staging, target)
+    except (OSError, ValueError, zipfile.BadZipFile) as exc:
+        print('download failed: %s' % exc)
+        shutil.rmtree(staging, ignore_errors=True)
+        return False
+    finally:
+        if os.path.exists(archive):
+            os.remove(archive)
+    return True
+
+
+def _obtain(url: str, target: str, use_git: bool) -> bool:
+    if _present(target):
+        print('already present: %s' % target)
+        return True
+    return _clone(url, target) if use_git else _download_zip(url, target)
 
 
 def soma_file_is_current(path: str = SOMA_CSV) -> bool:
@@ -134,27 +189,24 @@ def print_status():
         print('%-22s %s  %s' % (label, 'present' if present else 'MISSING', path))
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description='Fetch the FlyWire data this simulation needs. Nothing is redistributed.',
-    )
-    parser.add_argument('--check', action='store_true', help='only report what is present')
-    parser.add_argument('--yes', action='store_true', help='skip the licence prompt')
-    args = parser.parse_args()
-
-    if args.check:
-        print_status()
-        return 0 if ready() else 1
-
+def fetch(assume_yes: bool = False, use_git: bool | None = None) -> bool:
     print(LICENCE_NOTICE)
-    if not args.yes:
-        answer = input('Continue and download it? [y/N] ').strip().lower()
+    if not assume_yes:
+        try:
+            answer = input('Continue and download it? [y/N] ').strip().lower()
+        except EOFError:
+            answer = ''
         if answer not in ('y', 'yes'):
             print('nothing downloaded')
-            return 1
+            return False
 
-    ok = _clone('https://github.com/eonsystemspbc/fly-brain.git', FLY_BRAIN)
-    ok = _clone('https://github.com/flyconnectome/flywire_annotations.git', ANNOTATIONS) and ok
+    if use_git is None:
+        use_git = _git_available()
+    print('using git to clone' if use_git else 'git was not used, fetching the repositories as zip files')
+
+    ok = True
+    for url, target in REPOSITORIES:
+        ok = _obtain(url, target, use_git) and ok
     ok = _download_soma() and ok
     if not _download_brain_mesh():
         print('the panel will draw the neurons without the brain outline')
@@ -162,10 +214,27 @@ def main():
     print()
     print_status()
     if ready():
-        print('\nall the required files are in place')
-        return 0
-    print('\nsomething is still missing, see the list above')
-    return 1
+        print('')
+        print('all the required files are in place')
+        return True
+    print('')
+    print('something is still missing, see the list above')
+    return False
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Fetch the FlyWire data this simulation needs. Nothing is redistributed.',
+    )
+    parser.add_argument('--check', action='store_true', help='only report what is present')
+    parser.add_argument('--yes', action='store_true', help='skip the licence prompt')
+    parser.add_argument('--no-git', action='store_true', help='download zip files even when git is installed')
+    args = parser.parse_args()
+
+    if args.check:
+        print_status()
+        return 0 if ready() else 1
+    return 0 if fetch(args.yes, False if args.no_git else None) else 1
 
 
 if __name__ == '__main__':

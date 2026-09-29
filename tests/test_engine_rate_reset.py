@@ -7,7 +7,8 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import config
-from main import ConnectomeEngine, SensoryState
+from night.engine import ConnectomeEngine
+from night.state import SensoryState
 
 
 def _make_bare_engine(num_neurons: int = 10) -> ConnectomeEngine:
