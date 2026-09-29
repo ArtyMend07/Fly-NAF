@@ -38,7 +38,8 @@ def _reflex_latencies(driven: list) -> list:
 
 def replay(trace_path: str, device: str = 'cpu') -> dict:
     from brain_adapter import BrainAdapter
-    from main import ConnectomeEngine, SensoryState
+    from night.engine import ConnectomeEngine
+    from night.state import SensoryState
 
     header, frames, _events = recorder.load_trace(trace_path)
     if not frames:

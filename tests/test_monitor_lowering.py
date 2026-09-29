@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import main
+from night.state import SensoryState
 from telemetry import ConnectomeTelemetry
 
 
@@ -151,7 +152,7 @@ async def _settle_lowering(monitor):
 
 
 def _monitor(vision, controller):
-    state = main.SensoryState()
+    state = SensoryState()
     telemetry = ConnectomeTelemetry()
     return main.MonitorControl(vision, controller, telemetry, state), state, telemetry
 

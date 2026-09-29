@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import config
 import main
+from night.state import SensoryState
 
 FRAMES = config.FORAGING_PARAMS.light_inspection_frames
 
@@ -60,7 +61,7 @@ def _watch(engine, vision, state, side, slam_at=None):
 
 def test_the_eye_stays_open_for_the_configured_number_of_engine_frames():
     engine = TickingEngine()
-    state = main.SensoryState()
+    state = SensoryState()
 
     _contrast, frames, _driven, fired = _watch(engine, PeakVision(), state, 'left')
 
@@ -77,7 +78,7 @@ def test_the_look_is_long_enough_for_the_measured_reflex_latency():
 
 def test_the_eye_closes_early_once_the_giant_fiber_answers():
     engine = TickingEngine()
-    state = main.SensoryState()
+    state = SensoryState()
 
     _contrast, frames, _driven, fired = _watch(engine, PeakVision(), state, 'left', slam_at=3)
 
@@ -87,7 +88,7 @@ def test_the_eye_closes_early_once_the_giant_fiber_answers():
 
 def test_a_stalled_engine_cannot_hold_the_light_forever():
     engine = TickingEngine(stalled=True)
-    state = main.SensoryState()
+    state = SensoryState()
     original = config.FORAGING_PARAMS.light_inspection_max_sec
     assert original <= 10.0, 'the safety cap has to stay short enough to test'
 
@@ -99,7 +100,7 @@ def test_a_stalled_engine_cannot_hold_the_light_forever():
 
 def test_the_gaze_flag_is_cleared_on_both_sides_afterwards():
     engine = TickingEngine()
-    state = main.SensoryState()
+    state = SensoryState()
 
     _watch(engine, PeakVision(), state, 'right')
 
@@ -109,7 +110,7 @@ def test_the_gaze_flag_is_cleared_on_both_sides_afterwards():
 
 def test_the_peak_is_reset_at_the_start_and_reported_at_the_end():
     engine = TickingEngine()
-    state = main.SensoryState()
+    state = SensoryState()
     vision = PeakVision(peak=2400.0)
 
     contrast, _frames, _driven, _fired = _watch(engine, vision, state, 'left')
@@ -122,14 +123,14 @@ def test_the_report_can_tell_a_look_apart_from_a_look_that_saw_something():
     """A peak contrast says the eye crossed the threshold once. Only the frame
     count says whether it held long enough for DNp01 to answer."""
     engine = TickingEngine(driving=True)
-    state = main.SensoryState()
+    state = SensoryState()
 
     _contrast, frames, driven, _fired = _watch(engine, PeakVision(), state, 'left')
 
     assert driven == frames
 
     quiet = TickingEngine(driving=False)
-    _contrast, _frames, driven, _fired = _watch(quiet, PeakVision(), main.SensoryState(), 'left')
+    _contrast, _frames, driven, _fired = _watch(quiet, PeakVision(), SensoryState(), 'left')
 
     assert driven == 0
 

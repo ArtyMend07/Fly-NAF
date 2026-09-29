@@ -16,6 +16,7 @@ import torch
 
 import config
 import main
+from night.state import SaccadeRequest, SensoryState
 from telemetry import ConnectomeTelemetry
 
 NEURONS = 8
@@ -182,9 +183,9 @@ async def _office_is_up(_seconds):
 
 async def _play(seconds: float, engine=None):
     engine = engine or FakeEngine()
-    state = main.SensoryState()
+    state = SensoryState()
     controller = FakeController(state)
-    saccade = main.SaccadeRequest()
+    saccade = SaccadeRequest()
     telemetry = ConnectomeTelemetry()
     shutdown = asyncio.Event()
     calibrated = asyncio.Event()
