@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-import main
+from night import monitor
 from night.state import SensoryState
 from telemetry import ConnectomeTelemetry
 
@@ -70,7 +70,7 @@ class StubExplore:
 
 
 def _lower(vision, controller, attempt=0, confirm=0.05):
-    return asyncio.run(main._lower_monitor(
+    return asyncio.run(monitor.lower_monitor(
         vision, controller, settle_sec=0.02, confirm_sec=confirm,
         attempt=attempt, gesture_budget=BUDGET,
     ))
@@ -79,7 +79,7 @@ def _lower(vision, controller, attempt=0, confirm=0.05):
 def test_the_reference_is_not_recaptured_while_the_tablet_is_still_up():
     vision = ScriptedVision(still_up_for=99)
 
-    reanchored = asyncio.run(main._reanchor_office_reference(vision, 0.02, 0.05))
+    reanchored = asyncio.run(monitor.reanchor_office_reference(vision, 0.02, 0.05))
 
     assert reanchored is False
     assert vision.captures == 0
@@ -88,7 +88,7 @@ def test_the_reference_is_not_recaptured_while_the_tablet_is_still_up():
 def test_the_reference_is_recaptured_once_the_office_is_back():
     vision = ScriptedVision(still_up_for=0)
 
-    reanchored = asyncio.run(main._reanchor_office_reference(vision, 0.02, 0.05))
+    reanchored = asyncio.run(monitor.reanchor_office_reference(vision, 0.02, 0.05))
 
     assert reanchored is True
     assert vision.captures == 1
@@ -154,7 +154,7 @@ async def _settle_lowering(monitor):
 def _monitor(vision, controller):
     state = SensoryState()
     telemetry = ConnectomeTelemetry()
-    return main.MonitorControl(vision, controller, telemetry, state), state, telemetry
+    return monitor.MonitorControl(vision, controller, telemetry, state), state, telemetry
 
 
 def test_the_tablet_does_not_rise_while_a_look_is_pending():
