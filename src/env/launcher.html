@@ -12,7 +12,6 @@
     --lit: #ffc94a;
     --off: #2a2b33;
     --bad: #ff5c4a;
-    --rec: #ff3b30;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -29,10 +28,7 @@
   header h1 { font-family: 'Bahnschrift', 'Segoe UI', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 0.34em; }
   header span { font-size: 10.5px; color: var(--label); letter-spacing: 0.12em; }
   #feed { top: 18px; right: 22px; text-align: right; font-size: 11px; letter-spacing: 0.14em; color: #c9ccd2; line-height: 1.6; }
-  #feed .rec { color: var(--rec); }
-  #feed .rec i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--rec); margin-right: 6px; vertical-align: 0; animation: blink 1.2s steps(2, start) infinite; }
   #feed b { font-size: 20px; font-weight: 400; letter-spacing: 0.06em; color: var(--value); }
-  @keyframes blink { to { visibility: hidden; } }
   .eye-label {
     position: absolute;
     transform: translate(-50%, -50%);
@@ -85,17 +81,14 @@
 </div>
 <header class="hud">
   <h1>FLY-NAF</h1>
-  <span>whole-brain connectome, FlyWire 783</span>
 </header>
 <div class="hud" id="feed">
-  <div class="rec"><i></i>REC</div>
-  <div>CAM &middot; NIGHT DESK</div>
   <div><b id="clock">12 AM</b></div>
   <div id="night-line">NIGHT 1</div>
 </div>
 <div class="eye-label" id="label-new">
   <h2>NEW GAME</h2>
-  <p>Night 1, newspaper first</p>
+  <p>Night 1</p>
   <small></small>
 </div>
 <div class="eye-label" id="label-continue">
@@ -705,10 +698,10 @@ function render() {
   setDot('dot-data', ocellusState('data'));
   setDot('dot-game', ocellusState('game'));
   setDot('dot-menu', ocellusState('menu'));
-  document.getElementById('text-data').textContent = status.data_ready ? 'ready' : 'missing, run fetch_data';
-  document.getElementById('text-game').textContent = status.game_running ? 'running' : 'opens with ' + status.opens_with;
+  document.getElementById('text-data').textContent = status.data_ready ? '' : 'missing, run fetch_data';
+  document.getElementById('text-game').textContent = status.game_running ? '' : 'opens with ' + status.opens_with;
   const calibrated = [status.menu.new, status.menu.continue].filter(Boolean).length;
-  document.getElementById('text-menu').textContent = calibrated === 2 ? 'calibrated' : calibrated + ' of 2 calibrated';
+  document.getElementById('text-menu').textContent = calibrated === 2 ? '' : calibrated + ' of 2 calibrated';
 
   const night = status.night || 1;
   document.querySelector('#label-continue p').textContent = 'Night ' + night;

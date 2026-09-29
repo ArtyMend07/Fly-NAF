@@ -31,7 +31,7 @@ FlyWire maps the brain and stops at the neck. There is no ventral nerve cord her
 
 ## Requirements
 
-- Windows, or Linux on an X11 session. Wayland cannot work, because screen capture, synthetic pointer input and a click-through window are all unavailable to a Wayland client. On Linux the game itself runs under Wine or Proton.
+- Windows, or Linux on an X11 session. Wayland cannot work, because screen capture, synthetic pointer input and a click-through window are all unavailable to a Wayland client. On Linux the game itself would run under Wine or Proton, but that path has only been exercised against a live X11 server without the game present, as ADR 0017 describes; a full night through Wine or Proton has not been run yet.
 - Nothing but Python is needed for the two inspection paths below. Those run on macOS too.
 - Python 3.11 or newer, and [uv](https://docs.astral.sh/uv/).
 - Five Nights at Freddy's 1, running windowed at 1280x720.
@@ -266,3 +266,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.9 | Described the panel beside the game, its stimulus and timeline bands and the cascade replay | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 |
 | 1.10 | Documented the Codex soma file, the brain outline and the NeuroMechFly model with their licences | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
 | 1.11 | Added the required notice of changes to the NeuroMechFly assets and its citation | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
+| 1.12 | Clarified that the Wine or Proton path has not been run end to end yet | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |

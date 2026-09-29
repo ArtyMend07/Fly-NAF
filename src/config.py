@@ -134,8 +134,8 @@ class GameLauncher:
     new_game_y: int | None = 419
     continue_x: int | None = 212
     continue_y: int | None = 494
-    night_start_new_sec: float = 12.0
-    night_start_continue_sec: float = 5.0
+    night_start_new_sec: float = 19.0
+    night_start_continue_sec: float = 12.0
 
 
 @dataclass(frozen=True)
