@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<title>Fly-NAF</title>
+<style>
+  :root {
+    --bg: #050506;
+    --label: #7b7f86;
+    --value: #e8e9ee;
+    --lit: #ffc94a;
+    --off: #2a2b33;
+    --bad: #ff5c4a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+    color: var(--value);
+    font-family: 'Bahnschrift', 'Segoe UI', system-ui, sans-serif;
+    user-select: none;
+  }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .hud { position: absolute; font-family: 'Consolas', 'SF Mono', monospace; text-shadow: 0 0 6px rgba(0, 0, 0, 0.9); pointer-events: none; }
+  header { top: 18px; left: 22px; }
+  header h1 { font-family: 'Bahnschrift', 'Segoe UI', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 0.34em; }
+  header span { font-size: 10.5px; color: var(--label); letter-spacing: 0.12em; }
+  #feed { top: 18px; right: 22px; text-align: right; font-size: 11px; letter-spacing: 0.14em; color: #c9ccd2; line-height: 1.6; }
+  #feed b { font-size: 20px; font-weight: 400; letter-spacing: 0.06em; color: var(--value); }
+  .eye-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.35s, transform 0.25s;
+    width: 230px;
+  }
+  .eye-label.hot { transform: translate(-50%, -50%) scale(1.06); }
+  .eye-label h2 { font-size: 28px; font-weight: 600; letter-spacing: 0.2em; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 3px #000; }
+  .eye-label p { margin-top: 5px; font-size: 14px; color: #f3d9cf; text-shadow: 0 1px 8px #000, 0 0 2px #000; }
+  .eye-label small { display: block; margin-top: 10px; font-size: 10.5px; letter-spacing: 0.06em; color: #d6b3a8; text-shadow: 0 1px 6px #000, 0 0 2px #000; }
+  .eye-label::before {
+    content: ''; position: absolute; top: 50%; width: 46px; height: 1px;
+    background: linear-gradient(90deg, rgba(255, 210, 190, 0), rgba(255, 210, 190, 0.55));
+  }
+  #label-new::before { right: -40px; }
+  #label-continue::before { left: -40px; transform: scaleX(-1); }
+  #legend {
+    position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%);
+    display: flex; gap: 26px; font-size: 11.5px; color: var(--label); white-space: nowrap;
+    font-family: 'Consolas', 'SF Mono', monospace; text-shadow: 0 0 6px #000;
+  }
+  #legend i { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--off); }
+  #legend b { color: var(--value); font-weight: 500; }
+  #footer {
+    position: absolute; left: 0; right: 0; bottom: 18px;
+    display: flex; justify-content: center; align-items: center; gap: 18px; font-size: 12px;
+    text-shadow: 0 0 6px #000;
+  }
+  #message { color: #9a9ea6; }
+  #message.error { color: var(--bad); }
+  #manual {
+    background: rgba(5, 5, 6, 0.6); border: 1px solid #34363f; border-radius: 3px; padding: 6px 13px;
+    color: var(--label); font: inherit; font-size: 11px; letter-spacing: 0.12em; cursor: pointer;
+    font-family: 'Consolas', 'SF Mono', monospace;
+  }
+  #manual:hover { color: var(--value); border-color: #5a5d68; }
+  #manual:disabled { opacity: 0.3; cursor: default; }
+  #fallback { position: absolute; inset: 0; display: none; flex-direction: column; gap: 14px; align-items: center; justify-content: center; color: var(--label); font-size: 13px; }
+  #fallback button { background: none; border: 1px solid #5a5d68; color: var(--value); padding: 10px 26px; font: inherit; font-size: 16px; letter-spacing: 0.2em; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="fallback">
+  <p>This view needs WebGL.</p>
+  <button data-mode="new">NEW GAME</button>
+  <button data-mode="continue">CONTINUE</button>
+</div>
+<header class="hud">
+  <h1>FLY-NAF</h1>
+</header>
+<div class="hud" id="feed">
+  <div><b id="clock">12 AM</b></div>
+  <div id="night-line">NIGHT 1</div>
+</div>
+<div class="eye-label" id="label-new">
+  <h2>NEW GAME</h2>
+  <p>Night 1</p>
+  <small></small>
+</div>
+<div class="eye-label" id="label-continue">
+  <h2>CONTINUE</h2>
+  <p>Night 1</p>
+  <small></small>
+</div>
+<div id="legend">
+  <span><i id="dot-data"></i>connectome <b id="text-data">checking</b></span>
+  <span><i id="dot-game"></i>game <b id="text-game">checking</b></span>
+  <span><i id="dot-menu"></i>menu clicks <b id="text-menu">checking</b></span>
+</div>
+<div id="footer">
+  <span id="message">Pick an eye. The brain loads first, then the fly starts the night.</span>
+  <button id="manual">I'LL START IT MYSELF</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const COLOURS = { ok: '#ffc94a', off: '#2a2b33', bad: '#ff5c4a' };
+const EYE_OF_MODE = { new: 'eye_r', continue: 'eye_l' };
+const canvas = document.getElementById('view');
+
+let status = null;
+let chosen = null;
+let hover = null;
+let offline = false;
+let webgl = true;
+
+function enabled() {
+  return !chosen && !offline && status !== null;
+}
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+} catch (error) {
+  webgl = false;
+  document.getElementById('fallback').style.display = 'flex';
+}
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x030304);
+scene.fog = new THREE.FogExp2(0x030304, 0.045);
+const camera = new THREE.PerspectiveCamera(26, 1, 0.05, 80);
+const fly = new THREE.Group();
+fly.rotation.x = -Math.PI / 2;
+scene.add(fly);
+
+const lamp = new THREE.SpotLight(0xffc98a, 2.4, 40, 0.55, 0.55, 1.2);
+lamp.position.set(2.5, 7.5, 4.5);
+lamp.castShadow = true;
+lamp.shadow.mapSize.set(2048, 2048);
+lamp.shadow.camera.near = 2;
+lamp.shadow.camera.far = 20;
+lamp.shadow.bias = -0.0004;
+scene.add(lamp);
+scene.add(lamp.target);
+const monitorGlow = new THREE.DirectionalLight(0x6c8cb8, 0.45);
+monitorGlow.position.set(5, 1.2, -6);
+scene.add(monitorGlow);
+const rim = new THREE.DirectionalLight(0x9fb4d8, 0.7);
+rim.position.set(-6, 5, 3);
+scene.add(rim);
+scene.add(new THREE.AmbientLight(0x1a1c22, 0.9));
+
+function canvasTexture(width, height, paint) {
+  const c = document.createElement('canvas');
+  c.width = width; c.height = height;
+  paint(c.getContext('2d'), width, height);
+  const texture = new THREE.CanvasTexture(c);
+  texture.anisotropy = 4;
+  return texture;
+}
+
+function speckle(g, w, h, count, alpha) {
+  for (let i = 0; i < count; i++) {
+    const shade = Math.random() * 255 | 0;
+    g.fillStyle = `rgba(${shade},${shade},${shade},${Math.random() * alpha})`;
+    g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+}
+
+const deskTexture = canvasTexture(1024, 1024, (g, w, h) => {
+  g.fillStyle = '#2a211a';
+  g.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 2) {
+    const tone = 30 + 14 * Math.sin(y * 0.021) + 9 * Math.sin(y * 0.137 + 1.3) + Math.random() * 6;
+    g.fillStyle = `rgba(${tone + 18},${tone + 8},${tone},0.55)`;
+    g.fillRect(0, y, w, 2);
+  }
+  g.strokeStyle = 'rgba(0,0,0,0.35)';
+  for (let i = 0; i < 90; i++) {
+    g.lineWidth = Math.random() * 1.2;
+    g.beginPath();
+    const x = Math.random() * w, y = Math.random() * h;
+    g.moveTo(x, y);
+    g.lineTo(x + (Math.random() - 0.5) * 220, y + (Math.random() - 0.5) * 16);
+    g.stroke();
+  }
+  g.fillStyle = 'rgba(0,0,0,0.25)';
+  for (let i = 0; i < 6; i++) {
+    g.beginPath();
+    g.arc(Math.random() * w, Math.random() * h, 30 + Math.random() * 70, 0, Math.PI * 2);
+    g.fill();
+  }
+  speckle(g, w, h, 9000, 0.12);
+});
+deskTexture.wrapS = deskTexture.wrapT = THREE.RepeatWrapping;
+deskTexture.repeat.set(2, 2);
+
+const desk = new THREE.Mesh(
+  new THREE.PlaneGeometry(60, 60),
+  new THREE.MeshStandardMaterial({ map: deskTexture, roughness: 0.78, metalness: 0.05 }),
+);
+desk.rotation.x = -Math.PI / 2;
+desk.receiveShadow = true;
+scene.add(desk);
+
+const wallTexture = canvasTexture(1024, 512, (g, w, h) => {
+  g.fillStyle = '#1b1c1f';
+  g.fillRect(0, 0, w, h);
+  const band = h * 0.5, size = 18;
+  for (let y = band; y < h; y += size) {
+    for (let x = 0; x < w; x += size) {
+      const dark = ((x + y) / size) % 2 < 1;
+      g.fillStyle = dark ? '#0b0b0c' : '#a8a498';
+      g.fillRect(x, y, size, size);
+    }
+  }
+  g.fillStyle = '#6d1a17';
+  g.fillRect(0, band - 10, w, 10);
+  const papers = [[140, 120, -0.08], [300, 150, 0.06], [720, 110, 0.04], [860, 160, -0.05]];
+  for (const [x, y, tilt] of papers) {
+    g.save();
+    g.translate(x, y);
+    g.rotate(tilt);
+    g.fillStyle = '#d9d3c1';
+    g.fillRect(-55, -45, 110, 90);
+    const inks = ['#8a1f1a', '#1f3f8a', '#8a6d1a', '#2a2a2a'];
+    for (let s = 0; s < 7; s++) {
+      g.strokeStyle = inks[(Math.random() * inks.length) | 0];
+      g.lineWidth = 2 + Math.random() * 3;
+      g.beginPath();
+      let px = -40 + Math.random() * 80, py = -30 + Math.random() * 60;
+      g.moveTo(px, py);
+      for (let k = 0; k < 6; k++) {
+        px += (Math.random() - 0.5) * 40; py += (Math.random() - 0.5) * 30;
+        g.lineTo(Math.max(-50, Math.min(50, px)), Math.max(-40, Math.min(40, py)));
+      }
+      g.stroke();
+    }
+    g.fillStyle = '#777';
+    g.beginPath(); g.arc(0, -40, 3, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
+  const grime = g.createLinearGradient(0, 0, 0, h);
+  grime.addColorStop(0, 'rgba(0,0,0,0.55)');
+  grime.addColorStop(0.5, 'rgba(0,0,0,0.1)');
+  grime.addColorStop(1, 'rgba(0,0,0,0.5)');
+  g.fillStyle = grime;
+  g.fillRect(0, 0, w, h);
+  speckle(g, w, h, 14000, 0.16);
+});
+const wall = new THREE.Mesh(
+  new THREE.PlaneGeometry(44, 22),
+  new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.95, color: 0x8c8c8c }),
+);
+wall.position.set(-9, 5, 0);
+wall.rotation.y = Math.PI / 2;
+wall.receiveShadow = true;
+scene.add(wall);
+
+const lampUniforms = {
+  uLampPos: { value: new THREE.Vector3() },
+  uLampColor: { value: new THREE.Color(0xffc98a) },
+  uLampPower: { value: 1 },
+  uFillDir: { value: new THREE.Vector3() },
+  uRimDir: { value: new THREE.Vector3() },
+};
+
+const eyeMaterials = {};
+function makeEyeMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      ...lampUniforms,
+      uCenter: { value: new THREE.Vector3() },
+      uHover: { value: 0 },
+      uPick: { value: 0 },
+      uDim: { value: 0 },
+      uTime: { value: 0 },
+    },
+    vertexShader: `
+      uniform vec3 uCenter;
+      varying vec3 vDir;
+      varying vec3 vNormal;
+      varying vec3 vView;
+      void main() {
+        vDir = normalize(position - uCenter);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vNormal = normalize(normalMatrix * normal);
+        vView = -mv.xyz;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uLampPos;
+      uniform vec3 uLampColor;
+      uniform float uLampPower;
+      uniform vec3 uFillDir;
+      uniform vec3 uRimDir;
+      uniform float uHover;
+      uniform float uPick;
+      uniform float uDim;
+      uniform float uTime;
+      varying vec3 vDir;
+      varying vec3 vNormal;
+      varying vec3 vView;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      vec4 hexCell(vec2 p) {
+        vec2 r = vec2(1.0, 1.7320508);
+        vec2 h = r * 0.5;
+        vec2 a = mod(p, r) - h;
+        vec2 b = mod(p - h, r) - h;
+        vec2 g = dot(a, a) < dot(b, b) ? a : b;
+        return vec4(g, p - g);
+      }
+      void main() {
+        vec2 uv = vec2(atan(vDir.z, vDir.x), asin(clamp(vDir.y, -1.0, 1.0))) * 17.0;
+        vec4 cell = hexCell(uv);
+        float edge = max(abs(cell.x) * 1.1547 + abs(cell.y) * 0.5774, abs(cell.y) * 1.1547);
+        float border = smoothstep(0.34, 0.5, edge);
+        float dome = 1.0 - edge * 1.6;
+        float jitter = hash(cell.zw);
+        vec3 n = normalize(vNormal);
+        vec3 v = normalize(vView);
+        vec3 toLamp = normalize(uLampPos + vView);
+        float lambert = max(dot(n, toLamp), 0.0);
+        vec3 base = vec3(0.55, 0.07, 0.045) * (0.85 + 0.3 * jitter);
+        float facing = max(dot(n, v), 0.0);
+        float pupil = smoothstep(0.975, 0.995, facing);
+        vec3 color = base * (0.10 + uLampColor * uLampPower * lambert * 1.35);
+        color += base * vec3(0.4, 0.5, 0.7) * max(dot(n, normalize(uFillDir)), 0.0) * 0.45;
+        vec3 halfway = normalize(toLamp + v);
+        float spec = pow(max(dot(n, halfway), 0.0), 140.0) * max(dome, 0.0) * uLampPower;
+        color += vec3(1.0, 0.92, 0.8) * spec * 1.8;
+        float rimLight = pow(1.0 - facing, 3.0);
+        color += vec3(0.5, 0.6, 0.85) * rimLight * max(dot(n, normalize(uRimDir)), 0.0) * 0.6;
+        color *= 1.0 - 0.8 * pupil;
+        color *= 1.0 - border * 0.55;
+        float glow = uHover * (0.55 + 0.45 * sin(uTime * 3.0)) + uPick * (0.7 + 0.3 * sin(uTime * 8.0));
+        color += vec3(1.0, 0.45, 0.2) * glow * (0.25 + 0.35 * dome) * (1.0 - border * 0.6);
+        float grey = dot(color, vec3(0.3, 0.59, 0.11));
+        color = mix(color, vec3(grey) * 0.6, uDim);
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+  });
+}
+
+const wingMaterial = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  uniforms: { ...lampUniforms },
+  vertexShader: `
+    varying vec3 vNormal;
+    varying vec3 vView;
+    void main() {
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      vNormal = normalize(normalMatrix * normal);
+      vView = -mv.xyz;
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    uniform float uLampPower;
+    varying vec3 vNormal;
+    varying vec3 vView;
+    void main() {
+      vec3 n = normalize(vNormal);
+      vec3 v = normalize(vView);
+      float facing = abs(dot(n, v));
+      float film = 1.0 - facing;
+      vec3 rainbow = 0.5 + 0.5 * cos(6.2832 * (vec3(0.0, 0.33, 0.67) + film * 1.7 + 0.15));
+      vec3 color = mix(vec3(0.72, 0.76, 0.82), rainbow, 0.3) * (0.35 + 0.65 * uLampPower);
+      gl_FragColor = vec4(color, 0.035 + pow(film, 2.0) * 0.24);
+    }
+  `,
+});
+
+function standard(color, roughness) {
+  return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.08, vertexColors: true });
+}
+
+const PALETTE = {
+  body: [0.27, 0.165, 0.075],
+  abdomen: [0.36, 0.25, 0.11],
+  leg: [0.25, 0.16, 0.08],
+  detail: [0.2, 0.13, 0.07],
+};
+
+const eyes = {};
+let eyeCentres = {};
+let bristleSources = [];
+
+async function loadFly() {
+  const response = await fetch('/fly.bin');
+  const stream = response.body.pipeThrough(new DecompressionStream('gzip'));
+  const buffer = await new Response(stream).arrayBuffer();
+  const metaLength = new DataView(buffer).getUint32(0, true);
+  const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, metaLength)));
+  const [low, high] = meta.bounds;
+  let offset = 4 + metaLength;
+
+  for (const group of meta.groups) {
+    const quantised = new Uint16Array(buffer.slice(offset, offset + group.vertices * 6));
+    offset += group.vertices * 6;
+    const indices = new Uint32Array(buffer.slice(offset, offset + group.indices * 4));
+    offset += group.indices * 4;
+
+    const positions = new Float32Array(group.vertices * 3);
+    for (let i = 0; i < group.vertices; i++) {
+      for (let a = 0; a < 3; a++) {
+        positions[i * 3 + a] = low[a] + (quantised[i * 3 + a] / 65535) * (high[a] - low[a]);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+    geometry.computeVertexNormals();
+
+    let material;
+    if (group.material.startsWith('eye_')) {
+      material = makeEyeMaterial();
+      geometry.computeBoundingBox();
+      const centre = new THREE.Vector3();
+      geometry.boundingBox.getCenter(centre);
+      centre.z -= 0.05;
+      material.uniforms.uCenter.value.copy(centre);
+      eyeMaterials[group.material] = material;
+    } else if (group.material === 'wing') {
+      material = wingMaterial;
+    } else {
+      const colors = new Float32Array(group.vertices * 3);
+      const tint = PALETTE[group.material];
+      for (let i = 0; i < group.vertices; i++) {
+        let k = 0.9 + Math.random() * 0.12;
+        if (group.material === 'abdomen') {
+          const band = 0.5 + 0.5 * Math.cos((positions[i * 3] + 0.9) * 9.5);
+          k *= 0.45 + 0.55 * Math.pow(band, 3.0);
+        }
+        colors[i * 3] = tint[0] * k;
+        colors[i * 3 + 1] = tint[1] * k;
+        colors[i * 3 + 2] = tint[2] * k;
+      }
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      material = standard(0xffffff, group.material === 'leg' ? 0.42 : 0.38);
+      if (group.material === 'body') {
+        bristleSources.push({ geometry, count: 44, length: 0.42, spread: 0.45 });
+        bristleSources.push({ geometry, count: 520, length: 0.07, spread: 0.6 });
+      }
+      if (group.material === 'abdomen') {
+        bristleSources.push({ geometry, count: 360, length: 0.06, spread: 0.6 });
+      }
+    }
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.castShadow = group.material !== 'wing';
+    mesh.receiveShadow = !group.material.startsWith('eye_') && group.material !== 'wing';
+    mesh.userData.material = group.material;
+    fly.add(mesh);
+    if (group.material.startsWith('eye_')) eyes[group.material] = mesh;
+  }
+  addBristles();
+  eyeCentres = {
+    eye_l: eyeMaterials.eye_l.uniforms.uCenter.value.clone(),
+    eye_r: eyeMaterials.eye_r.uniforms.uCenter.value.clone(),
+  };
+  frameFly();
+}
+
+function addBristles() {
+  const points = [];
+  for (const source of bristleSources) {
+    const pos = source.geometry.attributes.position.array;
+    const idx = source.geometry.index.array;
+    const areas = [];
+    let total = 0;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+    const ab = new THREE.Vector3(), ac = new THREE.Vector3(), n = new THREE.Vector3();
+    for (let t = 0; t < idx.length; t += 3) {
+      a.fromArray(pos, idx[t] * 3); b.fromArray(pos, idx[t + 1] * 3); c.fromArray(pos, idx[t + 2] * 3);
+      n.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a));
+      const area = n.z > 0.1 * n.length() ? n.length() / 2 : 0;
+      total += area;
+      areas.push(total);
+    }
+    for (let k = 0; k < source.count; k++) {
+      const pick = Math.random() * total;
+      let lo = 0, hi = areas.length - 1;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (areas[mid] < pick) lo = mid + 1; else hi = mid; }
+      const t = lo * 3;
+      a.fromArray(pos, idx[t] * 3); b.fromArray(pos, idx[t + 1] * 3); c.fromArray(pos, idx[t + 2] * 3);
+      let u = Math.random(), w = Math.random();
+      if (u + w > 1) { u = 1 - u; w = 1 - w; }
+      const root = a.clone().add(ab.subVectors(b, a).multiplyScalar(u)).add(ac.subVectors(c, a).multiplyScalar(w));
+      n.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a)).normalize();
+      const dir = n.clone().multiplyScalar(0.55).add(new THREE.Vector3(-1, 0, 0.25)).normalize();
+      const length = source.length * (1 - source.spread + Math.random() * source.spread);
+      const tip = root.clone().addScaledVector(dir, length);
+      points.push(root.x, root.y, root.z, tip.x, tip.y, tip.z);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+  fly.add(new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: 0x0c0806, transparent: true, opacity: 0.85 })));
+}
+
+const target = new THREE.Vector3();
+let baseCamera = new THREE.Vector3();
+
+function frameFly() {
+  const between = eyeCentres.eye_l.clone().add(eyeCentres.eye_r).multiplyScalar(0.5);
+  fly.updateMatrixWorld(true);
+  target.copy(between).applyMatrix4(fly.matrixWorld);
+  target.y -= 0.05;
+  const floor = new THREE.Box3().setFromObject(fly).min.y;
+  desk.position.y = floor + 0.02;
+  lamp.target.position.copy(target);
+  baseCamera.set(target.x + 3.7, target.y + 0.62, target.z + 1.25);
+  resize();
+}
+
+const rt = new THREE.WebGLRenderTarget(4, 4, { samples: 0 });
+const post = new THREE.ShaderMaterial({
+  uniforms: {
+    tScene: { value: rt.texture },
+    uTime: { value: 0 },
+    uRes: { value: new THREE.Vector2(1, 1) },
+    uGlitch: { value: 0 },
+  },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tScene;
+    uniform float uTime;
+    uniform vec2 uRes;
+    uniform float uGlitch;
+    varying vec2 vUv;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+    void main() {
+      vec2 uv = vUv;
+      vec2 centred = uv - 0.5;
+      uv = 0.5 + centred * (1.0 + 0.035 * dot(centred, centred));
+      float band = step(abs(fract(uTime * 0.07) - uv.y), 0.012) * uGlitch;
+      uv.x += band * 0.012 * sin(uTime * 90.0);
+      vec2 shift = centred * 0.0045;
+      vec3 color = vec3(
+        texture2D(tScene, uv + shift).r,
+        texture2D(tScene, uv).g,
+        texture2D(tScene, uv - shift).b
+      );
+      float grey = dot(color, vec3(0.299, 0.587, 0.114));
+      color = mix(color, grey * vec3(0.92, 1.0, 0.94), 0.28);
+      color *= 0.94 + 0.06 * sin(uv.y * uRes.y * 1.35);
+      float roll = smoothstep(0.0, 0.06, abs(fract(uTime * 0.045) - uv.y));
+      color *= 0.97 + 0.03 * roll;
+      color += (hash(uv * uRes + fract(uTime) * 91.0) - 0.5) * 0.075;
+      float vignette = smoothstep(0.85, 0.28, length(centred * vec2(1.0, 1.25)));
+      color *= mix(0.35, 1.0, vignette);
+      if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) color = vec3(0.0);
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `,
+  depthTest: false,
+  depthWrite: false,
+});
+const postScene = new THREE.Scene();
+postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post));
+const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+if (webgl) {
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+}
+
+function resize() {
+  if (!webgl) return;
+  const w = window.innerWidth, h = window.innerHeight;
+  const ratio = Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(ratio);
+  renderer.setSize(w, h, false);
+  rt.setSize(w * ratio, h * ratio);
+  post.uniforms.uRes.value.set(w * ratio, h * ratio);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+let flicker = 1;
+let dropUntil = 0;
+let nextDrop = 3;
+function lampPower(t) {
+  if (t > nextDrop) {
+    dropUntil = t + 0.05 + Math.random() * 0.12;
+    nextDrop = t + 2.5 + Math.random() * 6;
+    post.uniforms.uGlitch.value = 1;
+  }
+  const hum = 0.93 + 0.04 * Math.sin(t * 50.0) + 0.03 * Math.sin(t * 7.3);
+  flicker += ((t < dropUntil ? 0.18 : hum) - flicker) * 0.5;
+  if (t > dropUntil + 0.4) post.uniforms.uGlitch.value *= 0.9;
+  return flicker;
+}
+
+const pointer = new THREE.Vector2(-10, -10);
+const raycaster = new THREE.Raycaster();
+const mouse = { x: 0, y: 0, inside: false };
+const temp = new THREE.Vector3();
+
+function eyeUnderPointer() {
+  if (!eyes.eye_l) return null;
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObjects([eyes.eye_l, eyes.eye_r])[0];
+  if (!hit) return null;
+  return hit.object === eyes.eye_r ? 'new' : 'continue';
+}
+
+function placeLabel(mode) {
+  const eyeName = EYE_OF_MODE[mode];
+  temp.copy(eyeCentres[eyeName]).applyMatrix4(fly.matrixWorld).project(camera);
+  const x = (temp.x * 0.5 + 0.5) * window.innerWidth;
+  const y = (-temp.y * 0.5 + 0.5) * window.innerHeight;
+  const outward = mode === 'new' ? -1 : 1;
+  const label = document.getElementById('label-' + mode);
+  const spread = Math.min(window.innerWidth * 0.2, 210);
+  label.style.left = Math.max(125, Math.min(window.innerWidth - 125, x + outward * spread)) + 'px';
+  label.style.top = y + 'px';
+  label.classList.toggle('hot', hover === mode);
+  const dimmed = (chosen && chosen !== mode) || (!enabled() && chosen !== mode);
+  label.style.opacity = dimmed ? 0.45 : 1;
+}
+
+function animate(ms) {
+  requestAnimationFrame(animate);
+  if (!webgl) return;
+  const t = ms / 1000;
+  const power = lampPower(t);
+  lamp.intensity = 2.4 * power;
+
+  const sway = mouse.inside ? (mouse.x - 0.5) * 0.5 : Math.sin(t * 0.21) * 0.25;
+  const lift = mouse.inside ? (0.5 - mouse.y) * 0.35 : Math.sin(t * 0.17) * 0.12;
+  camera.position.set(
+    baseCamera.x + Math.sin(t * 0.37) * 0.05,
+    baseCamera.y + lift + Math.sin(t * 0.29) * 0.04,
+    baseCamera.z + sway,
+  );
+  camera.lookAt(target);
+  camera.updateMatrixWorld();
+
+  temp.copy(lamp.position).applyMatrix4(camera.matrixWorldInverse);
+  lampUniforms.uLampPos.value.copy(temp);
+  lampUniforms.uLampPower.value = power;
+  lampUniforms.uFillDir.value.copy(monitorGlow.position).transformDirection(camera.matrixWorldInverse);
+  lampUniforms.uRimDir.value.copy(rim.position).transformDirection(camera.matrixWorldInverse);
+
+  for (const [mode, eyeName] of Object.entries(EYE_OF_MODE)) {
+    const material = eyeMaterials[eyeName];
+    if (!material) continue;
+    material.uniforms.uTime.value = t;
+    material.uniforms.uHover.value += ((hover === mode && enabled() ? 1 : 0) - material.uniforms.uHover.value) * 0.15;
+    material.uniforms.uPick.value = chosen === mode ? 1 : 0;
+    material.uniforms.uDim.value = chosen && chosen !== mode ? 0.8 : 0;
+    placeLabel(mode);
+  }
+
+  post.uniforms.uTime.value = t;
+  renderer.setRenderTarget(rt);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+  renderer.render(postScene, postCamera);
+}
+
+function ocellusState(key) {
+  if (!status) return 'off';
+  if (key === 'data') return status.data_ready ? 'ok' : 'bad';
+  if (key === 'game') {
+    if (status.phase === 'error') return 'bad';
+    return status.game_running ? 'ok' : 'off';
+  }
+  return status.menu.new && status.menu.continue ? 'ok' : 'off';
+}
+
+function setDot(id, state) {
+  document.getElementById(id).style.background = COLOURS[state];
+  document.getElementById(id).style.boxShadow = state === 'off' ? 'none' : `0 0 8px ${COLOURS[state]}`;
+}
+
+function menuNote(mode) {
+  if (!status) return '';
+  if (status.game_running && !status.mode) return 'game already open, you pick it in the menu';
+  return status.menu[mode] ? 'the fly clicks it for you' : 'menu point not calibrated, you click it';
+}
+
+function render() {
+  if (!status) return;
+  setDot('dot-data', ocellusState('data'));
+  setDot('dot-game', ocellusState('game'));
+  setDot('dot-menu', ocellusState('menu'));
+  document.getElementById('text-data').textContent = status.data_ready ? '' : 'missing, run fetch_data';
+  document.getElementById('text-game').textContent = status.game_running ? '' : 'opens with ' + status.opens_with;
+  const calibrated = [status.menu.new, status.menu.continue].filter(Boolean).length;
+  document.getElementById('text-menu').textContent = calibrated === 2 ? '' : calibrated + ' of 2 calibrated';
+
+  const night = status.night || 1;
+  document.querySelector('#label-continue p').textContent = 'Night ' + night;
+  document.getElementById('night-line').textContent = 'NIGHT ' + night;
+  document.querySelector('#label-new small').textContent = menuNote('new');
+  document.querySelector('#label-continue small').textContent = menuNote('continue');
+
+  const message = document.getElementById('message');
+  if (status.message) message.textContent = status.message;
+  message.className = status.phase === 'error' ? 'error' : '';
+  document.getElementById('manual').disabled = !enabled();
+}
+
+async function poll() {
+  try {
+    const response = await fetch('/status', { cache: 'no-store' });
+    status = await response.json();
+    offline = false;
+    if (status.mode && !chosen) chosen = status.mode;
+    render();
+  } catch (error) {
+    if (chosen) {
+      offline = true;
+      document.getElementById('message').textContent = 'The night is handed to the fly.';
+    }
+  }
+  setTimeout(poll, 800);
+}
+
+async function choose(mode) {
+  if (!enabled()) return;
+  chosen = mode;
+  hover = null;
+  canvas.style.cursor = 'default';
+  document.getElementById('manual').disabled = true;
+  document.getElementById('message').textContent =
+    mode === 'manual' ? 'Loading the brain, start the night yourself when the countdown runs.' : 'Opening the game.';
+  try {
+    await fetch('/start?mode=' + mode, { method: 'POST' });
+  } catch (error) {
+    document.getElementById('message').textContent = 'The launcher stopped answering.';
+  }
+}
+
+canvas.addEventListener('mousemove', event => {
+  mouse.x = event.clientX / window.innerWidth;
+  mouse.y = event.clientY / window.innerHeight;
+  mouse.inside = true;
+  pointer.set(mouse.x * 2 - 1, -(mouse.y * 2 - 1));
+  const over = eyeUnderPointer();
+  hover = over && enabled() ? over : null;
+  canvas.style.cursor = hover ? 'pointer' : 'default';
+});
+canvas.addEventListener('mouseleave', () => {
+  mouse.inside = false;
+  hover = null;
+  pointer.set(-10, -10);
+});
+canvas.addEventListener('click', () => {
+  const over = eyeUnderPointer();
+  if (over) choose(over);
+});
+document.getElementById('manual').addEventListener('click', () => choose('manual'));
+document.querySelectorAll('#fallback button').forEach(button => {
+  button.addEventListener('click', () => choose(button.dataset.mode));
+});
+
+if (webgl) loadFly().catch(() => {
+  document.getElementById('message').textContent = 'The fly model did not load, the choices below still work.';
+});
+requestAnimationFrame(animate);
+poll();
+</script>
+</body>
+</html>

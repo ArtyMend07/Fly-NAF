@@ -23,8 +23,20 @@ class BrainAdapter:
         _log.info('brain loaded, neurons=%d', self.num_neurons)
         self.model = None
 
-    def map_neuron_ids_to_indices(self, root_ids: List[int]) -> List[int]:
-        return [self.flyid2i[n] for n in root_ids if n in self.flyid2i]
+    def map_neuron_ids_to_indices(self, root_ids: List[int], label: str = 'cluster') -> List[int]:
+        indices = [self.flyid2i[n] for n in root_ids if n in self.flyid2i]
+        missing = len(root_ids) - len(indices)
+        if missing:
+            _log.warning(
+                '%s: %d of %d FlyWire ids are not in this connectome release and were dropped',
+                label, missing, len(root_ids),
+            )
+        if root_ids and not indices:
+            raise ValueError(
+                '%s resolved to no neurons at all, so it can never fire. '
+                'The root ids in config.py do not match the loaded release.' % label
+            )
+        return indices
 
     def initialize_model(self, exc_indices: List[int]):
         _log.info('instantiating neural engine')

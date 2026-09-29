@@ -3,8 +3,12 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+from unittest.mock import patch
+
 import config
+from env import anchor
 from env.overlay import (
+    beside_game_rect,
     capture_regions,
     centered_rect,
     game_bounds,
@@ -15,6 +19,27 @@ from env.overlay import (
 )
 
 EDGE_MIN_WIDTH = 265
+
+
+def _beside(game_rect, screen=(1920, 1080)):
+    with patch.object(anchor, 'game_rect', return_value=game_rect):
+        return beside_game_rect(screen[0], screen[1], 420, 620, 8)
+
+
+def test_the_panel_sits_right_of_a_windowed_game_at_its_height():
+    assert _beside((0, 31, 1280, 720)) == (1288, 31, 620, 720)
+
+
+def test_the_panel_takes_the_left_side_when_only_that_one_fits():
+    assert _beside((600, 31, 1280, 720)) == (8, 31, 584, 720)
+
+
+def test_no_panel_beside_a_game_that_fills_the_screen():
+    assert _beside((0, 0, 1920, 1080)) is None
+
+
+def test_no_panel_beside_a_game_that_was_never_found():
+    assert _beside(None) is None
 
 
 def test_rects_overlap_detects_intersection_and_separation():

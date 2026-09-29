@@ -10,14 +10,18 @@ import torch
 
 import config
 from brain_adapter import BrainAdapter
+from env import desktop, profiles
 from env.vision import FNAFVision
 from env.input_controller import FNAFController, start_worker
 from env.brain_view import BrainViewServer, SpikeFeed
+from env.cascade import CascadeTracer
 from env.overlay import (
+    anchor_to_game,
+    beside_game_rect,
     capture_regions,
     find_browser,
     find_game_window,
-    foreground_window,
+    game_in_front,
     hold_foreground,
     is_window,
     ingame_overlay_rect,
@@ -30,6 +34,10 @@ from env.overlay import (
 )
 from search_drive import ExploreDrive, SearchDrive
 from telemetry import ConnectomeTelemetry
+from recorder import SessionRecorder
+import tuning
+
+TRACE = SessionRecorder(enabled=False)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,6 +47,7 @@ logging.basicConfig(
 _log = logging.getLogger(__name__)
 
 _WARMUP_COUNTDOWN = 10
+_BEGIN_NIGHT = None
 _BRAIN_VIEW_PIN: dict = {}
 
 
@@ -86,15 +95,16 @@ class ConnectomeEngine:
         sensory = config.SENSORY_NEURONS
         motor = config.MOTOR_NEURONS
 
-        self._l_sensory_idx = self._adapter.map_neuron_ids_to_indices(sensory.left_eye_cluster)
-        self._r_sensory_idx = self._adapter.map_neuron_ids_to_indices(sensory.right_eye_cluster)
+        resolve = self._adapter.map_neuron_ids_to_indices
+        self._l_sensory_idx = resolve(sensory.left_eye_cluster, 'left eye cluster')
+        self._r_sensory_idx = resolve(sensory.right_eye_cluster, 'right eye cluster')
         all_sensory = self._l_sensory_idx + self._r_sensory_idx
 
-        self._l_motor_idx = self._adapter.map_neuron_ids_to_indices([motor.dnp01_giant_fiber[0]])
-        self._r_motor_idx = self._adapter.map_neuron_ids_to_indices([motor.dnp01_giant_fiber[1]])
-        self._explore_idx = self._adapter.map_neuron_ids_to_indices(motor.dnp09_explore)
-        self._l_inhib_idx = self._adapter.map_neuron_ids_to_indices(sensory.camera_inhibitor_left)
-        self._r_inhib_idx = self._adapter.map_neuron_ids_to_indices(sensory.camera_inhibitor_right)
+        self._l_motor_idx = resolve([motor.dnp01_giant_fiber[0]], 'DNp01 left giant fiber')
+        self._r_motor_idx = resolve([motor.dnp01_giant_fiber[1]], 'DNp01 right giant fiber')
+        self._explore_idx = resolve(motor.dnp09_explore, 'DNp09 explore')
+        self._l_inhib_idx = resolve(sensory.camera_inhibitor_left, 'left camera inhibitors')
+        self._r_inhib_idx = resolve(sensory.camera_inhibitor_right, 'right camera inhibitors')
 
         self._adapter.initialize_model(exc_indices=all_sensory)
 
@@ -135,6 +145,10 @@ class ConnectomeEngine:
         )
         self.explore_membrane = float(v[0, self._explore_idx].mean())
         return spikes
+
+    @property
+    def synapses(self):
+        return self._adapter.weights
 
     @property
     def l_motor_idx(self):
@@ -197,7 +211,11 @@ async def _calibrate_eye_references_live(vision: FNAFVision, controller: FNAFCon
 async def _calibrate(vision: FNAFVision, controller: FNAFController):
     settle = config.FORAGING_PARAMS.light_activation_settle_sec
 
-    await _countdown_to_the_night(config.BRAIN_VIEW.start_countdown_sec)
+    if _BEGIN_NIGHT is None:
+        await _countdown_to_the_night(config.BRAIN_VIEW.start_countdown_sec)
+    else:
+        await asyncio.get_event_loop().run_in_executor(None, _BEGIN_NIGHT)
+    _confirm_game_in_front()
 
     if vision.load_reference_from_disk():
         _log.info('loaded left/right eye references from disk, skipping live calibration')
@@ -487,6 +505,7 @@ async def _engine_task(
         frame_elapsed = now - last_frame_at
         last_frame_at = now
 
+        inputs = (state.left_rate > 0.0, state.right_rate > 0.0)
         loop = asyncio.get_event_loop()
         spikes = await loop.run_in_executor(None, engine.step, state, now)
 
@@ -523,12 +542,28 @@ async def _engine_task(
         highlights['gf_l'] = state.l_spike
         highlights['gf_r'] = state.r_spike
         highlights['camera'] = monitor.is_open
+        highlights['in_l'], highlights['in_r'] = inputs
+        highlights['look_l'] = state.check_left
+        highlights['look_r'] = state.check_right
+        highlights['mse_l'] = vision.last_mse('left') if state.check_left else None
+        highlights['mse_r'] = vision.last_mse('right') if state.check_right else None
+        highlights['mse_th'] = vision.mse_threshold
+        highlights['eye_l'] = state.l_sensory_count
+        highlights['eye_r'] = state.r_sensory_count
+        highlights['door_l'] = door_closed['left']
+        highlights['door_r'] = door_closed['right']
         if state.check_left:
             highlights['gaze'] = 'LEFT'
         elif state.check_right:
             highlights['gaze'] = 'RIGHT'
         else:
             highlights['gaze'] = '--'
+
+        TRACE.frame(
+            now - telemetry.start_time, state, engine,
+            state.l_spike, state.r_spike,
+            vision.peak_mse('left'), vision.peak_mse('right'), monitor.is_open,
+        )
 
         if state.cam_inhib > 0 and not monitor.is_open:
             if inhib_since == 0.0:
@@ -560,6 +595,7 @@ async def _engine_task(
             door_closed[side] = False
 
         if spikes[0, engine.l_motor_idx].any() and now > refrac.left:
+            moved = False
             if not state.camera_open:
                 door_hold['left'] = 1.0
                 if not door_closed['left']:
@@ -568,10 +604,13 @@ async def _engine_task(
                     controller.trigger_left_door()
                     door_closed['left'] = True
                     door_closed_at['left'] = now
+                    moved = True
                 refrac.left = now + motor_dur
+            feed.trace_escape('left', engine.l_motor_idx[0], engine.l_sensory_idx, moved)
             state.left_rate = 0.0
 
         if spikes[0, engine.r_motor_idx].any() and now > refrac.right:
+            moved = False
             if not state.camera_open:
                 door_hold['right'] = 1.0
                 if not door_closed['right']:
@@ -580,7 +619,9 @@ async def _engine_task(
                     controller.trigger_right_door()
                     door_closed['right'] = True
                     door_closed_at['right'] = now
+                    moved = True
                 refrac.right = now + motor_dur
+            feed.trace_escape('right', engine.r_motor_idx[0], engine.r_sensory_idx, moved)
             state.right_rate = 0.0
 
         elapsed = time.perf_counter() - t_start
@@ -600,9 +641,12 @@ async def _countdown_to_the_night(seconds: float):
         if remaining and (remaining <= 3 or remaining % 5 == 0):
             _log.info('T-%d', remaining)
 
-    game = find_game_window()
-    if game and game == foreground_window():
+
+def _confirm_game_in_front():
+    game = game_in_front()
+    if game:
         _log.info('starting, the night is on screen in %r', window_title(game) or '<untitled>')
+        anchor_to_game()
         return
     _log.warning(
         'starting anyway, but %s is not the window in front, so every capture will read '
@@ -620,6 +664,7 @@ def _restore_game_focus(game: int, panel: int, timeout_sec: float):
         )
         return
     if hold_foreground(game, timeout_sec):
+        anchor_to_game()
         _log.info('focus handed back to %r', window_title(game) or '<untitled>')
         return
     _log.warning(
@@ -633,15 +678,25 @@ def _launch_brain_view_window(port: int) -> bool:
     params = config.BRAIN_VIEW
     url = f'http://127.0.0.1:{port}/'
 
-    ingame = ingame_overlay_rect(params.ingame_width, params.ingame_height, params.ingame_margin)
-    if ingame is not None:
+    screen_w, screen_h = screen_size()
+    beside = beside_game_rect(
+        screen_w, screen_h, params.beside_min_width, params.width, params.ingame_margin,
+    )
+    ingame = None if beside else ingame_overlay_rect(
+        params.ingame_width, params.ingame_height, params.ingame_margin,
+    )
+    if beside is not None:
+        x, y, width, height = beside
+        page = url
+        topmost = True
+        _log.info('brain view beside the game, panel %dx%d at %d,%d', width, height, x, y)
+    elif ingame is not None:
         x, y = ingame
         width, height = params.ingame_width, params.ingame_height
         page = f'{url}?mini=1'
         topmost = True
         _log.info('brain view in-game overlay, panel %dx%d at %d,%d', width, height, x, y)
     else:
-        screen_w, screen_h = screen_size()
         position = pick_overlay_position(
             screen_w, screen_h, params.width, params.height,
             capture_regions() + motor_regions(),
@@ -660,11 +715,11 @@ def _launch_brain_view_window(port: int) -> bool:
         _log.warning('no Edge or Chrome install found, open %s manually', url)
         return False
 
-    game = find_game_window() if topmost else 0
-    playing = bool(game) and game == foreground_window()
+    game = game_in_front() if topmost else 0
+    playing = bool(game)
 
-    profile = os.path.join(config.PROJECT_ROOT, 'logs', 'brain_view_profile')
-    process = subprocess.Popen([
+    profile = profiles.fresh('brainview')
+    process = desktop.start_child_in_job([
         browser,
         f'--app={page}',
         f'--user-data-dir={profile}',
@@ -672,9 +727,11 @@ def _launch_brain_view_window(port: int) -> bool:
         f'--window-size={width},{height}',
         '--no-first-run',
         '--no-default-browser-check',
+        '--disable-sync',
         '--disable-features=Translate,MediaRouter',
-    ])
+    ], **desktop.popen_kwargs_no_activate())
     _log.info('brain view launched with %s', os.path.basename(browser))
+    _BRAIN_VIEW_PIN['process'] = process
 
     if not topmost:
         return True
@@ -709,13 +766,14 @@ def _launch_brain_view_window(port: int) -> bool:
 
 
 async def _brain_view_task(
-    feed: SpikeFeed, highlights: dict, shutdown: asyncio.Event, view_ready: asyncio.Event
+    feed: SpikeFeed, highlights: dict, shutdown: asyncio.Event, view_ready: asyncio.Event,
+    eyes=None,
 ):
     if not config.BRAIN_VIEW.enabled:
         view_ready.set()
         return
 
-    server = BrainViewServer(feed, highlights)
+    server = BrainViewServer(feed, highlights, eyes)
     try:
         port = await server.start()
         _log.info('brain view server listening on %d', port)
@@ -730,6 +788,23 @@ async def _brain_view_task(
     finally:
         view_ready.set()
         await server.close()
+        _close_brain_view_window()
+
+
+def _close_brain_view_window():
+    stop = _BRAIN_VIEW_PIN.get('stop')
+    if stop is not None:
+        stop.set()
+    process = _BRAIN_VIEW_PIN.get('process')
+    if process is not None and process.poll() is None:
+        process.terminate()
+        _log.info('brain view window closed')
+    if process is not None:
+        try:
+            process.wait(timeout=5.0)
+        except subprocess.TimeoutExpired:
+            return
+        profiles.sweep()
 
 
 async def _run(telemetry: ConnectomeTelemetry):
@@ -744,7 +819,8 @@ async def _run(telemetry: ConnectomeTelemetry):
     shutdown = asyncio.Event()
     calibration_done = asyncio.Event()
     view_ready = asyncio.Event()
-    feed = SpikeFeed(engine._adapter.num_neurons)
+    tracer = CascadeTracer.from_csr(engine.synapses) if config.BRAIN_VIEW.enabled else None
+    feed = SpikeFeed(engine._adapter.num_neurons, tracer)
     highlights = {'gaze': '--', 'gf_l': False, 'gf_r': False, 'camera': False}
     saccade = SaccadeRequest()
 
@@ -758,19 +834,35 @@ async def _run(telemetry: ConnectomeTelemetry):
             engine, vision, controller, state, shutdown, telemetry, calibration_done,
             feed, highlights, saccade,
         ))
-        tg.create_task(_brain_view_task(feed, highlights, shutdown, view_ready))
+        tg.create_task(_brain_view_task(
+            feed, highlights, shutdown, view_ready, vision.latest_patches,
+        ))
 
 
-def main():
+def main(begin_night=None):
+    global TRACE, _BEGIN_NIGHT
+    _BEGIN_NIGHT = begin_night
+    if os.environ.get('FLYNAF_RECORD', '1') != '0':
+        TRACE = SessionRecorder()
+    tuning.load()
+    if anchor_to_game():
+        _log.info('screen targets follow the game window, no calibration needed')
+    else:
+        _log.warning(
+            'the game window was not found, so the screen targets in config.py are used as '
+            'measured, which assumes a 1280x720 window at the top left of the display'
+        )
     telemetry = ConnectomeTelemetry()
     try:
         asyncio.run(_run(telemetry))
     except KeyboardInterrupt:
         _log.info('shutdown')
     finally:
+        TRACE.close()
         path = telemetry.dump_report()
         _log.info('Telemetry report saved to %s', path)
 
 
 if __name__ == '__main__':
-    main()
+    import runpy
+    runpy.run_path(os.path.join(config.PROJECT_ROOT, 'run.py'), run_name='__main__')

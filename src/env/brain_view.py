@@ -1,9 +1,12 @@
 import asyncio
 import base64
 import csv
+import json
 import os
 import struct
+import time
 
+import cv2
 import numpy as np
 
 import config
@@ -28,12 +31,15 @@ _REGION_BY_SUPER_CLASS = {
 
 
 class SpikeFeed:
-    def __init__(self, num_neurons: int = 0):
+    def __init__(self, num_neurons: int = 0, tracer=None):
         self.indices = np.empty(0, dtype=np.uint32)
         self._seen = np.zeros(num_neurons, dtype=bool)
+        self._tracer = tracer
         self.fired_total = 0
         self.spike_total = 0
         self.revision = 0
+        self.cascade = None
+        self.cascade_revision = 0
 
     def publish(self, spiking: np.ndarray):
         self.indices = np.unique(spiking).astype(np.uint32, copy=False)
@@ -42,21 +48,81 @@ class SpikeFeed:
             fresh = ~self._seen[self.indices]
             self.fired_total += int(fresh.sum())
             self._seen[self.indices] = True
+        if self._tracer is not None:
+            self._tracer.record(self.indices)
         self.revision += 1
 
+    def trace_escape(self, side: str, target: int, sources, door_moved: bool):
+        if self._tracer is None:
+            return
+        cascade = self._tracer.trace(target, sources)
+        cascade['side'] = side
+        cascade['frame'] = self.revision
+        cascade['sources'] = [int(s) for s in sources]
+        cascade['door_moved'] = door_moved
+        self.cascade = cascade
+        self.cascade_revision += 1
 
-def _read_soma_positions() -> np.ndarray:
+
+def _encode_patch(patch, side: int) -> str | None:
+    if patch is None:
+        return None
+    small = cv2.resize(np.clip(patch, 0, 255).astype(np.uint8), (side, side), interpolation=cv2.INTER_AREA)
+    ok, jpeg = cv2.imencode('.jpg', small, [cv2.IMWRITE_JPEG_QUALITY, 72])
+    return base64.b64encode(jpeg.tobytes()).decode('ascii') if ok else None
+
+
+def _read_soma_positions(root_ids: list) -> np.ndarray:
     path = os.path.join(config.DATA_DIR, 'soma_coordinates_783.csv')
-    with open(path, newline='') as handle:
-        rows = list(csv.reader(handle))
-    coords = np.array([[float(r[1]), float(r[2]), float(r[3])] for r in rows[1:]], dtype=np.float32)
-    center = (coords.max(axis=0) + coords.min(axis=0)) / 2.0
-    coords -= center
-    scale = float(np.abs(coords).max())
-    if scale > 0:
-        coords /= scale
-    coords[:, 1] *= -1.0
+    first = {}
+    with open(path, newline='', encoding='utf-8', errors='replace') as handle:
+        reader = csv.reader(handle)
+        header = next(reader)
+        root_col = header.index('root_id')
+        position_col = header.index('position')
+        for row in reader:
+            root_id = row[root_col].strip()
+            if root_id not in first:
+                first[root_id] = row[position_col]
+    coords = np.full((len(root_ids), 3), np.nan, dtype=np.float32)
+    for i, root_id in enumerate(root_ids):
+        text = first.get(root_id)
+        if text:
+            coords[i] = [float(v) for v in text.strip('[]').split()]
     return coords
+
+
+def _read_brain_mesh():
+    path = os.path.join(config.DATA_DIR, 'brain_mesh_flywire.ply')
+    if not os.path.isfile(path):
+        return None
+    with open(path, 'rb') as handle:
+        data = handle.read()
+    marker = b'end_header\n'
+    end = data.index(marker) + len(marker)
+    header = data[:end].decode('ascii')
+    vertex_count = int(header.split('element vertex ')[1].split()[0])
+    face_count = int(header.split('element face ')[1].split()[0])
+    vertices = np.frombuffer(data, dtype='<f4', count=vertex_count * 3, offset=end).reshape(-1, 3)
+    face_type = np.dtype([('n', 'u1'), ('i', '<u4', 3)])
+    faces = np.frombuffer(data, dtype=face_type, count=face_count, offset=end + vertex_count * 12)
+    return vertices.astype(np.float32), faces['i'].astype(np.uint32)
+
+
+def _normalizer(positions: np.ndarray, mesh):
+    reference = mesh[0] if mesh is not None else positions[~np.isnan(positions).any(axis=1)]
+    low = np.percentile(reference, 0.5, axis=0)
+    high = np.percentile(reference, 99.5, axis=0)
+    center = (low + high) / 2.0
+    scale = float(np.max(high - low) / 2.0) or 1.0
+
+    def apply(points: np.ndarray) -> np.ndarray:
+        placed = (points - center) / scale
+        placed[:, 1] *= -1.0
+        placed[:, 2] *= -1.0
+        return placed.astype(np.float32)
+
+    return apply
 
 
 def _read_regions(root_ids: list) -> np.ndarray:
@@ -97,26 +163,36 @@ def _read_root_ids() -> list:
     return [row[0].strip() for row in rows[1:]]
 
 
-def build_geometry_blob() -> bytes:
-    positions = _read_soma_positions()
-    regions = _read_regions(_read_root_ids())
-    count = min(len(positions), len(regions))
-    header = struct.pack('<I', count)
-    return header + positions[:count].tobytes() + regions[:count].tobytes()
+def build_blobs() -> tuple:
+    root_ids = _read_root_ids()
+    positions = _read_soma_positions(root_ids)
+    regions = _read_regions(root_ids)
+    mesh = _read_brain_mesh()
+    place = _normalizer(positions, mesh)
+    placed = place(np.nan_to_num(positions, nan=0.0))
+    placed[np.isnan(positions).any(axis=1)] = 0.0
+    geometry = struct.pack('<I', len(root_ids)) + placed.tobytes() + regions.tobytes()
+    if mesh is None:
+        return geometry, struct.pack('<II', 0, 0)
+    vertices, faces = mesh
+    outline = struct.pack('<II', len(vertices), len(faces)) + place(vertices).tobytes() + faces.tobytes()
+    return geometry, outline
 
 
 class BrainViewServer:
-    def __init__(self, feed: SpikeFeed, highlights: dict):
+    def __init__(self, feed: SpikeFeed, highlights: dict, eyes=None):
         self._feed = feed
         self._highlights = highlights
+        self._eyes = eyes
         self._geometry = None
+        self._outline = None
         self._page = None
         self._server = None
         self._params = config.BRAIN_VIEW
 
     async def start(self) -> int:
         loop = asyncio.get_event_loop()
-        self._geometry = await loop.run_in_executor(None, build_geometry_blob)
+        self._geometry, self._outline = await loop.run_in_executor(None, build_blobs)
         self._server = await asyncio.start_server(
             self._handle, '127.0.0.1', self._params.port
         )
@@ -139,6 +215,8 @@ class BrainViewServer:
         try:
             if path.startswith('/geometry'):
                 await self._send(writer, b'application/octet-stream', self._geometry)
+            elif path.startswith('/outline'):
+                await self._send(writer, b'application/octet-stream', self._outline)
             elif path.startswith('/stream'):
                 await self._stream(writer)
             else:
@@ -166,24 +244,31 @@ class BrainViewServer:
         await writer.drain()
 
         sent = -1
+        sent_cascade = 0
+        patches_at = 0.0
         interval = self._params.stream_interval_sec
+        ms_per_frame = config.SIMULATION_PARAMS.steps_per_frame * config.NEURAL_PARAMS.dt
         while not writer.is_closing():
             feed = self._feed
             if feed.revision != sent:
                 sent = feed.revision
-                payload = base64.b64encode(feed.indices.tobytes()).decode('ascii')
-                meta = self._highlights
-                frame = (
-                    '{"s":"' + payload + '"'
-                    + ',"fired":' + str(feed.fired_total)
-                    + ',"spikes":' + str(feed.spike_total)
-                    + ',"gaze":"' + str(meta.get('gaze', '--')) + '"'
-                    + ',"gf_l":' + ('true' if meta.get('gf_l') else 'false')
-                    + ',"gf_r":' + ('true' if meta.get('gf_r') else 'false')
-                    + ',"camera":' + ('true' if meta.get('camera') else 'false')
-                    + '}'
-                )
-                writer.write(b'data: ' + frame.encode('ascii') + b'\n\n')
+                frame = dict(self._highlights)
+                frame['s'] = base64.b64encode(feed.indices.tobytes()).decode('ascii')
+                frame['n'] = feed.revision
+                frame['fired'] = feed.fired_total
+                frame['spikes'] = feed.spike_total
+                frame['ms'] = ms_per_frame
+                if feed.cascade_revision != sent_cascade and feed.cascade is not None:
+                    sent_cascade = feed.cascade_revision
+                    frame['c'] = feed.cascade
+                now = time.monotonic()
+                if self._eyes is not None and now - patches_at >= self._params.patch_interval_sec:
+                    patches_at = now
+                    side = self._params.patch_pixels
+                    frame['p'] = {
+                        name: _encode_patch(patch, side) for name, patch in self._eyes().items()
+                    }
+                writer.write(b'data: ' + json.dumps(frame, separators=(',', ':')).encode('ascii') + b'\n\n')
                 await writer.drain()
             await asyncio.sleep(interval)
 
