@@ -121,6 +121,8 @@ class _ImmediateEvent:
 
 
 class FakeVision:
+    mse_threshold = 1500.0
+
     def __init__(self):
         self.peaks = {'left': 0.0, 'right': 0.0}
         self.ref_left = None
@@ -130,6 +132,9 @@ class FakeVision:
         self.peaks[side] = 0.0
 
     def peak_mse(self, side):
+        return self.peaks[side]
+
+    def last_mse(self, side):
         return self.peaks[side]
 
     def is_camera_up(self):
@@ -156,6 +161,9 @@ class FakeVision:
 
 class FakeFeed:
     def publish(self, indices):
+        pass
+
+    def trace_escape(self, side, target, sources, door_moved):
         pass
 
 
