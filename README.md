@@ -33,7 +33,7 @@ FlyWire maps the brain and stops at the neck. There is no ventral nerve cord her
 
 - Windows, or Linux on an X11 session. Wayland cannot work, because screen capture, synthetic pointer input and a click-through window are all unavailable to a Wayland client. On Linux the game itself would run under Wine or Proton, but that path has only been exercised against a live X11 server without the game present, as ADR 0017 describes; a full night through Wine or Proton has not been run yet.
 - Nothing but Python is needed for the two inspection paths below. Those run on macOS too.
-- Python 3.11 or newer, and [uv](https://docs.astral.sh/uv/).
+- Nothing to install by hand on Windows. `Fly-NAF.bat` installs [uv](https://docs.astral.sh/uv/) if it is missing, and uv then fetches Python 3.11 and the packages.
 - Five Nights at Freddy's 1, running windowed at 1280x720.
 - A CUDA GPU is optional. On CPU the engine settles around 3.6 frames per second, which the timing constants account for.
 
@@ -73,6 +73,12 @@ And `2025_Connectivity_783.parquet` is 97 MB against a hard limit of 100 MB per 
 
 ## Setup
 
+Someone with the game and no programming background needs three steps. Download this repository as a zip file from GitHub, unpack it, and double click `Fly-NAF.bat`. The first run installs uv if it is missing, prints the data licences and asks once whether to download roughly 140 MB of FlyWire data, then opens the launcher. It takes several minutes, because the packages include PyTorch, and later runs start at once.
+
+The data lands in the folder that holds this repository, as described below. When git is installed the two data repositories are cloned, which lets `git pull` update them later. Without git they are downloaded as zip files, with the same result on disk. `--no-git` forces the zip route even when git is present.
+
+For a developer the same thing is done from a terminal.
+
 ```bash
 git clone <this repository> Fly-NAF
 cd Fly-NAF
@@ -80,9 +86,9 @@ uv sync
 uv run python src/scripts/fetch_data.py
 ```
 
-`fetch_data.py` prints the licences first, then clones the two repositories and
+`fetch_data.py` prints the licences first, then fetches the two repositories and
 downloads `soma_coordinates_783.csv` and `brain_mesh_flywire.ply` into place. It fetches, it never
-redistributes. `--check` reports what is present without downloading anything.
+redistributes. `--check` reports what is present without downloading anything, and `--yes` skips the licence prompt.
 
 ## Three ways in
 
@@ -267,3 +273,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.10 | Documented the Codex soma file, the brain outline and the NeuroMechFly model with their licences | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
 | 1.11 | Added the required notice of changes to the NeuroMechFly assets and its citation | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
 | 1.12 | Clarified that the Wine or Proton path has not been run end to end yet | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
+| 1.13 | Described the one click setup and the git and zip routes for the data | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |

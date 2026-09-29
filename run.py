@@ -73,8 +73,9 @@ def cmd_play(mode: str | None) -> int:
 
     if not fetch_data.ready():
         fetch_data.print_status()
-        _log.error('the connectome data is incomplete, run: uv run python src/scripts/fetch_data.py')
-        return 1
+        if not fetch_data.fetch():
+            _log.error('the connectome data is incomplete, the fly cannot start without it')
+            return 1
 
     if desktop.name == 'headless':
         _log.error('playing needs a desktop session, there is no display here')
