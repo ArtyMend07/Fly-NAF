@@ -17,10 +17,10 @@ def _start_isolated_worker() -> queue.Queue:
 
 
 def test_repeated_left_door_close_only_clicks_once():
-    mock_user32 = MagicMock()
+    mock_desktop = MagicMock()
     sleep_calls = []
 
-    with patch.object(input_controller.ctypes, 'windll', MagicMock(user32=mock_user32)), \
+    with patch.object(input_controller, 'desktop', mock_desktop), \
          patch.object(input_controller.time, 'sleep', side_effect=sleep_calls.append):
         cmd_queue = _start_isolated_worker()
         controller = input_controller.FNAFController()
@@ -30,15 +30,16 @@ def test_repeated_left_door_close_only_clicks_once():
         controller.trigger_left_door()
         cmd_queue.join()
 
-    assert mock_user32.SetCursorPos.call_count == 1
-    assert mock_user32.mouse_event.call_count == 2
+    assert mock_desktop.move_cursor.call_count == 1
+    assert mock_desktop.mouse_down.call_count == 1
+    assert mock_desktop.mouse_up.call_count == 1
     assert config.MOTOR_CALIBRATION.pan_delay_sec in sleep_calls
 
 
 def test_left_and_right_doors_track_state_independently():
-    mock_user32 = MagicMock()
+    mock_desktop = MagicMock()
 
-    with patch.object(input_controller.ctypes, 'windll', MagicMock(user32=mock_user32)), \
+    with patch.object(input_controller, 'desktop', mock_desktop), \
          patch.object(input_controller.time, 'sleep'):
         cmd_queue = _start_isolated_worker()
         controller = input_controller.FNAFController()
@@ -48,8 +49,9 @@ def test_left_and_right_doors_track_state_independently():
         controller.trigger_left_door()
         cmd_queue.join()
 
-    assert mock_user32.SetCursorPos.call_count == 2
-    assert mock_user32.mouse_event.call_count == 4
+    assert mock_desktop.move_cursor.call_count == 2
+    assert mock_desktop.mouse_down.call_count == 2
+    assert mock_desktop.mouse_up.call_count == 2
 
 
 if __name__ == '__main__':

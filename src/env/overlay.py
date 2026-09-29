@@ -1,34 +1,19 @@
-import ctypes
-import ctypes.wintypes
-import os
 import time
-import winreg
 
 import config
+from env import anchor
+from env import desktop
 
-_APP_PATHS = r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths'
-
-
-def find_browser() -> str | None:
-    for exe in ('msedge.exe', 'chrome.exe'):
-        for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
-            try:
-                with winreg.OpenKey(hive, _APP_PATHS + '\\' + exe) as key:
-                    path = winreg.QueryValue(key, None)
-            except OSError:
-                continue
-            if path and os.path.isfile(path):
-                return path
-
-    for path in (
-        r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
-        r'C:\Program Files\Microsoft\Edge\Application\msedge.exe',
-        r'C:\Program Files\Google\Chrome\Application\chrome.exe',
-        r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
-    ):
-        if os.path.isfile(path):
-            return path
-    return None
+find_browser = desktop.find_browser
+screen_size = desktop.screen_size
+is_window = desktop.is_window
+window_title = desktop.window_title
+window_process = desktop.window_process
+foreground_window = desktop.foreground_window
+apply_overlay_style = desktop.apply_overlay_style
+give_focus_back = desktop.give_focus_back
+window_rect = desktop.window_rect
+_top_level_windows = desktop.top_level_windows
 
 
 def centered_rect(x: int, y: int, size: int) -> tuple:
@@ -39,10 +24,13 @@ def centered_rect(x: int, y: int, size: int) -> tuple:
 def capture_regions() -> list:
     vision = config.VISION_CALIBRATION
     camera = config.CAMERA_DETECTION
+    left = anchor.point(vision.left_target_x, vision.left_target_y)
+    right = anchor.point(vision.right_target_x, vision.right_target_y)
+    patch = anchor.point(camera.patch_x, camera.patch_y)
     return [
-        centered_rect(vision.left_target_x, vision.left_target_y, vision.left_bbox_size),
-        centered_rect(vision.right_target_x, vision.right_target_y, vision.right_bbox_size),
-        centered_rect(camera.patch_x, camera.patch_y, camera.patch_size),
+        centered_rect(left[0], left[1], anchor.size(vision.left_bbox_size)),
+        centered_rect(right[0], right[1], anchor.size(vision.right_bbox_size)),
+        centered_rect(patch[0], patch[1], anchor.size(camera.patch_size)),
     ]
 
 
@@ -56,20 +44,18 @@ def motor_regions(pad: int = 40) -> list:
         (motor.camera_hover_x, motor.camera_hover_y),
         (motor.camera_hover_x, motor.screen_center_y),
     ]
-    return [centered_rect(x, y, pad * 2) for x, y in targets]
+    reach = anchor.size(pad * 2)
+    return [centered_rect(*anchor.point(x, y), reach) for x, y in targets]
 
 
 def rects_overlap(a: tuple, b: tuple) -> bool:
     return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
 
 
-def screen_size() -> tuple:
-    user32 = ctypes.windll.user32
-    user32.SetProcessDPIAware()
-    return (user32.GetSystemMetrics(0), user32.GetSystemMetrics(1))
-
-
 def game_bounds() -> tuple:
+    rect = anchor.game_rect()
+    if rect is not None:
+        return (rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3])
     regions = capture_regions() + motor_regions()
     return (
         max(0, min(r[0] for r in regions)),
@@ -79,17 +65,38 @@ def game_bounds() -> tuple:
     )
 
 
+def beside_game_rect(
+    screen_w: int, screen_h: int, min_width: int, max_width: int, margin: int,
+) -> tuple | None:
+    rect = anchor.game_rect()
+    if rect is None:
+        return None
+    game_x, game_y, game_w, game_h = rect
+    top = max(0, game_y)
+    height = min(game_h, screen_h - top)
+    right_space = screen_w - (game_x + game_w) - 2 * margin
+    if right_space >= min_width:
+        width = min(max_width, right_space)
+        return (game_x + game_w + margin, top, width, height)
+    left_space = game_x - 2 * margin
+    if left_space >= min_width:
+        width = min(max_width, left_space)
+        return (game_x - margin - width, top, width, height)
+    return None
+
+
 def ingame_overlay_rect(panel_w: int, panel_h: int, margin: int, step: int = 4) -> tuple | None:
     left, _top, right, bottom = game_bounds()
     forbidden = capture_regions() + motor_regions()
     centre = (left + right) // 2
+    rect = anchor.game_rect()
 
     first_x = left + margin
     last_x = right - panel_w - margin
     if last_x < first_x:
         return None
 
-    y = margin
+    y = (rect[1] if rect is not None else 0) + margin
     while y + panel_h + margin <= bottom:
         clear = [
             x for x in range(first_x, last_x + 1, step)
@@ -104,203 +111,89 @@ def ingame_overlay_rect(panel_w: int, panel_h: int, margin: int, step: int = 4) 
     return None
 
 
-_GWL_STYLE = -16
-_GWL_EXSTYLE = -20
-_WS_CAPTION = 0x00C00000
-_WS_THICKFRAME = 0x00040000
-_WS_MINIMIZEBOX = 0x00020000
-_WS_MAXIMIZEBOX = 0x00010000
-_WS_SYSMENU = 0x00080000
-_WS_EX_TOPMOST = 0x00000008
-_WS_EX_LAYERED = 0x00080000
-_WS_EX_TRANSPARENT = 0x00000020
-_WS_EX_NOACTIVATE = 0x08000000
-_WS_EX_TOOLWINDOW = 0x00000080
-_SWP_NOACTIVATE = 0x0010
-_SWP_FRAMECHANGED = 0x0020
-_SW_RESTORE = 9
-_GA_ROOT = 2
-
-
-def _user32():
-    user32 = ctypes.windll.user32
-    user32.SetWindowPos.argtypes = [
-        ctypes.wintypes.HWND, ctypes.wintypes.HWND,
-        ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint,
-    ]
-    user32.SetWindowPos.restype = ctypes.wintypes.BOOL
-    return user32
-
-
-_PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-
-
-def _kernel32():
-    kernel32 = ctypes.windll.kernel32
-    kernel32.OpenProcess.argtypes = [
-        ctypes.wintypes.DWORD, ctypes.wintypes.BOOL, ctypes.wintypes.DWORD,
-    ]
-    kernel32.OpenProcess.restype = ctypes.wintypes.HANDLE
-    return kernel32
-
-
-def is_window(hwnd: int) -> bool:
-    return bool(hwnd) and bool(ctypes.windll.user32.IsWindow(hwnd))
-
-
-def window_title(hwnd: int) -> str:
-    if not hwnd:
-        return ''
-    user32 = ctypes.windll.user32
-    length = user32.GetWindowTextLengthW(hwnd)
-    if length <= 0:
-        return ''
-    buffer = ctypes.create_unicode_buffer(length + 1)
-    user32.GetWindowTextW(hwnd, buffer, length + 1)
-    return buffer.value
-
-
-def window_process(hwnd: int) -> str:
-    if not hwnd:
-        return ''
-    user32 = ctypes.windll.user32
-    kernel32 = _kernel32()
-    pid = ctypes.wintypes.DWORD()
-    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-    if not pid.value:
-        return ''
-    handle = kernel32.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid.value)
-    if not handle:
-        return ''
-    try:
-        size = ctypes.wintypes.DWORD(512)
-        buffer = ctypes.create_unicode_buffer(size.value)
-        if not kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
-            return ''
-        return os.path.basename(buffer.value)
-    finally:
-        kernel32.CloseHandle(handle)
-
-
 def _squashed(text: str) -> str:
     return ''.join(ch for ch in text.lower() if ch.isalnum())
 
 
-def foreground_window() -> int:
-    user32 = ctypes.windll.user32
-    user32.GetForegroundWindow.restype = ctypes.wintypes.HWND
-    return user32.GetForegroundWindow() or 0
-
-
-def _top_level_windows() -> list:
-    user32 = ctypes.windll.user32
-    found = []
-
-    @ctypes.WINFUNCTYPE(ctypes.wintypes.BOOL, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
-    def visit(hwnd, _lparam):
-        if user32.IsWindowVisible(hwnd) and user32.GetWindowTextLengthW(hwnd) > 0:
-            found.append(hwnd)
+def _belongs_to_game(handle: int) -> bool:
+    if not handle:
+        return False
+    wanted_process = _squashed(config.BRAIN_VIEW.game_process)
+    if wanted_process and wanted_process in _squashed(window_process(handle)):
         return True
+    wanted_title = _squashed(config.BRAIN_VIEW.game_title)
+    return bool(wanted_title) and wanted_title in _squashed(window_title(handle))
 
-    user32.EnumWindows(visit, 0)
-    return found
+
+def game_in_front() -> int:
+    front = foreground_window()
+    return front if _belongs_to_game(front) else 0
 
 
 def find_game_window() -> int:
-    wanted_process = _squashed(config.BRAIN_VIEW.game_process)
-    wanted_title = _squashed(config.BRAIN_VIEW.game_title)
-    windows = _top_level_windows()
+    front = game_in_front()
+    if front:
+        return front
+    candidates = [handle for handle in _top_level_windows() if _belongs_to_game(handle)]
+    showing = [(handle, window_rect(handle)) for handle in candidates]
+    showing = [(handle, rect) for handle, rect in showing if rect is not None]
+    if showing:
+        return max(showing, key=lambda item: item[1][2] * item[1][3])[0]
+    return candidates[0] if candidates else 0
 
-    for hwnd in windows:
-        if wanted_process and wanted_process in _squashed(window_process(hwnd)):
-            return hwnd
-    for hwnd in windows:
-        if wanted_title and wanted_title in _squashed(window_title(hwnd)):
-            return hwnd
-    return 0
+
+def anchor_to_game() -> bool:
+    handle = find_game_window()
+    if not handle:
+        return False
+    rect = desktop.window_rect(handle)
+    if rect is None:
+        return False
+    anchor.set_game_rect(rect)
+    return True
 
 
 def find_window(*title_fragments: str) -> int:
-    user32 = ctypes.windll.user32
     wanted = [fragment.lower() for fragment in title_fragments if fragment]
-    found = []
-
-    @ctypes.WINFUNCTYPE(ctypes.wintypes.BOOL, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
-    def visit(hwnd, _lparam):
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        length = user32.GetWindowTextLengthW(hwnd)
-        if length <= 0:
-            return True
-        buffer = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buffer, length + 1)
-        title = buffer.value.lower()
-        if any(fragment in title for fragment in wanted):
-            found.append(hwnd)
-            return False
-        return True
-
-    user32.EnumWindows(visit, 0)
-    return found[0] if found else 0
+    for handle in _top_level_windows():
+        title = window_title(handle).lower()
+        if title and any(fragment in title for fragment in wanted):
+            return handle
+    return 0
 
 
 def wait_for_window(*title_fragments: str, timeout_sec: float = 45.0) -> int:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
-        hwnd = find_window(*title_fragments)
-        if hwnd:
-            return hwnd
+        handle = find_window(*title_fragments)
+        if handle:
+            return handle
         time.sleep(0.2)
     return 0
-
-
-def apply_overlay_style(hwnd: int, x: int, y: int, w: int, h: int) -> bool:
-    user32 = _user32()
-    topmost = ctypes.wintypes.HWND(-1)
-
-    style = user32.GetWindowLongW(hwnd, _GWL_STYLE)
-    user32.SetWindowLongW(
-        hwnd, _GWL_STYLE,
-        style & ~(_WS_CAPTION | _WS_THICKFRAME | _WS_MINIMIZEBOX | _WS_MAXIMIZEBOX | _WS_SYSMENU),
-    )
-    ex_style = user32.GetWindowLongW(hwnd, _GWL_EXSTYLE)
-    user32.SetWindowLongW(
-        hwnd, _GWL_EXSTYLE,
-        ex_style | _WS_EX_LAYERED | _WS_EX_TRANSPARENT | _WS_EX_NOACTIVATE | _WS_EX_TOOLWINDOW,
-    )
-    user32.SetWindowPos(hwnd, topmost, x, y, w, h, _SWP_NOACTIVATE | _SWP_FRAMECHANGED)
-
-    rect = ctypes.wintypes.RECT()
-    user32.GetWindowRect(hwnd, ctypes.byref(rect))
-    placed = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top) == (x, y, w, h)
-    still_framed = bool(user32.GetWindowLongW(hwnd, _GWL_STYLE) & (_WS_CAPTION | _WS_THICKFRAME))
-    on_top = bool(user32.GetWindowLongW(hwnd, _GWL_EXSTYLE) & _WS_EX_TOPMOST)
-    return placed and on_top and not still_framed
 
 
 def pin_as_overlay(window_titles, x: int, y: int, w: int, h: int,
                    timeout_sec: float = 45.0, settle_sec: float = 8.0) -> int:
     if isinstance(window_titles, str):
         window_titles = (window_titles,)
-    hwnd = wait_for_window(*window_titles, timeout_sec=timeout_sec)
-    if not hwnd:
+    handle = wait_for_window(*window_titles, timeout_sec=timeout_sec)
+    if not handle:
         return 0
 
     deadline = time.monotonic() + settle_sec
     while time.monotonic() < deadline:
-        if apply_overlay_style(hwnd, x, y, w, h):
-            return hwnd
+        if desktop.apply_overlay_style(handle, x, y, w, h):
+            return handle
         time.sleep(0.25)
-    return -hwnd
+    return -handle
 
 
-def keep_pinned(hwnd: int, x: int, y: int, w: int, h: int, stop: object,
+def keep_pinned(handle: int, x: int, y: int, w: int, h: int, stop: object,
                 interval_sec: float = 2.0):
-    user32 = ctypes.windll.user32
     while not stop.is_set():
-        if not user32.IsWindow(hwnd):
+        if not desktop.is_window(handle):
             return
-        apply_overlay_style(hwnd, x, y, w, h)
+        desktop.apply_overlay_style(handle, x, y, w, h)
         stop.wait(interval_sec)
 
 
@@ -330,42 +223,24 @@ def pick_overlay_position(
     return None
 
 
-def give_focus_back(hwnd: int) -> bool:
-    if not hwnd:
-        return False
-    user32 = ctypes.windll.user32
-    kernel32 = ctypes.windll.kernel32
-    if not user32.IsWindow(hwnd):
-        return False
-    if user32.IsIconic(hwnd):
-        user32.ShowWindow(hwnd, _SW_RESTORE)
-
-    current = kernel32.GetCurrentThreadId()
-    holder = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)
-    target = user32.GetWindowThreadProcessId(hwnd, None)
-    user32.AttachThreadInput(current, holder, True)
-    user32.AttachThreadInput(current, target, True)
-    user32.SetForegroundWindow(hwnd)
-    user32.BringWindowToTop(hwnd)
-    user32.AttachThreadInput(current, target, False)
-    user32.AttachThreadInput(current, holder, False)
-    return user32.GetForegroundWindow() == hwnd
+def _holds_front(handle: int) -> bool:
+    front = desktop.foreground_window()
+    return front == handle or (_belongs_to_game(handle) and _belongs_to_game(front))
 
 
-def hold_foreground(hwnd: int, timeout_sec: float = 12.0, settle_sec: float = 2.0) -> bool:
-    if not hwnd:
+def hold_foreground(handle: int, timeout_sec: float = 12.0, settle_sec: float = 2.0) -> bool:
+    if not handle:
         return False
-    user32 = ctypes.windll.user32
     deadline = time.monotonic() + timeout_sec
     holding_since = None
     while time.monotonic() < deadline:
-        if user32.GetForegroundWindow() == hwnd:
+        if _holds_front(handle):
             if holding_since is None:
                 holding_since = time.monotonic()
             elif time.monotonic() - holding_since >= settle_sec:
                 return True
         else:
             holding_since = None
-            give_focus_back(hwnd)
+            desktop.give_focus_back(handle)
         time.sleep(0.25)
-    return user32.GetForegroundWindow() == hwnd
+    return _holds_front(handle)
