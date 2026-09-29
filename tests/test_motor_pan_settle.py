@@ -31,9 +31,9 @@ def test_the_office_reports_which_way_it_faces():
     """The camera-up detector reads a fixed patch of the office, so a pan the
     fly caused itself looks exactly like a raised tablet unless it knows it is
     mid-turn."""
-    mock_user32 = MagicMock()
+    mock_desktop = MagicMock()
 
-    with patch.object(input_controller.ctypes, 'windll', MagicMock(user32=mock_user32)),          patch.object(input_controller.time, 'sleep'):
+    with patch.object(input_controller, 'desktop', mock_desktop),          patch.object(input_controller.time, 'sleep'):
         cmd_queue = _start_isolated_worker()
         controller = input_controller.FNAFController()
 
@@ -55,10 +55,10 @@ def test_the_office_reports_which_way_it_faces():
 def test_light_waits_for_the_office_to_swing_before_clicking():
     """The click used to fire the instant the cursor moved, so it landed while
     the office was still panning and hit whatever happened to be under it."""
-    mock_user32 = MagicMock()
+    mock_desktop = MagicMock()
     sleeps = []
 
-    with patch.object(input_controller.ctypes, 'windll', MagicMock(user32=mock_user32)), \
+    with patch.object(input_controller, 'desktop', mock_desktop), \
          patch.object(input_controller.time, 'sleep', side_effect=sleeps.append):
         cmd_queue = _start_isolated_worker()
         controller = input_controller.FNAFController()
@@ -72,10 +72,10 @@ def test_light_waits_for_the_office_to_swing_before_clicking():
 def test_second_action_on_the_same_side_does_not_wait_again():
     """Once the office already faces that way there is nothing to wait for, so
     turning the light back off must not cost another full pan."""
-    mock_user32 = MagicMock()
+    mock_desktop = MagicMock()
     sleeps = []
 
-    with patch.object(input_controller.ctypes, 'windll', MagicMock(user32=mock_user32)), \
+    with patch.object(input_controller, 'desktop', mock_desktop), \
          patch.object(input_controller.time, 'sleep', side_effect=sleeps.append):
         cmd_queue = _start_isolated_worker()
         controller = input_controller.FNAFController()
@@ -93,9 +93,9 @@ def test_second_action_on_the_same_side_does_not_wait_again():
 
 
 def test_command_reports_completion_so_the_caller_can_stop_guessing():
-    mock_user32 = MagicMock()
+    mock_desktop = MagicMock()
 
-    with patch.object(input_controller.ctypes, 'windll', MagicMock(user32=mock_user32)), \
+    with patch.object(input_controller, 'desktop', mock_desktop), \
          patch.object(input_controller.time, 'sleep'):
         _start_isolated_worker()
         controller = input_controller.FNAFController()
@@ -107,9 +107,9 @@ def test_command_reports_completion_so_the_caller_can_stop_guessing():
 def test_completion_is_reported_even_for_a_command_that_changes_nothing():
     """A no-op must still raise the flag, or a caller awaiting it hangs until
     its timeout every time the light is already in the state it asked for."""
-    mock_user32 = MagicMock()
+    mock_desktop = MagicMock()
 
-    with patch.object(input_controller.ctypes, 'windll', MagicMock(user32=mock_user32)), \
+    with patch.object(input_controller, 'desktop', mock_desktop), \
          patch.object(input_controller.time, 'sleep'):
         _start_isolated_worker()
         controller = input_controller.FNAFController()

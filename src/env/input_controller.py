@@ -1,12 +1,11 @@
-import ctypes
 import queue
 import threading
 import time
 import logging
-import config
 
-MOUSEEVENTF_LEFTDOWN = 0x0002
-MOUSEEVENTF_LEFTUP = 0x0004
+import config
+from env import anchor
+from env import desktop
 
 _CMD_QUEUE: queue.Queue = queue.Queue()
 _FACING = {'side': 'centre'}
@@ -34,14 +33,12 @@ def _pan_side(x: int) -> str:
 
 
 def _worker():
-    user32 = ctypes.windll.user32
-
     def _reach(x: int, y: int):
         side = _pan_side(x)
         moved = side != office_facing()
         if moved:
             _set_facing('panning')
-        user32.SetCursorPos(x, y)
+        desktop.move_cursor(*anchor.point(x, y))
         if moved:
             time.sleep(config.MOTOR_CALIBRATION.pan_delay_sec)
             _set_facing(side)
@@ -49,9 +46,9 @@ def _worker():
             time.sleep(config.MOTOR_CALIBRATION.click_delay_sec)
 
     def _click():
-        user32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        desktop.mouse_down()
         time.sleep(config.MOTOR_CALIBRATION.click_delay_sec)
-        user32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        desktop.mouse_up()
 
     def _slide(x: int, y_from: int, y_to: int, steps: int = 20, delay: float = 0.008):
         side = _pan_side(x)
@@ -59,7 +56,7 @@ def _worker():
         _set_facing('panning')
         for i in range(1, steps + 1):
             y = y_from + int((y_to - y_from) * i / steps)
-            user32.SetCursorPos(x, y)
+            desktop.move_cursor(*anchor.point(x, y))
             time.sleep(delay)
         if swinging:
             time.sleep(config.MOTOR_CALIBRATION.pan_delay_sec)

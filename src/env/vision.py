@@ -6,7 +6,14 @@ import collections
 import mss
 import numpy as np
 import cv2
+
+import logging
+
 import config
+from env import anchor
+from env import desktop
+
+_log = logging.getLogger(__name__)
 
 
 class FNAFVision:
@@ -47,12 +54,38 @@ class FNAFVision:
         self._threat_written_left = False
         self._threat_written_right = False
         self._peak_mse = {'left': 0.0, 'right': 0.0}
+        self._last_mse = {'left': 0.0, 'right': 0.0}
         self._capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._capture_thread.start()
 
+    @property
+    def _layout_path(self) -> str:
+        return os.path.join(self.reference_dir, 'layout.txt')
+
+    def _screen_size(self) -> tuple:
+        cached = getattr(self, '_screen', None)
+        if cached is None:
+            try:
+                cached = desktop.screen_size()
+            except Exception:
+                cached = (0, 0)
+            self._screen = cached
+        return cached
+
     def _grab_gray(self, sct, x: int, y: int, size: int) -> np.ndarray:
+        centre_x, centre_y = anchor.point(x, y)
+        size = anchor.size(size)
         offset = size // 2
-        bbox = {'top': y - offset, 'left': x - offset, 'width': size, 'height': size}
+        left = centre_x - offset
+        top = centre_y - offset
+        screen_w, screen_h = self._screen_size()
+        if screen_w > 0 and screen_h > 0:
+            left = max(0, min(left, screen_w - size))
+            top = max(0, min(top, screen_h - size))
+        else:
+            left = max(0, left)
+            top = max(0, top)
+        bbox = {'top': top, 'left': left, 'width': size, 'height': size}
         img = sct.grab(bbox)
         frame = np.array(img)
         return cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY).astype(np.float32)
@@ -76,9 +109,26 @@ class FNAFVision:
     def capture_right_reference(self):
         self.ref_right = self._capture_peak_reference(self._right_buf)
 
+    def _layout_fingerprint(self) -> str:
+        return '|'.join(str(getattr(self, name, None)) for name in (
+            'l_x', 'l_y', 'l_bbox', 'r_x', 'r_y', 'r_bbox',
+        )) + '|' + str(anchor.game_rect())
+
+    def _cached_layout_matches(self) -> bool:
+        if not os.path.isfile(self._layout_path):
+            return True
+        with open(self._layout_path, 'r', encoding='utf-8') as handle:
+            stored = handle.read().strip()
+        if stored == self._layout_fingerprint():
+            return True
+        _log.info('the cached eye references were taken on a different layout, recapturing')
+        return False
+
     def load_reference_from_disk(self) -> bool:
-        left = self._load_reference_image('ref_left.png', self.l_bbox)
-        right = self._load_reference_image('ref_right.png', self.r_bbox)
+        if not self._cached_layout_matches():
+            return False
+        left = self._load_reference_image('ref_left.png', anchor.size(self.l_bbox))
+        right = self._load_reference_image('ref_right.png', anchor.size(self.r_bbox))
         if left is None or right is None:
             return False
         self.ref_left = left
@@ -99,6 +149,8 @@ class FNAFVision:
             cv2.imwrite(os.path.join(self.reference_dir, 'ref_left.png'), self.ref_left.astype(np.uint8))
         if self.ref_right is not None:
             cv2.imwrite(os.path.join(self.reference_dir, 'ref_right.png'), self.ref_right.astype(np.uint8))
+        with open(self._layout_path, 'w', encoding='utf-8') as handle:
+            handle.write(self._layout_fingerprint())
 
     def clear_buffers(self):
         with self._buf_lock:
@@ -182,6 +234,16 @@ class FNAFVision:
     def peak_mse(self, side: str) -> float:
         return self._peak_mse[side]
 
+    def last_mse(self, side: str) -> float:
+        return self._last_mse[side]
+
+    def latest_patches(self) -> dict:
+        with self._buf_lock:
+            return {
+                'left': self._left_buf[-1] if self._left_buf else None,
+                'right': self._right_buf[-1] if self._right_buf else None,
+            }
+
     def get_left_sensory_rate(self) -> float:
         if self.ref_left is None:
             return 0.0
@@ -189,6 +251,7 @@ class FNAFVision:
         if current is None:
             return 0.0
         self._peak_mse['left'] = max(self._peak_mse['left'], mse)
+        self._last_mse['left'] = mse
         if mse > self.mse_threshold:
             if not self._threat_written_left:
                 self._write_threat_evidence('left', current, self.ref_left, mse)
@@ -204,6 +267,7 @@ class FNAFVision:
         if current is None:
             return 0.0
         self._peak_mse['right'] = max(self._peak_mse['right'], mse)
+        self._last_mse['right'] = mse
         if mse > self.mse_threshold:
             if not self._threat_written_right:
                 self._write_threat_evidence('right', current, self.ref_right, mse)

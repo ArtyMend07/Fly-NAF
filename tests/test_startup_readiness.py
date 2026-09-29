@@ -27,42 +27,101 @@ def test_the_game_is_found_by_its_process_not_by_what_covers_the_screen():
 
     with patch.object(overlay, '_top_level_windows', return_value=windows), \
          patch.object(overlay, 'window_process', side_effect=processes.get), \
-         patch.object(overlay, 'window_title', return_value=''):
+         patch.object(overlay, 'window_title', return_value=''), \
+         patch.object(overlay, 'foreground_window', return_value=EDITOR), \
+         patch.object(overlay, 'window_rect', return_value=None):
         assert overlay.find_game_window() == GAME
 
 
 def test_a_minimised_game_is_still_found():
     with patch.object(overlay, '_top_level_windows', return_value=[GAME]), \
          patch.object(overlay, 'window_process', return_value='FiveNightsatFreddys.exe'), \
-         patch.object(overlay, 'window_title', return_value=''):
+         patch.object(overlay, 'window_title', return_value=''), \
+         patch.object(overlay, 'foreground_window', return_value=0), \
+         patch.object(overlay, 'window_rect', return_value=None):
         assert overlay.find_game_window() == GAME
+
+
+def test_the_game_window_in_front_beats_its_minimised_frame():
+    frame, fullscreen = 919132, 919200
+    titles = {frame: "Five Nights at Freddy's", fullscreen: ''}
+    with patch.object(overlay, '_top_level_windows', return_value=[frame, fullscreen]), \
+         patch.object(overlay, 'window_process', return_value='FiveNightsatFreddys.exe'), \
+         patch.object(overlay, 'window_title', side_effect=titles.get), \
+         patch.object(overlay, 'foreground_window', return_value=fullscreen):
+        assert overlay.find_game_window() == fullscreen
+        assert overlay.game_in_front() == fullscreen
+
+
+def test_a_showing_game_window_beats_a_minimised_one_when_neither_is_in_front():
+    frame, fullscreen = 919132, 919200
+    rects = {frame: None, fullscreen: (0, 0, 1280, 720)}
+    processes = {frame: 'FiveNightsatFreddys.exe', fullscreen: 'FiveNightsatFreddys.exe',
+                 EDITOR: 'Code.exe'}
+    with patch.object(overlay, '_top_level_windows', return_value=[frame, fullscreen]), \
+         patch.object(overlay, 'window_process', side_effect=processes.get), \
+         patch.object(overlay, 'window_title', return_value=''), \
+         patch.object(overlay, 'foreground_window', return_value=EDITOR), \
+         patch.object(overlay, 'window_rect', side_effect=rects.get):
+        assert overlay.find_game_window() == fullscreen
+        assert overlay.game_in_front() == 0
 
 
 def test_the_title_is_only_a_fallback():
     with patch.object(overlay, '_top_level_windows', return_value=[EDITOR]), \
          patch.object(overlay, 'window_process', return_value='Code.exe'), \
-         patch.object(overlay, 'window_title', return_value="Five Nights at Freddy's"):
+         patch.object(overlay, 'window_title', return_value="Five Nights at Freddy's"), \
+         patch.object(overlay, 'foreground_window', return_value=0), \
+         patch.object(overlay, 'window_rect', return_value=None):
         assert overlay.find_game_window() == EDITOR
 
     with patch.object(overlay, '_top_level_windows', return_value=[EDITOR]), \
          patch.object(overlay, 'window_process', return_value='Code.exe'), \
-         patch.object(overlay, 'window_title', return_value='something else'):
+         patch.object(overlay, 'window_title', return_value='something else'), \
+         patch.object(overlay, 'foreground_window', return_value=0), \
+         patch.object(overlay, 'window_rect', return_value=None):
         assert overlay.find_game_window() == 0
 
 
 def test_the_countdown_gives_the_operator_time_to_reach_the_game():
-    with patch.object(main, 'find_game_window', return_value=GAME),          patch.object(main, 'foreground_window', return_value=GAME),          patch.object(main, 'window_title', return_value="Five Nights at Freddy's"),          patch.object(main.asyncio, 'sleep', new=_no_wait) as _:
+    with patch.object(main.asyncio, 'sleep', new=_no_wait):
         asyncio.run(main._countdown_to_the_night(3.0))
 
     assert _slept == [1.0, 1.0, 1.0]
 
 
-def test_the_countdown_starts_the_night_even_with_the_wrong_window_in_front():
-    del _slept[:]
-    with patch.object(main, 'find_game_window', return_value=GAME),          patch.object(main, 'foreground_window', return_value=EDITOR),          patch.object(main, 'window_title', return_value="Five Nights at Freddy's"),          patch.object(main.asyncio, 'sleep', new=_no_wait):
-        asyncio.run(main._countdown_to_the_night(2.0))
+def test_the_night_starts_even_with_the_wrong_window_in_front():
+    with patch.object(main, 'game_in_front', return_value=0), \
+         patch.object(main, 'anchor_to_game') as anchor:
+        main._confirm_game_in_front()
+    anchor.assert_not_called()
 
-    assert len(_slept) == 2
+
+def test_the_anchor_is_taken_once_the_game_is_in_front():
+    with patch.object(main, 'game_in_front', return_value=GAME), \
+         patch.object(main, 'window_title', return_value="Five Nights at Freddy's"), \
+         patch.object(main, 'anchor_to_game') as anchor:
+        main._confirm_game_in_front()
+    anchor.assert_called_once()
+
+
+def test_a_launcher_hook_replaces_the_countdown():
+    started = []
+    vision = MagicMock()
+    vision.load_reference_from_disk.return_value = True
+    controller = MagicMock()
+    controller.centre_view.return_value.wait.return_value = True
+
+    with patch.object(main, '_BEGIN_NIGHT', new=lambda: started.append('hook')), \
+         patch.object(main, '_countdown_to_the_night', new=_refuse), \
+         patch.object(main, 'game_in_front', return_value=0):
+        asyncio.run(main._calibrate(vision, controller))
+
+    assert started == ['hook']
+
+
+async def _refuse(_seconds):
+    raise AssertionError('the countdown ran although the launcher starts the night')
 
 
 def test_the_office_reference_is_taken_with_the_view_centred():
@@ -81,7 +140,8 @@ def test_the_office_reference_is_taken_with_the_view_centred():
 
     controller.centre_view.side_effect = centre
 
-    with patch.object(main, '_countdown_to_the_night', new=_ready):
+    with patch.object(main, '_countdown_to_the_night', new=_ready), \
+         patch.object(main, 'game_in_front', return_value=0):
         asyncio.run(main._calibrate(vision, controller))
 
     assert order == ['centre', 'capture']
