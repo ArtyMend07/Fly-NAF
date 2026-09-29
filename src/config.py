@@ -33,10 +33,6 @@ class MotorCalibration:
     camera_hover_x: int = 552
     camera_hover_y: int = 665
     camera_bar_dwell_sec: float = 0.25
-    camera_1c_x: int = 925
-    camera_1c_y: int = 484
-    camera_4b_x: int = 1086
-    camera_4b_y: int = 639
     screen_center_y: int = 540
     click_delay_sec: float = 0.05
     pan_delay_sec: float = 1.0
@@ -116,17 +112,30 @@ class BrainView:
     game_process: str = 'FiveNightsatFreddys'
     game_title: str = 'Five Nights at Freddy'
     stream_interval_sec: float = 0.05
+    patch_interval_sec: float = 0.3
+    patch_pixels: int = 72
+    beside_min_width: int = 420
     launch_browser: bool = True
 
 
 @dataclass(frozen=True)
-class OverlayPanel:
-    enabled: bool = True
-    width: int = 300
-    height: int = 352
-    opacity: float = 0.95
-    refresh_sec: float = 0.05
-    spike_hold_sec: float = 0.35
+class GameLauncher:
+    steam_uri: str = 'steam://rungameid/319510'
+    executable: str = ''
+    port: int = 8771
+    width: int = 900
+    height: int = 620
+    window_wait_sec: float = 90.0
+    menu_settle_sec: float = 4.0
+    windowed: bool = True
+    windowed_wait_sec: float = 30.0
+    windowed_stable_sec: float = 2.0
+    new_game_x: int | None = 210
+    new_game_y: int | None = 419
+    continue_x: int | None = 212
+    continue_y: int | None = 494
+    night_start_new_sec: float = 12.0
+    night_start_continue_sec: float = 5.0
 
 
 @dataclass(frozen=True)
@@ -241,8 +250,8 @@ FORAGING_PARAMS = ForagingParams()
 VISION_DYNAMICS = VisionDynamics()
 NEURAL_PARAMS = NeuralParams()
 CAMERA_DETECTION = CameraDetection()
-OVERLAY_PANEL = OverlayPanel()
 BRAIN_VIEW = BrainView()
+GAME_LAUNCHER = GameLauncher()
 EXPLORE_DYNAMICS = ExploreDynamics()
 SEARCH_DYNAMICS = SearchDynamics()
 DOOR_DYNAMICS = DoorDynamics()
