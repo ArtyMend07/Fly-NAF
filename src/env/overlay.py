@@ -125,7 +125,7 @@ def _belongs_to_game(handle: int) -> bool:
     if wanted_process and wanted_process in _squashed(window_process(handle)):
         return True
     wanted_title = _squashed(config.BRAIN_VIEW.game_title)
-    return bool(wanted_title) and wanted_title in _squashed(window_title(handle))
+    return bool(wanted_title) and wanted_title == _squashed(window_title(handle))
 
 
 def game_in_front() -> int:

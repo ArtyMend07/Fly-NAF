@@ -110,7 +110,7 @@ class BrainView:
     focus_handback_sec: float = 12.0
     start_countdown_sec: float = 10.0
     game_process: str = 'FiveNightsatFreddys'
-    game_title: str = 'Five Nights at Freddy'
+    game_title: str = "Five Nights at Freddy's"
     stream_interval_sec: float = 0.05
     patch_interval_sec: float = 0.3
     patch_pixels: int = 72

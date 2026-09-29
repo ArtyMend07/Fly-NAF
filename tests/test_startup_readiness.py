@@ -83,6 +83,12 @@ def test_the_title_is_only_a_fallback():
         assert overlay.find_game_window() == 0
 
 
+def test_a_browser_tab_named_after_the_game_is_not_the_game():
+    tab = "ArtyMend07/Fly-NAF: an agent that plays Five Nights at Freddy's 1 - Opera"
+    with patch.object(overlay, '_top_level_windows', return_value=[EDITOR]),          patch.object(overlay, 'window_process', return_value='opera.exe'),          patch.object(overlay, 'window_title', return_value=tab),          patch.object(overlay, 'foreground_window', return_value=0),          patch.object(overlay, 'window_rect', return_value=None):
+        assert overlay.find_game_window() == 0
+
+
 def test_the_countdown_gives_the_operator_time_to_reach_the_game():
     with patch.object(main.asyncio, 'sleep', new=_no_wait):
         asyncio.run(main._countdown_to_the_night(3.0))
