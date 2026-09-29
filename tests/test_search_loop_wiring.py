@@ -16,6 +16,7 @@ import torch
 
 import config
 import main
+from night import calibration
 from night.state import SaccadeRequest, SensoryState
 from telemetry import ConnectomeTelemetry
 
@@ -235,7 +236,7 @@ async def _play(seconds: float, engine=None):
 
 
 def _run(seconds, engine=None):
-    with patch.object(main, '_countdown_to_the_night', new=_office_is_up):
+    with patch.object(calibration, 'countdown_to_the_night', new=_office_is_up):
         return asyncio.run(_play(seconds, engine))
 
 

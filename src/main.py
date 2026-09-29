@@ -30,7 +30,9 @@ from env.overlay import (
     screen_size,
     window_title,
 )
+from night.calibration import calibrate
 from night.engine import ConnectomeEngine
+from night.motor import await_motor
 from night.state import MotorRefrac, SaccadeRequest, SensoryState
 from search_drive import ExploreDrive, SearchDrive
 from telemetry import ConnectomeTelemetry
@@ -41,8 +43,6 @@ TRACE = SessionRecorder(enabled=False)
 
 _log = logging.getLogger(__name__)
 
-_WARMUP_COUNTDOWN = 10
-_BEGIN_NIGHT = None
 _BRAIN_VIEW_PIN: dict = {}
 
 
@@ -60,54 +60,6 @@ async def _vision_task(
         state.right_rate = vision.get_right_sensory_rate() if looking_right else 0.0
         state.cam_inhib = config.SIMULATION_PARAMS.base_sensory_rate_hz if cam_up else 0.0
         await asyncio.sleep(delay)
-
-
-async def _calibrate_eye_references_live(vision: FNAFVision, controller: FNAFController, settle: float):
-    _log.info('calibrating in %d seconds', _WARMUP_COUNTDOWN)
-    for i in range(_WARMUP_COUNTDOWN, 0, -1):
-        _log.info('T-%d', i)
-        await asyncio.sleep(1.0)
-
-    await _await_motor(controller.set_left_light(True))
-    await asyncio.sleep(settle)
-    await asyncio.get_event_loop().run_in_executor(None, vision.capture_left_reference)
-    _log.info('left reference captured')
-    await _await_motor(controller.set_left_light(False))
-
-    await _await_motor(controller.set_right_light(True))
-    await asyncio.sleep(settle)
-    await asyncio.get_event_loop().run_in_executor(None, vision.capture_right_reference)
-    _log.info('right reference captured')
-    await _await_motor(controller.set_right_light(False))
-
-    vision.save_reference_to_disk()
-
-
-async def _calibrate(vision: FNAFVision, controller: FNAFController):
-    settle = config.FORAGING_PARAMS.light_activation_settle_sec
-
-    if _BEGIN_NIGHT is None:
-        await _countdown_to_the_night(config.BRAIN_VIEW.start_countdown_sec)
-    else:
-        await asyncio.get_event_loop().run_in_executor(None, _BEGIN_NIGHT)
-    _confirm_game_in_front()
-
-    if vision.load_reference_from_disk():
-        _log.info('loaded left/right eye references from disk, skipping live calibration')
-    else:
-        await _calibrate_eye_references_live(vision, controller, settle)
-
-    await _await_motor(controller.centre_view())
-    await asyncio.sleep(settle)
-    vision.capture_camera_closed_reference()
-    _log.info('office reference captured with the view centred')
-
-
-async def _await_motor(done, timeout_sec: float = 6.0):
-    finished = await asyncio.get_event_loop().run_in_executor(None, done.wait, timeout_sec)
-    if not finished:
-        _log.warning('motor command did not complete within %.0fs', timeout_sec)
-    return finished
 
 
 async def _office_comes_back(
@@ -147,10 +99,10 @@ async def _lower_monitor(
     if attempt < gesture_budget:
         if attempt % 2 == 0:
             gesture = 'sliding off the tablet bar'
-            await _await_motor(controller.close_camera(force=True))
+            await await_motor(controller.close_camera(force=True))
         else:
             gesture = 'tapping the tablet bar'
-            await _await_motor(controller.nudge_camera_bar())
+            await await_motor(controller.nudge_camera_bar())
 
     if await _reanchor_office_reference(vision, settle_sec, confirm_sec, controller):
         return True
@@ -301,9 +253,10 @@ async def _saccade_task(
     calibration_done: asyncio.Event,
     saccade: SaccadeRequest,
     view_ready: asyncio.Event,
+    begin_night=None,
 ):
     await view_ready.wait()
-    await _calibrate(vision, controller)
+    await calibrate(vision, controller, begin_night)
     calibration_done.set()
 
     while not shutdown.is_set():
@@ -324,7 +277,7 @@ async def _saccade_task(
         telemetry.record_light_saccade(side, saccade.drive, saccade.reason)
         switch = controller.set_left_light if side == 'left' else controller.set_right_light
 
-        await _await_motor(switch(True))
+        await await_motor(switch(True))
         await asyncio.sleep(config.FORAGING_PARAMS.light_activation_settle_sec)
 
         contrast, frames, driven, fired = await _observe_hallway(engine, vision, state, side)
@@ -507,28 +460,6 @@ async def _engine_task(
             await asyncio.sleep(0)
 
 
-async def _countdown_to_the_night(seconds: float):
-    _log.info('the panel is up. Go to the game and start the night, beginning in %.0fs', seconds)
-    remaining = int(seconds)
-    while remaining > 0:
-        await asyncio.sleep(1.0)
-        remaining -= 1
-        if remaining and (remaining <= 3 or remaining % 5 == 0):
-            _log.info('T-%d', remaining)
-
-
-def _confirm_game_in_front():
-    game = game_in_front()
-    if game:
-        _log.info('starting, the night is on screen in %r', window_title(game) or '<untitled>')
-        anchor_to_game()
-        return
-    _log.warning(
-        'starting anyway, but %s is not the window in front, so every capture will read '
-        'whatever is', config.BRAIN_VIEW.game_process,
-    )
-
-
 def _restore_game_focus(game: int, panel: int, timeout_sec: float):
     if not game or game == panel or not is_window(game):
         game = find_game_window()
@@ -685,7 +616,7 @@ def _close_brain_view_window():
         profiles.sweep()
 
 
-async def _run(telemetry: ConnectomeTelemetry):
+async def _run(telemetry: ConnectomeTelemetry, begin_night=None):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     _log.info('brain core online, device=%s', device)
 
@@ -706,7 +637,7 @@ async def _run(telemetry: ConnectomeTelemetry):
         tg.create_task(_vision_task(vision, controller, state, shutdown))
         tg.create_task(_saccade_task(
             engine, vision, controller, state, shutdown, telemetry, calibration_done,
-            saccade, view_ready,
+            saccade, view_ready, begin_night,
         ))
         tg.create_task(_engine_task(
             engine, vision, controller, state, shutdown, telemetry, calibration_done,
@@ -718,8 +649,7 @@ async def _run(telemetry: ConnectomeTelemetry):
 
 
 def main(begin_night=None):
-    global TRACE, _BEGIN_NIGHT
-    _BEGIN_NIGHT = begin_night
+    global TRACE
     if os.environ.get('FLYNAF_RECORD', '1') != '0':
         TRACE = SessionRecorder()
     tuning.load()
@@ -732,7 +662,7 @@ def main(begin_night=None):
         )
     telemetry = ConnectomeTelemetry()
     try:
-        asyncio.run(_run(telemetry))
+        asyncio.run(_run(telemetry, begin_night))
     except KeyboardInterrupt:
         _log.info('shutdown')
     finally:

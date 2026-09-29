@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import config
-import main
 from env import overlay
+from night import calibration
 
 GAME = 789498
 EDITOR = 66778
@@ -90,24 +90,24 @@ def test_a_browser_tab_named_after_the_game_is_not_the_game():
 
 
 def test_the_countdown_gives_the_operator_time_to_reach_the_game():
-    with patch.object(main.asyncio, 'sleep', new=_no_wait):
-        asyncio.run(main._countdown_to_the_night(3.0))
+    with patch.object(calibration.asyncio, 'sleep', new=_no_wait):
+        asyncio.run(calibration.countdown_to_the_night(3.0))
 
     assert _slept == [1.0, 1.0, 1.0]
 
 
 def test_the_night_starts_even_with_the_wrong_window_in_front():
-    with patch.object(main, 'game_in_front', return_value=0), \
-         patch.object(main, 'anchor_to_game') as anchor:
-        main._confirm_game_in_front()
+    with patch.object(calibration, 'game_in_front', return_value=0), \
+         patch.object(calibration, 'anchor_to_game') as anchor:
+        calibration.confirm_game_in_front()
     anchor.assert_not_called()
 
 
 def test_the_anchor_is_taken_once_the_game_is_in_front():
-    with patch.object(main, 'game_in_front', return_value=GAME), \
-         patch.object(main, 'window_title', return_value="Five Nights at Freddy's"), \
-         patch.object(main, 'anchor_to_game') as anchor:
-        main._confirm_game_in_front()
+    with patch.object(calibration, 'game_in_front', return_value=GAME), \
+         patch.object(calibration, 'window_title', return_value="Five Nights at Freddy's"), \
+         patch.object(calibration, 'anchor_to_game') as anchor:
+        calibration.confirm_game_in_front()
     anchor.assert_called_once()
 
 
@@ -118,10 +118,11 @@ def test_a_launcher_hook_replaces_the_countdown():
     controller = MagicMock()
     controller.centre_view.return_value.wait.return_value = True
 
-    with patch.object(main, '_BEGIN_NIGHT', new=lambda: started.append('hook')), \
-         patch.object(main, '_countdown_to_the_night', new=_refuse), \
-         patch.object(main, 'game_in_front', return_value=0):
-        asyncio.run(main._calibrate(vision, controller))
+    with patch.object(calibration, 'countdown_to_the_night', new=_refuse), \
+         patch.object(calibration, 'game_in_front', return_value=0):
+        asyncio.run(calibration.calibrate(
+            vision, controller, begin_night=lambda: started.append('hook'),
+        ))
 
     assert started == ['hook']
 
@@ -146,9 +147,9 @@ def test_the_office_reference_is_taken_with_the_view_centred():
 
     controller.centre_view.side_effect = centre
 
-    with patch.object(main, '_countdown_to_the_night', new=_ready), \
-         patch.object(main, 'game_in_front', return_value=0):
-        asyncio.run(main._calibrate(vision, controller))
+    with patch.object(calibration, 'countdown_to_the_night', new=_ready), \
+         patch.object(calibration, 'game_in_front', return_value=0):
+        asyncio.run(calibration.calibrate(vision, controller))
 
     assert order == ['centre', 'capture']
 
