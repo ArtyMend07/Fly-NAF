@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import config
-import main
+from night import tasks
 from night.state import SensoryState
 
 FRAMES = config.FORAGING_PARAMS.light_inspection_frames
@@ -52,7 +52,7 @@ def _watch(engine, vision, state, side, slam_at=None):
     async def scenario():
         ticker = asyncio.create_task(engine.run(state, slam_at, side))
         try:
-            return await main._observe_hallway(engine, vision, state, side)
+            return await tasks.observe_hallway(engine, vision, state, side)
         finally:
             ticker.cancel()
 

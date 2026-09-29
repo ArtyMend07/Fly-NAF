@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import config
-import main
+from night import tasks
 from night.state import SensoryState
 
 FULL_RATE = config.SIMULATION_PARAMS.base_sensory_rate_hz
@@ -40,7 +40,7 @@ def _one_pass(camera_up, facing):
     shutdown = asyncio.Event()
 
     async def scenario():
-        task = asyncio.create_task(main._vision_task(vision, controller, state, shutdown))
+        task = asyncio.create_task(tasks.vision_task(vision, controller, state, shutdown))
         await asyncio.sleep(0.1)
         shutdown.set()
         await task

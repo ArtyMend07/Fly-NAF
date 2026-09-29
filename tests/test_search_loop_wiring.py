@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 import torch
 
 import config
-import main
+from night import tasks
 from night import calibration
 from night.state import SaccadeRequest, SensoryState
 from telemetry import ConnectomeTelemetry
@@ -206,16 +206,16 @@ async def _play(seconds: float, engine=None):
         await asyncio.sleep(seconds)
         shutdown.set()
 
-    vision_task = asyncio.create_task(main._vision_task(
+    vision_task = asyncio.create_task(tasks.vision_task(
         FakeVision(), controller, state, shutdown,
     ))
-    engine_task = asyncio.create_task(main._engine_task(
+    engine_task = asyncio.create_task(tasks.engine_task(
         engine, FakeVision(), controller, state, shutdown, telemetry,
         calibrated, FakeFeed(), {}, saccade,
     ))
     view_ready = asyncio.Event()
     view_ready.set()
-    saccade_task = asyncio.create_task(main._saccade_task(
+    saccade_task = asyncio.create_task(tasks.saccade_task(
         engine, FakeVision(), controller, state, shutdown, telemetry, calibrated,
         saccade, view_ready,
     ))
