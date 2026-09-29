@@ -65,6 +65,9 @@ def game_bounds() -> tuple:
     )
 
 
+_TASKBAR_RESERVE = 48
+
+
 def beside_game_rect(
     screen_w: int, screen_h: int, min_width: int, max_width: int, margin: int,
 ) -> tuple | None:
@@ -73,7 +76,7 @@ def beside_game_rect(
         return None
     game_x, game_y, game_w, game_h = rect
     top = max(0, game_y)
-    height = min(game_h, screen_h - top)
+    height = max(game_h, screen_h - top - _TASKBAR_RESERVE)
     right_space = screen_w - (game_x + game_w) - 2 * margin
     if right_space >= min_width:
         width = min(max_width, right_space)

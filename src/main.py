@@ -728,7 +728,10 @@ def _launch_brain_view_window(port: int) -> bool:
         '--no-first-run',
         '--no-default-browser-check',
         '--disable-sync',
-        '--disable-features=Translate,MediaRouter',
+        '--disable-features=Translate,MediaRouter,CalculateNativeWinOcclusion',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-background-timer-throttling',
     ], **desktop.popen_kwargs_no_activate())
     _log.info('brain view launched with %s', os.path.basename(browser))
     _BRAIN_VIEW_PIN['process'] = process
