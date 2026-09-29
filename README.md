@@ -160,8 +160,8 @@ go back to the defaults.
 uv run python run.py
 ```
 
-On Windows, double-clicking `Fly-NAF.bat` does the same, and `src/main.py` run
-directly goes through the same path.
+On Windows, double-clicking `Fly-NAF.bat` does the same. `run.py` is the only
+entry point, and `src/main.py` holds the engine it starts.
 
 A launcher window opens with the two choices the game's menu offers, New Game
 and Continue, and the night the save file is on. Picking one opens the game
@@ -274,3 +274,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.11 | Added the required notice of changes to the NeuroMechFly assets and its citation | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
 | 1.12 | Clarified that the Wine or Proton path has not been run end to end yet | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
 | 1.13 | Described the one click setup and the git and zip routes for the data | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
+| 1.14 | Named run.py as the only entry point | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |

@@ -39,11 +39,6 @@ import tuning
 
 TRACE = SessionRecorder(enabled=False)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(message)s',
-    datefmt='%H:%M:%S',
-)
 _log = logging.getLogger(__name__)
 
 _WARMUP_COUNTDOWN = 10
@@ -864,8 +859,3 @@ def main(begin_night=None):
         TRACE.close()
         path = telemetry.dump_report()
         _log.info('Telemetry report saved to %s', path)
-
-
-if __name__ == '__main__':
-    import runpy
-    runpy.run_path(os.path.join(config.PROJECT_ROOT, 'run.py'), run_name='__main__')
