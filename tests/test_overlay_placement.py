@@ -91,7 +91,7 @@ def test_real_config_regions_leave_room_on_this_layout():
     regions = capture_regions()
     vision = config.VISION_CALIBRATION
 
-    assert len(regions) == 3
+    assert len(regions) == 4
     assert regions[0] == centered_rect(
         vision.left_target_x, vision.left_target_y, vision.left_bbox_size
     )

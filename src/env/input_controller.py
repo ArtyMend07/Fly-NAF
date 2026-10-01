@@ -123,6 +123,14 @@ def _dispatch(cmd, action, _reach, _click, _slide, light_state, camera_state, do
             _slide(motor.camera_hover_x, motor.camera_hover_y, motor.screen_center_y)
             camera_state['open'] = False
 
+    elif action == 'select_camera':
+        button = _camera_button(cmd.get('camera'))
+        if button is not None:
+            time.sleep(cmd.get('settle_sec', 0.0))
+            desktop.move_cursor(*anchor.point(button.x, button.y))
+            time.sleep(motor.click_delay_sec)
+            _click()
+
     elif action == 'nudge_camera_bar':
         _slide(motor.camera_hover_x, motor.screen_center_y, motor.camera_hover_y)
         time.sleep(motor.camera_bar_dwell_sec)
@@ -131,6 +139,14 @@ def _dispatch(cmd, action, _reach, _click, _slide, light_state, camera_state, do
 
     else:
         _log.warning('unknown command action: %s', action)
+
+
+def _camera_button(name):
+    for button in config.TABLET_VISION.cameras:
+        if button.name == name:
+            return button
+    _log.warning('no map button is calibrated for camera %s', name)
+    return None
 
 
 def start_worker():
@@ -178,3 +194,6 @@ class FNAFController:
 
     def nudge_camera_bar(self) -> threading.Event:
         return _submit(action='nudge_camera_bar')
+
+    def select_camera(self, camera: str, settle_sec: float = 0.0) -> threading.Event:
+        return _submit(action='select_camera', camera=camera, settle_sec=settle_sec)

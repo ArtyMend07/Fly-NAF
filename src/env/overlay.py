@@ -27,10 +27,13 @@ def capture_regions() -> list:
     left = anchor.point(vision.left_target_x, vision.left_target_y)
     right = anchor.point(vision.right_target_x, vision.right_target_y)
     patch = anchor.point(camera.patch_x, camera.patch_y)
+    tablet = config.TABLET_VISION
+    feed = anchor.point(tablet.feed_x, tablet.feed_y)
     return [
         centered_rect(left[0], left[1], anchor.size(vision.left_bbox_size)),
         centered_rect(right[0], right[1], anchor.size(vision.right_bbox_size)),
         centered_rect(patch[0], patch[1], anchor.size(camera.patch_size)),
+        centered_rect(feed[0], feed[1], anchor.size(tablet.feed_size)),
     ]
 
 
@@ -43,7 +46,7 @@ def motor_regions(pad: int = 40) -> list:
         (motor.right_light_button_x, motor.right_light_button_y),
         (motor.camera_hover_x, motor.camera_hover_y),
         (motor.camera_hover_x, motor.screen_center_y),
-    ]
+    ] + [(button.x, button.y) for button in config.TABLET_VISION.cameras]
     reach = anchor.size(pad * 2)
     return [centered_rect(*anchor.point(x, y), reach) for x, y in targets]
 

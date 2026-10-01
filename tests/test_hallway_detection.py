@@ -18,6 +18,7 @@ def _eye(frames):
     vision._buf_lock = threading.Lock()
     vision.mse_threshold = config.FORAGING_PARAMS.mse_threshold
     vision._peak_mse = {'left': 0.0, 'right': 0.0}
+    vision._last_mse = {'left': 0.0, 'right': 0.0}
     vision._threat_written_left = True
     vision._threat_written_right = True
     vision.ref_left = np.zeros((SIZE, SIZE), dtype=np.float32)
