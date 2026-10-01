@@ -5,18 +5,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import pandas as pd
 import config
-
-FLYWIRE_ANNOTATIONS = os.path.join(
-    os.path.dirname(config.PROJECT_ROOT),
-    'flywire_annotations', 'supplemental_files', 'Supplemental_file1_neuron_annotations.tsv'
-)
+from neural.cell_types import CellTypeIndex
 
 
 def mine_top_50():
     conn = pd.read_parquet(config.CONNECTIVITY_PARQUET)
-    anno = pd.read_csv(FLYWIRE_ANNOTATIONS, sep='\t', low_memory=False)
+    anno = pd.read_csv(config.ANNOTATIONS_TSV, sep='\t', low_memory=False)
 
-    left_gf, right_gf = config.MOTOR_NEURONS.dnp01_giant_fiber
+    cell_index = CellTypeIndex.load()
+    giant_fiber = config.CELL_POPULATIONS.giant_fiber
+    left_gf = cell_index.root_ids(giant_fiber, 'left')[0]
+    right_gf = cell_index.root_ids(giant_fiber, 'right')[0]
 
     gaba_ids = set(anno[anno['top_nt'] == 'gaba']['root_id'].unique())
 

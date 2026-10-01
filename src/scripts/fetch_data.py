@@ -171,11 +171,7 @@ def status() -> list:
         ('connectivity parquet', config.CONNECTIVITY_PARQUET, _have(config.CONNECTIVITY_PARQUET)),
         ('completeness csv', config.COMPLETENESS_CSV, _have(config.COMPLETENESS_CSV)),
         ('soma coordinates', SOMA_CSV, soma_file_is_current()),
-        ('flywire annotations', os.path.join(
-            ANNOTATIONS, 'supplemental_files', 'Supplemental_file1_neuron_annotations.tsv',
-        ), _have(os.path.join(
-            ANNOTATIONS, 'supplemental_files', 'Supplemental_file1_neuron_annotations.tsv',
-        ))),
+        ('flywire annotations', config.ANNOTATIONS_TSV, _have(config.ANNOTATIONS_TSV)),
     ]
 
 

@@ -1,6 +1,5 @@
 import heapq
 import pandas as pd
-import numpy as np
 from collections import defaultdict
 from typing import List, Dict, Optional, Tuple
 
@@ -12,12 +11,12 @@ def load_excitatory_graph(conn_path: str) -> Dict[int, List[Tuple[float, int]]]:
     excitatory_edges = df[df['Excitatory x Connectivity'] > 0]
 
     graph = defaultdict(list)
-    for _, row in excitatory_edges.iterrows():
-        src = int(row['Presynaptic_Index'])
-        dst = int(row['Postsynaptic_Index'])
-        weight = float(row['Excitatory x Connectivity'])
-        cost = 1.0 / weight
-        graph[src].append((cost, dst))
+    for src, dst, weight in zip(
+        excitatory_edges['Presynaptic_Index'].to_numpy(),
+        excitatory_edges['Postsynaptic_Index'].to_numpy(),
+        excitatory_edges['Excitatory x Connectivity'].to_numpy(),
+    ):
+        graph[int(src)].append((1.0 / float(weight), int(dst)))
 
     return graph
 

@@ -7,10 +7,7 @@ import pandas as pd
 import config
 from brain_adapter import BrainAdapter
 
-FLYWIRE_ANNOTATIONS = os.path.join(
-    os.path.dirname(config.PROJECT_ROOT),
-    'flywire_annotations', 'supplemental_files', 'Supplemental_file1_neuron_annotations.tsv'
-)
+FLYWIRE_ANNOTATIONS = config.ANNOTATIONS_TSV
 
 PROOFREAD_783 = 139255
 
