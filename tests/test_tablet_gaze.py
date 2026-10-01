@@ -1,13 +1,8 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-from night.state import SensoryState
-from night.tablet.gaze import TabletGaze
-from night.tablet.watch import TabletWatch
-from telemetry import ConnectomeTelemetry
+from flynaf import config
+from flynaf.night.state import SensoryState
+from flynaf.night.tablet.gaze import TabletGaze
+from flynaf.night.tablet.watch import TabletWatch
+from flynaf.telemetry import ConnectomeTelemetry
 
 RAISE = 1.2
 SWITCH = 0.5

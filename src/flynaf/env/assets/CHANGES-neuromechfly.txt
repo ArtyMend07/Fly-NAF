@@ -1,0 +1,28 @@
+This directory carries neuromechfly.bin.gz, a file derived from the body
+segment meshes and rigging of NeuroMechFly v2 (NeLy-EPFL/flygym), used and
+redistributed here under the Apache License 2.0 in LICENSE-neuromechfly.txt.
+As required by section 4(b) of that license, this file states the changes
+made to the original work.
+
+Source: the STL meshes under
+src/flygym/assets/model/neuromechfly/meshes/simplified_max2000faces/ and the
+rigging and neutral pose YAML files under
+src/flygym/assets/model/neuromechfly/, fetched from flygym at commit
+38c8ec61034cd59bc5ba0de20688d4a3c0000d60 by src/flynaf/scripts/build_fly_model.py.
+
+Changes made:
+  - Each body segment's mesh was placed in world space using the rigging
+    offsets and the neutral pose joint angles, which flygym instead applies
+    at simulation time inside MuJoCo; here the pose is baked once into fixed
+    vertex positions.
+  - Right-side segments, stored by flygym as a mirror instruction over the
+    left-side mesh, were mirrored and re-triangulated here into their own
+    geometry.
+  - Vertices were deduplicated per material group and quantized to 16 bits
+    per axis against the model's bounding box.
+  - The per-segment STL files were repackaged into one custom binary format,
+    grouped by material rather than by body segment, and gzip compressed.
+
+None of this changes the geometry of the fly itself, only how it is stored
+and posed for a static display; the simulation-ready original remains
+flygym's own STL and MJCF files, unmodified, at the source above.

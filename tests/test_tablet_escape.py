@@ -1,13 +1,9 @@
 import asyncio
-import os
-import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from night import monitor, tasks
-from night.doors import DoorControl
-from night.state import SensoryState
-from telemetry import ConnectomeTelemetry
+from flynaf.night import monitor, tasks
+from flynaf.night.doors import DoorControl
+from flynaf.night.state import SensoryState
+from flynaf.telemetry import ConnectomeTelemetry
 
 
 class _Done:

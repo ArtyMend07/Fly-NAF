@@ -1,15 +1,11 @@
-import os
-import sys
 from unittest.mock import MagicMock
 
 import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-from night.engine import ConnectomeEngine
-from night.neurons import NeuronMap
-from night.state import SensoryState
+from flynaf import config
+from flynaf.night.engine import ConnectomeEngine
+from flynaf.night.neurons import NeuronMap
+from flynaf.night.state import SensoryState
 
 NEURONS = 12
 TOUCHED = set(range(8))

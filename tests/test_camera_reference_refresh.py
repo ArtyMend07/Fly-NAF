@@ -1,11 +1,7 @@
 import asyncio
-import sys
-import os
 from unittest.mock import MagicMock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from night.monitor import reanchor_office_reference
+from flynaf.night.monitor import reanchor_office_reference
 
 
 def _office_visible():

@@ -1,14 +1,11 @@
 import collections
 import os
-import sys
 import threading
 import time
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from env.vision import FNAFVision
+from flynaf.env.vision import FNAFVision
 
 
 def make_vision(calib_frames=5, calib_delay=0.01) -> FNAFVision:

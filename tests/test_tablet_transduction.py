@@ -1,12 +1,7 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
 import numpy as np
 
-from env.tablet_feed import bank_distance, bank_noise, prepare, spread_sample
-from night.tablet.transduction import LoomChannel, camera_drive, figure_level
+from flynaf.env.tablet_feed import bank_distance, bank_noise, prepare, spread_sample
+from flynaf.night.tablet.transduction import LoomChannel, camera_drive, figure_level
 
 FIGURE_CASES = (
     (0.0, 100.0, 1000.0, 0.0),

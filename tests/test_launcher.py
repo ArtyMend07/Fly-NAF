@@ -1,13 +1,9 @@
 import dataclasses
 import os
-import sys
 import tempfile
 from unittest.mock import patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-import launcher
+from flynaf import config, launcher
 
 GAME = 919200
 CALIBRATED = dataclasses.replace(

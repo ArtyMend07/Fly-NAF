@@ -1,5 +1,7 @@
 # Fly-NAF
 
+[![tests](https://github.com/ArtyMend07/Fly-NAF/actions/workflows/tests.yml/badge.svg)](https://github.com/ArtyMend07/Fly-NAF/actions/workflows/tests.yml)
+
 A whole-brain *Drosophila melanogaster* connectome simulation that plays Five Nights at Freddy's 1.
 
 138,639 of the 139,255 proofread neurons in the FlyWire 783 connectome run as leaky integrate-and-fire units, wired by the measured synaptic weights. That is 99.56% of the brain, and the ones left out are almost all sensory afferents rather than interneurons. Nothing else is subset. The screen is fed into the fly's visual clusters, and the mouse is driven by reading its descending neurons.
@@ -25,9 +27,9 @@ Raising the tablet also drives the GABAergic inhibitor clusters at full rate, wh
 
 ## What this is not
 
-There is no policy, no reward, no training and no learning whatsoever. The connectome is fixed at what FlyWire measured. Every constant in `src/config.py` was fitted against measurements of the simulated network rather than chosen by feel.
+There is no policy, no reward, no training and no learning whatsoever. The connectome is fixed at what FlyWire measured. Every constant in `src/flynaf/config.py` was fitted against measurements of the simulated network rather than chosen by feel.
 
-One thing is not a measurement. `arousal_multiplier` in `src/config.py` multiplies every weight in the matrix by 3, standing in for the neuromodulatory tone a brain in a body would have. The sign and the topology are untouched, the gain is uniform, and no edge is treated differently from any other, but the magnitude is not what FlyWire recorded.
+One thing is not a measurement. `arousal_multiplier` in `src/flynaf/config.py` multiplies every weight in the matrix by 3, standing in for the neuromodulatory tone a brain in a body would have. The sign and the topology are untouched, the gain is uniform, and no edge is treated differently from any other, but the magnitude is not what FlyWire recorded.
 
 FlyWire maps the brain and stops at the neck. There is no ventral nerve cord here, so the descending neurons are read where they leave the brain rather than driving a simulated body.
 
@@ -43,7 +45,7 @@ FlyWire maps the brain and stops at the neck. There is no ventral nerve cord her
 
 The simulation needs roughly 140 MB of FlyWire data that is deliberately not committed here. It comes from [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain), which is where the neural engine this project builds on lives, and from the FlyWire annotation supplement.
 
-`src/config.py` resolves the data path relative to the parent of this repository, so the layout on disk has to look like this. The folder this repository sits in can have any name.
+`src/flynaf/config.py` resolves the data path relative to the parent of this repository, so the layout on disk has to look like this. The folder this repository sits in can have any name.
 
 ```
 <parent folder>/
@@ -85,7 +87,7 @@ For a developer the same thing is done from a terminal.
 git clone <this repository> Fly-NAF
 cd Fly-NAF
 uv sync
-uv run python src/scripts/fetch_data.py
+uv run python -m flynaf.scripts.fetch_data
 ```
 
 `fetch_data.py` prints the licences first, then fetches the two repositories and
@@ -120,7 +122,7 @@ uv run python run.py
 ## Calibration
 
 The screen targets follow the game window. Once the game is the window in
-front, its client rectangle is measured and every coordinate in `src/config.py`
+front, its client rectangle is measured and every coordinate in `src/flynaf/config.py`
 is treated as a position inside a 1280x720 reference layout and scaled onto it.
 A window of a different size or in a different corner works without any
 measuring. The game draws at 1280x720 whatever the display, and in fullscreen
@@ -131,13 +133,14 @@ A minimised window is never measured, because Windows reports it as a small
 rectangle far off screen. If the game is not in front when the night starts,
 the coordinates are used exactly as written, which assumes a 1280x720 window at
 the top left. The scripts below stay for that case, and for inspecting what
-each region actually reads.
+each region actually reads. Each one runs as a module, for example
+`uv run python -m flynaf.scripts.select_roi`.
 
-- `src/scripts/select_roi.py` takes a screenshot and lets you drag the two hallway capture boxes.
-- `src/scripts/vision_calibrator.py` writes the measured values into `logs/`.
-- `src/scripts/debug_vision.py` and `src/scripts/debug_camera.py` show live what each capture region is reading.
-- `src/scripts/debug_reflex.py` shows the live contrast of both hallways against the threshold, and says whether a door would slam. Run it with a light held on, because a reading taken with the light off means nothing.
-- `src/scripts/debug_tablet.py 1C` or `2A` records one camera with nothing in view and then prints the live drive it would send into the brain. That is how the spans in `TabletVision` are fitted, and how the CAM 2A button position, inferred from CAM 4B, is confirmed.
+- `src/flynaf/scripts/select_roi.py` takes a screenshot and lets you drag the two hallway capture boxes.
+- `src/flynaf/scripts/vision_calibrator.py` writes the measured values into `logs/`.
+- `src/flynaf/scripts/debug_vision.py` and `src/flynaf/scripts/debug_camera.py` show live what each capture region is reading.
+- `src/flynaf/scripts/debug_reflex.py` shows the live contrast of both hallways against the threshold, and says whether a door would slam. Run it with a light held on, because a reading taken with the light off means nothing.
+- `src/flynaf/scripts/debug_tablet.py`, given `1C` or `2A`, records one camera with nothing in view and then prints the live drive it would send into the brain. That is how the spans in `TabletVision` are fitted, and how the CAM 2A button position, inferred from CAM 4B, is confirmed.
 
 The camera references are not cached. At the start of every night the fly raises the tablet once, records a few seconds of CAM 1C and CAM 2A while the curtain is closed and the hall is empty, and lowers it again, which also stalls Foxy while it happens.
 
@@ -166,14 +169,15 @@ uv run python run.py
 ```
 
 On Windows, double-clicking `Fly-NAF.bat` does the same. `run.py` is the only
-entry point, `src/main.py` wires a night together and `src/night/` holds its parts (ADR 0024).
+entry point, `src/flynaf/main.py` wires a night together and `src/flynaf/night/` holds its
+parts (ADR 0024).
 
 A launcher window opens with the two choices the game's menu offers, New Game
 and Continue, and the night the save file is on. Picking one opens the game
 through Steam, loads the brain, brings the game to the front and clicks that
 option in the menu, so the night starts only once the brain is ready to play
 it. A copy outside Steam is opened through `GameLauncher.executable` in
-`src/config.py`. `--new` and `--continue` do the same without the window.
+`src/flynaf/config.py`. `--new` and `--continue` do the same without the window.
 
 The menu clicks need two points measured once, `new_game_x`, `new_game_y`,
 `continue_x` and `continue_y` in `GameLauncher`, in the same 1280x720 layout as
@@ -206,21 +210,21 @@ A game that fills the screen gets the smaller overlay pinned over the office ins
 The claim at the top of this file is checkable without installing the game.
 
 ```bash
-uv run python src/scripts/verify_connectome.py
+uv run python -m flynaf.scripts.verify_connectome
 ```
 
 It prints the neuron count, the edge count, the coverage against the FlyWire annotations, the super class of every neuron left out, the dimensions of the matrix handed to the engine, how many rows were dropped before it, and the gain in force. It needs the connectome data in place and nothing else.
 
 ```bash
-uv run python src/scripts/measure_tablet_pathways.py
-uv run python src/scripts/find_motor_pathway.py --source LC9 --target DNp09
+uv run python -m flynaf.scripts.measure_tablet_pathways
+uv run python -m flynaf.scripts.find_motor_pathway --source LC9 --target DNp09
 ```
 
 The first drives each tablet channel into the running engine with the inhibitors on and prints which descending neuron answers and on which frame, the table ADR 0026 rests on. The second prints the cheapest excitatory path between any two FlyWire cell types.
 
 Every run also writes a trace to `logs/traces/`, one line per engine frame,
 carrying the input the eyes produced and what the descending neurons did with
-it. `uv run python src/replay.py <trace>` feeds that input back through a real
+it. `uv run python -m flynaf.replay <trace>` feeds that input back through a real
 engine and reports whether the giant fiber answers, how long it took and whether
 it stayed quiet on idle frames.
 
@@ -232,18 +236,25 @@ recording off.
 
 ## Tests
 
-There is no test framework dependency. Every file under `tests/` is a script
-that runs its own cases and prints `ok` when they all hold.
+The tests run under pytest, which `uv sync` installs with ruff as development
+dependencies.
 
 ```bash
-uv run python tests/test_hallway_detection.py
+uv run pytest
+uv run pytest -m "not connectome"
+uv run ruff check src run.py tests
 ```
 
 Most of them stub out the vision and motor layers and finish in under a second.
 `test_search_loop_wiring.py` plays scripted nights in real time and takes about
-two minutes. Two of them, `test_inhibition.py` and `test_pathways.py`, run the
-real engine on the full connectome, so they need the FlyWire data in place and
-take several minutes each.
+two minutes. Two of them, `test_inhibition.py` and `test_pathways.py`, carry the
+`connectome` marker because they run the real engine on the full connectome.
+They need the FlyWire data in place, take several minutes each, and are skipped
+when the data is missing. The second command leaves them out.
+
+Every push to `main` and every pull request runs the lint and the tests on a
+Windows runner. The FlyWire data cannot be redistributed, so the two connectome
+tests are skipped there and run only on a machine that holds the data.
 
 ## Documentation
 
@@ -258,17 +269,17 @@ and why the game is measured only once it is in front, and ADR 0022 covers the
 panel and the rule that only simulation variables drive it. ADR 0025 covers how
 populations are named by cell type rather than pasted as ids, and ADR 0026 and
 experiment 13 cover the tablet, Foxy and why DNp04 rather than the Giant Fiber
-answers through it.
+answers through it. ADR 0027 covers the `flynaf` package and the test pipeline.
 
 ## Licensing and credits
 
 This project is licensed under the GNU General Public License version 3 or any later version, in `LICENSE`.
 
-It has to be. Two files under `src/neural/` are adapted from `code/run_pytorch.py` in [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain). `models.py` carries the LIF neuron with alpha synapses, the delay buffer and the surrogate gradient, and `data_loader.py` carries the connectome loading. That repository is licensed under GPL version 2 or any later version, so this one inherits it, and version 3 is taken under the "or later" clause. The data files also come from its `data` folder.
+It has to be. Two files under `src/flynaf/neural/` are adapted from `code/run_pytorch.py` in [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain). `models.py` carries the LIF neuron with alpha synapses, the delay buffer and the surrogate gradient, and `data_loader.py` carries the connectome loading. That repository is licensed under GPL version 2 or any later version, so this one inherits it, and version 3 is taken under the "or later" clause. The data files also come from its `data` folder.
 
 Everything else here is original. An audit of all twenty source files against the upstream project found no meaningful overlap outside those two.
 
-The fly in the launcher is the NeuroMechFly body model from [NeLy-EPFL/flygym](https://github.com/NeLy-EPFL/flygym), built from a micro-CT scan of an adult female fly and licensed under Apache 2.0, which the GPL v3 can include. `src/scripts/build_fly_model.py` downloads its simplified meshes at a fixed commit, poses them in the neutral stance and writes `src/env/assets/neuromechfly.bin.gz`, and the Apache licence travels with it as `src/env/assets/LICENSE-neuromechfly.txt`. The brain outline in the panel comes from [navis-flybrains](https://github.com/navis-org/navis-flybrains), GPL v3, made from the FAFB tissue mask, and is downloaded rather than committed. `src/env/assets/CHANGES-neuromechfly.txt` states what was changed from the original meshes, as the Apache licence asks of a derived file. The model is Lobato-Rios et al., *NeuroMechFly, a neuromechanical model of adult Drosophila melanogaster*, Nature Methods 2022, and Wang-Chen et al., *NeuroMechFly v2*, Nature Methods 2024, and both ask to be cited by anyone using the model, which this note does on their behalf.
+The fly in the launcher is the NeuroMechFly body model from [NeLy-EPFL/flygym](https://github.com/NeLy-EPFL/flygym), built from a micro-CT scan of an adult female fly and licensed under Apache 2.0, which the GPL v3 can include. `src/flynaf/scripts/build_fly_model.py` downloads its simplified meshes at a fixed commit, poses them in the neutral stance and writes `src/flynaf/env/assets/neuromechfly.bin.gz`, and the Apache licence travels with it as `src/flynaf/env/assets/LICENSE-neuromechfly.txt`. The brain outline in the panel comes from [navis-flybrains](https://github.com/navis-org/navis-flybrains), GPL v3, made from the FAFB tissue mask, and is downloaded rather than committed. `src/flynaf/env/assets/CHANGES-neuromechfly.txt` states what was changed from the original meshes, as the Apache licence asks of a derived file. The model is Lobato-Rios et al., *NeuroMechFly, a neuromechanical model of adult Drosophila melanogaster*, Nature Methods 2022, and Wang-Chen et al., *NeuroMechFly v2*, Nature Methods 2024, and both ask to be cited by anyone using the model, which this note does on their behalf.
 
 The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It is released under CC BY-NC 4.0 and stays subject to FlyWire's own terms and citation requirements, so anyone using this project has to obtain it from the sources listed above.
 
@@ -293,3 +304,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.14 | Named run.py as the only entry point | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.15 | Pointed to the night package that main now wires | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.16 | Described the tablet watch on Foxy, the cell type populations and the new scripts, and corrected which tests are slow | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
+| 1.17 | Moved the paths and commands to the flynaf package, described the pytest and CI pipeline and the connectome marker | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |

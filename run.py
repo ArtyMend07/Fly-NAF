@@ -2,15 +2,10 @@ import argparse
 import glob
 import logging
 import os
-import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, 'src'))
-
-import config
-from env import desktop
-import launcher
-from scripts import fetch_data
+from flynaf import config, launcher
+from flynaf.env import desktop
+from flynaf.scripts import fetch_data
 
 _log = logging.getLogger('run')
 
@@ -37,14 +32,13 @@ def _report_platform():
 
 
 def cmd_verify() -> int:
-    from scripts import verify_connectome
+    from flynaf.scripts import verify_connectome
     verify_connectome.main()
     return 0
 
 
 def cmd_replay(trace: str | None) -> int:
-    import replay as replay_module
-
+    from flynaf import replay as replay_module
     path = trace or _latest_trace()
     if path is None:
         _log.error(
@@ -69,8 +63,7 @@ def _choose(session, mode: str | None):
 
 
 def cmd_play(mode: str | None) -> int:
-    import main as main_module
-
+    from flynaf import main as main_module
     if not fetch_data.ready():
         fetch_data.print_status()
         if not fetch_data.fetch():

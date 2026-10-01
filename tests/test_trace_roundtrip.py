@@ -1,12 +1,8 @@
 import os
-import sys
 import tempfile
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import recorder
-import replay
-from night.state import SensoryState
+from flynaf import recorder, replay
+from flynaf.night.state import SensoryState
 
 
 def FakeState(left, right, inhib, **tablet):

@@ -1,11 +1,11 @@
-import sys
-import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
+import pytest
 import torch
-from night.engine import ConnectomeEngine
-from night.state import SensoryState
+
+from flynaf.night.engine import ConnectomeEngine
+from flynaf.night.state import SensoryState
+
+pytestmark = pytest.mark.connectome
 
 FRAMES = 2500
 

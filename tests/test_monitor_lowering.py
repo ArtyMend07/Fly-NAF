@@ -1,20 +1,15 @@
 import asyncio
-import os
-import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from night import monitor
-from night.state import SensoryState
-from telemetry import ConnectomeTelemetry
+from flynaf import config
+from flynaf.night import monitor
+from flynaf.night.state import SensoryState
+from flynaf.telemetry import ConnectomeTelemetry
 
 
 class _ImmediateEvent:
     def wait(self, timeout=None):
         return True
 
-
-import config
 
 CONFIRM = config.CAMERA_DETECTION.lower_confirm_sec
 BUDGET = config.CAMERA_DETECTION.lower_gesture_attempts

@@ -1,10 +1,5 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-from search_drive import ExploreDrive
+from flynaf import config
+from flynaf.search_drive import ExploreDrive
 
 DT = 1.0 / config.SIMULATION_PARAMS.target_fps
 P = config.EXPLORE_DYNAMICS

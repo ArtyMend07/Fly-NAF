@@ -1,14 +1,10 @@
 import collections
-import os
-import sys
 import threading
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-from env.vision import FNAFVision
+from flynaf import config
+from flynaf.env.vision import FNAFVision
 
 SIZE = 32
 

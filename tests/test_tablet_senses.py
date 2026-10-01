@@ -1,10 +1,5 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from night.state import SensoryState
-from night.tablet.senses import TabletSenses
+from flynaf.night.state import SensoryState
+from flynaf.night.tablet.senses import TabletSenses
 
 
 class ScriptedFeed:

@@ -1,13 +1,9 @@
-import os
-import sys
 import queue
 import threading
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-import env.input_controller as input_controller
+import flynaf.env.input_controller as input_controller
+from flynaf import config
 
 
 def _start_isolated_worker() -> queue.Queue:

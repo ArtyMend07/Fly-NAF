@@ -1,11 +1,8 @@
 import os
-import sys
 import zipfile
 from unittest.mock import patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from scripts import fetch_data
+from flynaf.scripts import fetch_data
 
 URL = 'https://github.com/example/repo'
 

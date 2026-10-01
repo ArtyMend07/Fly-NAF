@@ -1,13 +1,9 @@
 import asyncio
-import os
-import sys
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-from env import overlay
-from night import calibration
+from flynaf import config
+from flynaf.env import overlay
+from flynaf.night import calibration
 
 GAME = 789498
 EDITOR = 66778

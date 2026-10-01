@@ -6,19 +6,13 @@ the decision used to live inside the coroutine that blocks for two seconds
 every time the fly looks at something.
 """
 import asyncio
-import os
-import sys
 from unittest.mock import patch
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import torch
 
-import config
-from night import tasks
-from night import calibration
-from night.state import SaccadeRequest, SensoryState
-from telemetry import ConnectomeTelemetry
+from flynaf.night import calibration, tasks
+from flynaf.night.state import SaccadeRequest, SensoryState
+from flynaf.telemetry import ConnectomeTelemetry
 
 NEURONS = 8
 TYPICAL = 30.0

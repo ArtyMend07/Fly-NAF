@@ -1,13 +1,8 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
 from unittest.mock import patch
 
-import config
-from env import anchor
-from env.overlay import (
+from flynaf import config
+from flynaf.env import anchor
+from flynaf.env.overlay import (
     beside_game_rect,
     capture_regions,
     centered_rect,

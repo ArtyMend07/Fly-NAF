@@ -1,15 +1,12 @@
 import os
-import sys
 import tempfile
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import pandas as pd
 
-import config
-from neural.cell_types import CellTypeIndex
-from night.neurons import NeuronMap, build_neuron_map, stimulus_rates
-from night.state import SensoryState
+from flynaf import config
+from flynaf.neural.cell_types import CellTypeIndex
+from flynaf.night.neurons import NeuronMap, build_neuron_map, stimulus_rates
+from flynaf.night.state import SensoryState
 
 TABLE = pd.DataFrame({
     'root_id': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],

@@ -1,12 +1,8 @@
-import os
-import sys
 import tempfile
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from env.vision import FNAFVision
+from flynaf.env.vision import FNAFVision
 
 
 def make_vision(reference_dir: str, l_bbox: int = 4, r_bbox: int = 6) -> FNAFVision:

@@ -1,9 +1,4 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
+from flynaf import config
 
 
 def decay_frames_to_release() -> int:

@@ -1,11 +1,7 @@
 import os
-import sys
 import tempfile
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-import tuning
+from flynaf import config, tuning
 
 
 def test_every_knob_points_at_a_real_config_field():
