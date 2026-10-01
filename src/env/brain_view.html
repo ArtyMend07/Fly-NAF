@@ -595,7 +595,9 @@ function connect() {
       in_l: frame.in_l, in_r: frame.in_r, look_l: frame.look_l, look_r: frame.look_r,
       eye_l: frame.eye_l || 0, eye_r: frame.eye_r || 0,
       gf_l: frame.gf_l, gf_r: frame.gf_r, door_l: frame.door_l, door_r: frame.door_r,
-      camera: frame.camera,
+      camera: frame.camera, cam: frame.cam,
+      figure: frame.figure || 0, loom: frame.loom || 0,
+      dnp09: frame.dnp09, dnp04_l: frame.dnp04_l,
     });
     while (history.length && history[0].t < now - WINDOW_SECONDS - 1) history.shift();
     while (timelineMarks.length && timelineMarks[0].t < now - WINDOW_SECONDS - 1) timelineMarks.shift();
@@ -603,7 +605,9 @@ function connect() {
     el('now').textContent = (share * 100).toFixed(2) + '%';
     el('fired').textContent = (frame.fired || 0).toLocaleString();
     el('spikes').textContent = (frame.spikes || 0).toLocaleString();
-    el('state').textContent = frame.camera ? 'TABLET UP' : ('GAZE ' + (frame.gaze || '--'));
+    el('state').textContent = frame.camera
+      ? 'TABLET UP' + (frame.cam ? ' CAM ' + frame.cam : '')
+      : ('GAZE ' + (frame.gaze || '--'));
     el('mlamp-l').classList.toggle('on', !!frame.gf_l);
     el('mlamp-r').classList.toggle('on', !!frame.gf_r);
     el('mlamp-cam').classList.toggle('on', !!frame.camera);
@@ -623,6 +627,9 @@ const ROWS = [
   { label: 'DNp01       R', kind: 'gf', side: 'r' },
   { label: 'DOOR        R', kind: 'door', side: 'r' },
   { label: 'TABLET', kind: 'tablet' },
+  { label: 'CAM FEED', kind: 'feed' },
+  { label: 'DNp09', kind: 'spike', key: 'dnp09' },
+  { label: 'DNp04       L', kind: 'spike', key: 'dnp04_l' },
   { label: 'WHOLE BRAIN', kind: 'brain' },
 ];
 
@@ -672,7 +679,16 @@ function drawTimeline(now) {
       } else if (row.kind === 'door') {
         if (f['door_' + row.side]) { tctx.fillStyle = 'rgba(255,92,74,0.35)'; tctx.fillRect(x, y + 2, dx, inner); }
       } else if (row.kind === 'tablet') {
-        if (f.camera) { tctx.fillStyle = 'rgba(168,85,247,0.45)'; tctx.fillRect(x, y + 2, dx, inner); }
+        if (f.camera) { tctx.fillStyle = f.cam === '2A' ? 'rgba(236,72,153,0.5)' : 'rgba(168,85,247,0.45)'; tctx.fillRect(x, y + 2, dx, inner); }
+      } else if (row.kind === 'feed') {
+        const level = Math.max(f.figure, f.loom);
+        if (level > 0) {
+          const h = inner * Math.min(1, level);
+          tctx.fillStyle = f.loom >= f.figure ? 'rgba(255,92,74,0.85)' : 'rgba(245,185,74,0.85)';
+          tctx.fillRect(x, y + 2 + inner - h, dx, h);
+        }
+      } else if (row.kind === 'spike') {
+        if (f[row.key]) { tctx.fillStyle = color('--motor'); tctx.fillRect(x, y + 1, Math.max(dx, 2), rowH - 2); }
       } else if (row.kind === 'brain') {
         const h = inner * Math.min(1, f.share / peakShare);
         tctx.fillStyle = 'rgba(74,158,255,0.75)';
