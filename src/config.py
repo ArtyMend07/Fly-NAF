@@ -8,6 +8,11 @@ DATA_DIR = os.path.join(os.path.dirname(PROJECT_ROOT), 'fly-brain', 'data')
 
 CONNECTIVITY_PARQUET = os.path.join(DATA_DIR, '2025_Connectivity_783.parquet')
 COMPLETENESS_CSV = os.path.join(DATA_DIR, '2025_Completeness_783.csv')
+ANNOTATIONS_TSV = os.path.join(
+    os.path.dirname(PROJECT_ROOT), 'flywire_annotations', 'supplemental_files',
+    'Supplemental_file1_neuron_annotations.tsv',
+)
+CELL_TYPE_CACHE = os.path.join(DATA_DIR, 'cell_types_783.parquet')
 
 
 @dataclass(frozen=True)
@@ -169,37 +174,53 @@ class DoorDynamics:
 
 
 @dataclass(frozen=True)
+class CameraButton:
+    name: str
+    x: int
+    y: int
+    side: str
+    channel: str
+    pursue_to: str | None = None
+
+
+@dataclass(frozen=True)
+class TabletVision:
+    feed_x: int = 470
+    feed_y: int = 330
+    feed_size: int = 360
+    feed_pixels: int = 64
+    capture_delay_sec: float = 0.03
+    map_ready_sec: float = 0.4
+    raise_settle_sec: float = 1.2
+    switch_settle_sec: float = 0.5
+    reference_sweep_sec: float = 3.0
+    reference_frames: int = 24
+    noise_margin: float = 1.5
+    figure_span_mse: float = 1000.0
+    loom_span_mse: float = 1000.0
+    loom_speed_span_mse_per_sec: float = 3000.0
+    loom_speed_decay_sec: float = 0.3
+    lower_settle_sec: float = 0.35
+    first_camera: str = '1C'
+    cameras: tuple = (
+        CameraButton('1C', 925, 484, 'left', 'figure', pursue_to='2A'),
+        CameraButton('2A', 983, 599, 'left', 'loom'),
+    )
+
+
+@dataclass(frozen=True)
+class CellPopulations:
+    eye: tuple = ('LPLC2', 'LC4')
+    figure: tuple = ('LC9', 'LC31a')
+    loom_size: tuple = ('LPLC2',)
+    loom_speed: tuple = ('LC4',)
+    giant_fiber: tuple = ('DNp01',)
+    looming_escape: tuple = ('DNp04',)
+    explore: tuple = ('DNp09',)
+
+
+@dataclass(frozen=True)
 class SensoryNeurons:
-    left_eye_cluster: List[int] = field(default_factory=lambda: [
-        720575940631380695, 720575940639109795, 720575940635307639, 720575940626414279,
-        720575940623262461, 720575940641552347, 720575940613145258, 720575940641704656,
-        720575940638626118, 720575940632129848, 720575940623652083, 720575940635516084,
-        720575940639884878, 720575940610226645, 720575940619263937, 720575940625216202,
-        720575940623925774, 720575940615332502, 720575940627685765, 720575940638835288,
-        720575940620306904, 720575940640302389, 720575940613763759, 720575940625695269,
-        720575940603989420, 720575940628847164, 720575940615953302, 720575940627902078,
-        720575940612560680, 720575940642414837, 720575940622680088, 720575940623551684,
-        720575940626236041, 720575940618927892, 720575940648418425, 720575940619197318,
-        720575940612766691, 720575940645407268, 720575940643740964, 720575940636295019,
-        720575940614738444, 720575940628552247, 720575940624208824, 720575940626617084,
-        720575940635234478, 720575940616008854, 720575940613219474, 720575940629368015,
-        720575940622425271, 720575940629292785,
-    ])
-    right_eye_cluster: List[int] = field(default_factory=lambda: [
-        720575940626745392, 720575940626447848, 720575940625835278, 720575940612045352,
-        720575940605825666, 720575940626735016, 720575940618172509, 720575940635040357,
-        720575940613804906, 720575940620575476, 720575940612462307, 720575940633552685,
-        720575940624014524, 720575940615920453, 720575940616116697, 720575940629967703,
-        720575940622992205, 720575940606217138, 720575940618538641, 720575940624919077,
-        720575940623047629, 720575940615967377, 720575940610116757, 720575940625001735,
-        720575940612254701, 720575940640510427, 720575940635572592, 720575940633588320,
-        720575940609592674, 720575940624016778, 720575940626161930, 720575940616735489,
-        720575940620001718, 720575940628039034, 720575940612944382, 720575940629384271,
-        720575940616166685, 720575940606855554, 720575940632512226, 720575940624611002,
-        720575940620783180, 720575940622769159, 720575940614067167, 720575940647358243,
-        720575940614526974, 720575940645699124, 720575940613821290, 720575940624931530,
-        720575940631397549, 720575940645180196,
-    ])
     camera_inhibitor_left: List[int] = field(default_factory=lambda: [
         720575940635119723, 720575940627096957, 720575940617948445, 720575940610063918,
         720575940617564246, 720575940618243009, 720575940606218528, 720575940612710883,
@@ -232,17 +253,6 @@ class SensoryNeurons:
     ])
 
 
-@dataclass(frozen=True)
-class MotorNeurons:
-    dnp01_giant_fiber: List[int] = field(default_factory=lambda: [
-        720575940622838154,
-        720575940632499757,
-    ])
-    dnp09_explore: List[int] = field(default_factory=lambda: [
-        720575940635872101,
-        720575940627652358,
-    ])
-
 VISION_CALIBRATION = VisionCalibration()
 MOTOR_CALIBRATION = MotorCalibration()
 SIMULATION_PARAMS = SimulationParams()
@@ -256,4 +266,5 @@ EXPLORE_DYNAMICS = ExploreDynamics()
 SEARCH_DYNAMICS = SearchDynamics()
 DOOR_DYNAMICS = DoorDynamics()
 SENSORY_NEURONS = SensoryNeurons()
-MOTOR_NEURONS = MotorNeurons()
+CELL_POPULATIONS = CellPopulations()
+TABLET_VISION = TabletVision()

@@ -11,11 +11,17 @@ class SensoryState:
     camera_open: bool = False
     l_spike: bool = False
     r_spike: bool = False
+    l_escape: bool = False
+    r_escape: bool = False
+    explore_spike: bool = False
     l_sensory_count: int = 0
     r_sensory_count: int = 0
     forage_bias: float = 0.0
     office_centred: bool = True
     blind_until: dict = field(default_factory=lambda: {'left': 0.0, 'right': 0.0})
+    tablet_camera: str | None = None
+    tablet_readable_at: float = 0.0
+    tablet_drive: dict = field(default_factory=dict)
 
 
 @dataclass
