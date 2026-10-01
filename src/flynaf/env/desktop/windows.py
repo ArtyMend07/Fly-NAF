@@ -221,6 +221,24 @@ def apply_overlay_style(handle: int, x: int, y: int, w: int, h: int) -> bool:
     return placed and on_top and not still_framed
 
 
+def outer_rect(handle: int):
+    rect = ctypes.wintypes.RECT()
+    if not handle or not ctypes.windll.user32.GetWindowRect(handle, ctypes.byref(rect)):
+        return None
+    return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+
+
+def clip_window(handle: int, left: int, top: int, right: int, bottom: int, radius: int) -> bool:
+    gdi32 = ctypes.windll.gdi32
+    region = gdi32.CreateRoundRectRgn(left, top, right + 1, bottom + 1, 2 * radius, 2 * radius)
+    if not region:
+        return False
+    if ctypes.windll.user32.SetWindowRgn(handle, region, True):
+        return True
+    gdi32.DeleteObject(region)
+    return False
+
+
 def give_focus_back(handle: int) -> bool:
     if not handle:
         return False

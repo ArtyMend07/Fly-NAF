@@ -88,6 +88,14 @@ def apply_overlay_style(handle: int, x: int, y: int, w: int, h: int) -> bool:
     return _backend.apply_overlay_style(handle, x, y, w, h)
 
 
+def outer_rect(handle: int):
+    return _backend.outer_rect(handle)
+
+
+def clip_window(handle: int, left: int, top: int, right: int, bottom: int, radius: int) -> bool:
+    return _backend.clip_window(handle, left, top, right, bottom, radius)
+
+
 def give_focus_back(handle: int) -> bool:
     return _backend.give_focus_back(handle)
 

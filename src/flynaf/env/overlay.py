@@ -193,12 +193,51 @@ def pin_as_overlay(window_titles, x: int, y: int, w: int, h: int,
     return -handle
 
 
+_PAGE_ROUNDING_PX = 2
+
+
+def frame_around_page(handle: int, x: int, y: int, w: int, h: int, page_height: int):
+    client = desktop.window_rect(handle)
+    outer = desktop.outer_rect(handle)
+    if client is None or outer is None or page_height <= 0:
+        return None
+    left = client[0] - outer[0]
+    right = outer[0] + outer[2] - (client[0] + client[2])
+    bottom = outer[1] + outer[3] - (client[1] + client[3])
+    top = outer[3] - bottom - page_height + _PAGE_ROUNDING_PX
+    if top < 0 or left < 0 or right < 0:
+        return None
+    window = (x - left, y - top, w + left + right, h + top + bottom)
+    page = (left, top, left + w, top + h)
+    return window, page
+
+
+def strip_browser_chrome(handle: int, x: int, y: int, w: int, h: int, page_height,
+                         radius: int, timeout_sec: float = 20.0):
+    deadline = time.monotonic() + timeout_sec
+    frame = previous = None
+    while frame is None or frame != previous:
+        if time.monotonic() >= deadline:
+            return None
+        previous = frame
+        time.sleep(0.3)
+        frame = frame_around_page(handle, x, y, w, h, page_height())
+    window, page = frame
+    if not desktop.apply_overlay_style(handle, *window):
+        return None
+    if not desktop.clip_window(handle, *page, radius):
+        return None
+    return window, page
+
+
 def keep_pinned(handle: int, x: int, y: int, w: int, h: int, stop: object,
-                interval_sec: float = 2.0):
+                interval_sec: float = 2.0, clip: tuple | None = None):
     while not stop.is_set():
         if not desktop.is_window(handle):
             return
         desktop.apply_overlay_style(handle, x, y, w, h)
+        if clip is not None:
+            desktop.clip_window(handle, *clip)
         stop.wait(interval_sec)
 
 

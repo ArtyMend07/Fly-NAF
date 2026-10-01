@@ -5,6 +5,7 @@ import json
 import os
 import struct
 import time
+import urllib.parse
 
 import cv2
 import numpy as np
@@ -189,6 +190,10 @@ class BrainViewServer:
         self._page = None
         self._server = None
         self._params = config.BRAIN_VIEW
+        self._page_height = 0
+
+    def page_height(self) -> int:
+        return self._page_height
 
     async def start(self) -> int:
         loop = asyncio.get_event_loop()
@@ -219,6 +224,9 @@ class BrainViewServer:
                 await self._send(writer, b'application/octet-stream', self._outline)
             elif path.startswith('/stream'):
                 await self._stream(writer)
+            elif path.startswith('/viewport'):
+                self._page_height = _query_int(path, 'h')
+                await self._send(writer, b'text/plain', b'')
             else:
                 await self._send(writer, b'text/html; charset=utf-8', _load_page())
         except (ConnectionError, asyncio.CancelledError):
@@ -271,6 +279,14 @@ class BrainViewServer:
                 writer.write(b'data: ' + json.dumps(frame, separators=(',', ':')).encode('ascii') + b'\n\n')
                 await writer.drain()
             await asyncio.sleep(interval)
+
+
+def _query_int(path: str, key: str) -> int:
+    values = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query).get(key, ['0'])
+    try:
+        return max(0, int(values[0]))
+    except ValueError:
+        return 0
 
 
 def _load_page() -> bytes:

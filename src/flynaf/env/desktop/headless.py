@@ -57,6 +57,14 @@ def apply_overlay_style(handle: int, x: int, y: int, w: int, h: int) -> bool:
     return False
 
 
+def outer_rect(handle: int):
+    return None
+
+
+def clip_window(handle: int, left: int, top: int, right: int, bottom: int, radius: int) -> bool:
+    return False
+
+
 def give_focus_back(handle: int) -> bool:
     return False
 

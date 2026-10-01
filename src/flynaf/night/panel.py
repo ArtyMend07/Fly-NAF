@@ -22,6 +22,7 @@ from flynaf.env.overlay import (
     pick_overlay_position,
     pin_as_overlay,
     screen_size,
+    strip_browser_chrome,
     window_title,
 )
 
@@ -50,7 +51,7 @@ def restore_game_focus(game: int, panel: int, timeout_sec: float):
     )
 
 
-def _launch_brain_view_window(port: int) -> bool:
+def _launch_brain_view_window(port: int, page_height) -> bool:
     params = config.BRAIN_VIEW
     url = f'http://127.0.0.1:{port}/'
 
@@ -63,13 +64,13 @@ def _launch_brain_view_window(port: int) -> bool:
     )
     if beside is not None:
         x, y, width, height = beside
-        page = url
+        page = f'{url}?corner={params.corner_radius}'
         topmost = True
         _log.info('brain view beside the game, panel %dx%d at %d,%d', width, height, x, y)
     elif ingame is not None:
         x, y = ingame
         width, height = params.ingame_width, params.ingame_height
-        page = f'{url}?mini=1'
+        page = f'{url}?mini=1&corner={params.corner_radius}'
         topmost = True
         _log.info('brain view in-game overlay, panel %dx%d at %d,%d', width, height, x, y)
     else:
@@ -134,9 +135,18 @@ def _launch_brain_view_window(port: int) -> bool:
         )
         return False
 
+    clip = None
+    stripped = strip_browser_chrome(hwnd, x, y, width, height, page_height, params.corner_radius)
+    if stripped is None:
+        _log.warning('the browser title bar could not be cut away, the panel keeps it')
+    else:
+        (x, y, width, height), page = stripped
+        clip = (*page, params.corner_radius)
+
     stop = threading.Event()
     keeper = threading.Thread(
-        target=keep_pinned, args=(hwnd, x, y, width, height, stop), daemon=True,
+        target=keep_pinned, args=(hwnd, x, y, width, height, stop),
+        kwargs={'clip': clip}, daemon=True,
     )
     keeper.start()
     _BRAIN_VIEW_PIN['stop'] = stop
@@ -158,7 +168,7 @@ async def brain_view_task(
         _log.info('brain view server listening on %d', port)
         if config.BRAIN_VIEW.launch_browser:
             await asyncio.get_event_loop().run_in_executor(
-                None, _launch_brain_view_window, port
+                None, _launch_brain_view_window, port, server.page_height
             )
         view_ready.set()
         await shutdown.wait()

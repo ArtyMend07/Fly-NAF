@@ -8,8 +8,10 @@
   :root {
     --bg: #07070a;
     --panel: #0c0c11;
-    --line: #1b1b24;
-    --label: #6a6d78;
+    --line: rgba(150, 160, 200, 0.09);
+    --edge: rgba(150, 170, 255, 0.16);
+    --well: #101017;
+    --label: #6f7280;
     --value: #e8e9ee;
     --optic: #4a9eff;
     --central: #ffc94a;
@@ -17,6 +19,7 @@
     --motor: #ff5c4a;
     --tablet: #a855f7;
     --light: #f5b94a;
+    --corner: 0px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; background: var(--bg); overflow: hidden; }
@@ -26,16 +29,33 @@
     display: flex;
     flex-direction: column;
   }
+  body::after {
+    content: ''; position: fixed; inset: 2px; z-index: 10; pointer-events: none;
+    border: 1px solid var(--edge);
+    border-radius: max(0px, calc(var(--corner) - 2px));
+  }
   header {
     padding: 10px 14px 9px;
     border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(150, 170, 255, 0.05), rgba(150, 170, 255, 0));
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 10px;
   }
   h1 { font-size: 10.5px; letter-spacing: 0.14em; font-weight: 600; }
-  #state { font-size: 9.5px; letter-spacing: 0.12em; color: var(--label); white-space: nowrap; }
+  h1::before {
+    content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 8px 1px 0;
+    border-radius: 50%; background: var(--sensory); box-shadow: 0 0 8px var(--sensory);
+    animation: live 2.4s ease-in-out infinite;
+  }
+  body.offline h1::before { background: var(--motor); box-shadow: 0 0 8px var(--motor); animation: none; }
+  @keyframes live { 50% { opacity: 0.35; } }
+  #state {
+    font-size: 9.5px; letter-spacing: 0.12em; color: var(--label); white-space: nowrap;
+    padding: 2px 8px; margin: -3px 0; border-radius: 999px;
+    border: 1px solid var(--line); background: rgba(255, 255, 255, 0.025);
+  }
 
   #stimulus {
     display: grid;
@@ -54,8 +74,11 @@
     position: relative;
     width: 58px; height: 58px;
     flex: none;
-    background: #111117;
-    outline: 1px solid var(--line);
+    background: var(--well);
+    border-radius: 7px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--line);
+    transition: box-shadow 200ms ease;
   }
   .thumb img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
   .thumb b {
@@ -65,13 +88,13 @@
     color: var(--label); background: rgba(7, 7, 10, 0.72);
   }
   .eye.look .thumb b { display: none; }
-  .eye.look .thumb { outline-color: var(--light); }
-  .eye.on .thumb { outline: 2px solid var(--sensory); box-shadow: 0 0 12px rgba(74, 222, 128, 0.45); }
+  .eye.look .thumb { box-shadow: 0 0 0 1px var(--light), 0 0 10px rgba(245, 185, 74, 0.18); }
+  .eye.on .thumb { box-shadow: 0 0 0 2px var(--sensory), 0 0 14px rgba(74, 222, 128, 0.45); }
   .info { flex: 1; min-width: 0; font-size: 9px; letter-spacing: 0.06em; color: var(--label); }
   .info .name { color: var(--value); letter-spacing: 0.1em; margin-bottom: 5px; }
-  .meter { position: relative; height: 5px; background: #14141b; margin: 4px 0 3px; }
-  .meter i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--light); transition: width 90ms linear; }
-  .meter u { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--value); }
+  .meter { position: relative; height: 5px; background: var(--well); border-radius: 3px; margin: 4px 0 3px; }
+  .meter i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px; background: var(--light); transition: width 90ms linear; }
+  .meter u { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; border-radius: 1px; background: var(--value); opacity: 0.8; }
   .eye.on .meter i { background: var(--sensory); }
   .pill { margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .eye.on .pill { color: var(--sensory); }
@@ -103,17 +126,21 @@
   #caption em { font-style: normal; color: var(--value); }
   #caption .src { color: var(--sensory); }
   #caption .replay {
-    display: inline-block; margin-top: 4px; padding: 1px 6px;
-    border: 1px solid var(--line); color: var(--label); font-size: 8px; letter-spacing: 0.12em;
+    display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 999px;
+    border: 1px solid var(--line); background: rgba(7, 7, 10, 0.6);
+    color: var(--label); font-size: 8px; letter-spacing: 0.12em;
   }
 
   #timeline-wrap { border-top: 1px solid var(--line); position: relative; }
   #timeline { width: 100%; height: 150px; }
 
-  #counters { display: flex; border-top: 1px solid var(--line); }
+  #counters {
+    display: flex; border-top: 1px solid var(--line);
+    background: linear-gradient(0deg, rgba(150, 170, 255, 0.035), rgba(150, 170, 255, 0));
+  }
   .counter { flex: 1; padding: 7px 12px 8px; border-right: 1px solid var(--line); min-width: 0; }
   .counter:last-child { border-right: none; }
-  .counter b { display: block; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+  .counter b { display: block; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
   .counter span { font-size: 8px; letter-spacing: 0.12em; color: var(--label); }
 
   body.mini header, body.mini #stimulus, body.mini #legend, body.mini #caption,
@@ -133,6 +160,19 @@
   body.mini #mini-legend { display: flex; }
   #mini-legend i { display: inline-block; width: 4px; height: 4px; border-radius: 50%; margin-right: 3px; vertical-align: middle; }
 </style>
+<script>
+const corner = Number(new URLSearchParams(location.search).get('corner')) || 0;
+document.documentElement.style.setProperty('--corner', corner / devicePixelRatio + 'px');
+let reportedHeight = 0;
+const reportViewport = () => {
+  const height = Math.round((window.visualViewport ? visualViewport.height : innerHeight) * devicePixelRatio);
+  if (height === reportedHeight) return;
+  reportedHeight = height;
+  fetch('/viewport?h=' + height).catch(() => { reportedHeight = 0; });
+};
+reportViewport();
+setInterval(reportViewport, 250);
+</script>
 </head>
 <body class="notranslate">
   <header>
@@ -563,6 +603,7 @@ function connect() {
   const source = new EventSource('/stream');
   source.onmessage = (event) => {
     const frame = JSON.parse(event.data);
+    document.body.classList.remove('offline');
     const now = clock();
     if (lastArrival) frameSeconds = frameSeconds * 0.95 + Math.min(now - lastArrival, 0.5) * 0.05;
     lastArrival = now;
@@ -612,7 +653,10 @@ function connect() {
     el('mlamp-r').classList.toggle('on', !!frame.gf_r);
     el('mlamp-cam').classList.toggle('on', !!frame.camera);
   };
-  source.onerror = () => { el('state').textContent = 'OFFLINE'; };
+  source.onerror = () => {
+    el('state').textContent = 'OFFLINE';
+    document.body.classList.add('offline');
+  };
 }
 
 const tl = el('timeline');
@@ -663,7 +707,9 @@ function drawTimeline(now) {
     tctx.fillStyle = color('--label');
     tctx.fillText(row.label, 8, y + rowH / 2);
     tctx.fillStyle = '#101016';
-    tctx.fillRect(labelW, y + 1, plotW, rowH - 2);
+    tctx.beginPath();
+    tctx.roundRect(labelW, y + 1, plotW, rowH - 2, 2);
+    tctx.fill();
     const inner = rowH - 4;
     for (const f of history) {
       const x = xOf(f.t);
