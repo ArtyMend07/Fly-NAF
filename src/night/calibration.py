@@ -6,6 +6,7 @@ from env.input_controller import FNAFController
 from env.overlay import anchor_to_game, game_in_front, window_title
 from env.vision import FNAFVision
 from night.motor import await_motor
+from night.tablet.references import capture_camera_references
 
 _log = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ async def calibrate_eye_references_live(vision: FNAFVision, controller: FNAFCont
     vision.save_reference_to_disk()
 
 
-async def calibrate(vision: FNAFVision, controller: FNAFController, begin_night=None):
+async def calibrate(vision: FNAFVision, controller: FNAFController, begin_night=None, tablet_feed=None):
     settle = config.FORAGING_PARAMS.light_activation_settle_sec
 
     if begin_night is None:
@@ -51,6 +52,10 @@ async def calibrate(vision: FNAFVision, controller: FNAFController, begin_night=
     await asyncio.sleep(settle)
     vision.capture_camera_closed_reference()
     _log.info('office reference captured with the view centred')
+
+    if tablet_feed is not None and await capture_camera_references(tablet_feed, controller, vision):
+        _log.info('camera references captured for %s',
+                  ', '.join(camera.name for camera in config.TABLET_VISION.cameras))
 
 
 async def countdown_to_the_night(seconds: float):

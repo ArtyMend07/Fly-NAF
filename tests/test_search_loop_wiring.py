@@ -47,6 +47,8 @@ class FakeEngine:
         self.explore_idx = [2]
         self.l_sensory_idx = [3]
         self.r_sensory_idx = [4]
+        self.l_escape_idx = [5]
+        self.r_escape_idx = [6]
         self.frames = 0
         self.driven_frames = {'left': 0, 'right': 0}
         self._t0 = None

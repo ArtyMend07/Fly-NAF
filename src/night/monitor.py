@@ -7,6 +7,7 @@ from env.input_controller import FNAFController
 from env.vision import FNAFVision
 from night.motor import await_motor
 from night.state import SensoryState
+from night.tablet.watch import IdleTablet
 
 _log = logging.getLogger(__name__)
 
@@ -66,6 +67,17 @@ async def lower_monitor(
     return False
 
 
+async def escape_from_tablet(
+    vision: FNAFVision, controller: FNAFController, lower_settle_sec: float,
+    settle_sec: float, confirm_sec: float, reflex,
+) -> bool:
+    await await_motor(controller.close_camera(force=True))
+    await asyncio.sleep(lower_settle_sec)
+    await reflex()
+    await await_motor(controller.centre_view())
+    return await reanchor_office_reference(vision, settle_sec, confirm_sec, controller)
+
+
 def release_reason(explore, bored: bool) -> str:
     if not bored:
         return 'cap'
@@ -73,12 +85,14 @@ def release_reason(explore, bored: bool) -> str:
 
 
 class MonitorControl:
-    def __init__(self, vision, controller, telemetry, state: SensoryState):
+    def __init__(self, vision, controller, telemetry, state: SensoryState, tablet=None):
         foraging = config.FORAGING_PARAMS
         self._vision = vision
         self._controller = controller
         self._telemetry = telemetry
         self._state = state
+        self._tablet = tablet or IdleTablet()
+        self._lower_settle_sec = config.TABLET_VISION.lower_settle_sec
         self._watch_max_sec = foraging.camera_watch_max_sec
         self._watch_min_sec = foraging.camera_watch_min_sec
         self._release_bias = foraging.camera_release_forage_bias
@@ -118,6 +132,21 @@ class MonitorControl:
         self._state.camera_open = True
         self._opened_at = now
         self._cap_at = now + self._watch_max_sec
+        self._tablet.on_raise(now)
+
+    def escape(self, now: float, reflex) -> bool:
+        if not self.is_open or self._lowering is not None:
+            return False
+        if not self._releasing:
+            self._telemetry.record_camera_release(now - self._opened_at, 'escape')
+        self._releasing = True
+        self._tablet.on_lower()
+        self._lowering = asyncio.create_task(escape_from_tablet(
+            self._vision, self._controller, self._lower_settle_sec,
+            self._settle_sec, self._confirm_sec, reflex,
+        ))
+        self._attempts = max(self._attempts, 1)
+        return True
 
     def _release(self, now: float, explore, forage_bias: float):
         watched_for = now - self._opened_at
@@ -128,6 +157,7 @@ class MonitorControl:
             if now < self._cap_at and not bored:
                 return
             self._releasing = True
+            self._tablet.on_lower()
             self._telemetry.record_camera_release(watched_for, release_reason(explore, bored))
         if now < self._retry_at:
             return

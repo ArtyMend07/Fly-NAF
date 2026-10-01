@@ -23,7 +23,10 @@ class ConnectomeTelemetry:
         self.saccade_reasons = {'drift': 0, 'evidence': 0, 'guard': 0}
         self.camera_causes = {'spike': 0, 'drive': 0}
         self.camera_watches = []
-        self.camera_release_reasons = {'drive': 0, 'search': 0, 'cap': 0}
+        self.camera_release_reasons = {'drive': 0, 'search': 0, 'cap': 0, 'escape': 0}
+        self.camera_views = {}
+        self.camera_view_causes = {'raise': 0, 'pursuit': 0}
+        self.tablet_escapes = {}
         self.look_contrast = {'left': [], 'right': []}
         self.look_frames = []
         self.look_driven = []
@@ -34,10 +37,26 @@ class ConnectomeTelemetry:
         self.saccade_gaps = []
         self._last_saccade_at = None
 
-    def record_door_panic(self, side: str):
+    def record_door_panic(self, side: str, cause: str = 'giant fiber'):
         t = time.time() - self.start_time
         self.stats[f'{side}_door_panics'] += 1
-        self.events.append(f"[{t:>6.1f}s] Visual threat detected. Giant fiber fired. {side.capitalize()} door slammed.")
+        self.events.append(f"[{t:>6.1f}s] Visual threat detected. {cause.capitalize()} fired. {side.capitalize()} door slammed.")
+
+    def record_camera_view(self, camera: str, cause: str):
+        t = time.time() - self.start_time
+        self.camera_views[camera] = self.camera_views.get(camera, 0) + 1
+        if cause in self.camera_view_causes:
+            self.camera_view_causes[cause] += 1
+        why = 'the tablet came up on it' if cause == 'raise' else 'DNp09 fired and the gaze followed'
+        self.events.append(f"[{t:>6.1f}s] Watching CAM {camera}, {why}.")
+
+    def record_tablet_escape(self, side: str, camera: str):
+        t = time.time() - self.start_time
+        key = f'{camera} {side}'
+        self.tablet_escapes[key] = self.tablet_escapes.get(key, 0) + 1
+        self.events.append(
+            f"[{t:>6.1f}s] DNp04 {side} fired on a looming shape in CAM {camera}. Tablet dropped for the door."
+        )
 
     def record_door_release(self, side: str, held_sec: float):
         t = time.time() - self.start_time
@@ -57,6 +76,7 @@ class ConnectomeTelemetry:
         'drive': 'the exploratory drive faded',
         'search': 'the fly wanted to check a hallway',
         'cap': 'the power cap expired',
+        'escape': 'something loomed on the camera',
     }
 
     def record_camera_release(self, watched_sec: float, reason: str):
@@ -108,6 +128,18 @@ class ConnectomeTelemetry:
             f"[{t:>6.1f}s] {cause} drove a {side} light check (search drive: {drive:+.2f})."
         )
 
+    def _write_tablet(self, f):
+        f.write("--- What The Tablet Showed ---\n")
+        if not self.camera_views:
+            f.write(f"{'Cameras watched':<38}: none\n\n")
+            return
+        views = ', '.join(f'{camera} x{count}' for camera, count in sorted(self.camera_views.items()))
+        f.write(f"{'Cameras watched':<38}: {views}\n")
+        causes = self.camera_view_causes
+        f.write(f"{'Chosen by':<38}: {causes['raise']} on raising, {causes['pursuit']} DNp09 pursuit\n")
+        escapes = ', '.join(f'{key} x{count}' for key, count in sorted(self.tablet_escapes.items())) or 'none'
+        f.write(f"{'DNp04 escapes from the tablet':<38}: {escapes}\n\n")
+
     def dump_report(self):
         duration = time.time() - self.start_time
         os.makedirs("logs", exist_ok=True)
@@ -135,7 +167,7 @@ class ConnectomeTelemetry:
                 f.write(f"Mean Monitor Watch         : {mean:.1f}s, {sum(self.camera_watches) / max(duration, 1.0) * 100:.0f}% of the night blind\n")
                 f.write(f"Monitor Raised By          : {self.camera_causes['spike']} DNp09 spikes, {self.camera_causes['drive']} accumulated drive\n")
                 by = self.camera_release_reasons
-                f.write(f"Monitor Lowered By         : {by['drive']} drive faded, {by['search']} hallway won, {by['cap']} power cap\n")
+                f.write(f"Monitor Lowered By         : {by['drive']} drive faded, {by['search']} hallway won, {by['cap']} power cap, {by['escape']} looming escape\n")
             f.write(f"Left Light Checks          : {self.stats['left_light_saccades']}\n")
             f.write(f"Right Light Checks         : {self.stats['right_light_saccades']}\n\n")
 
@@ -154,6 +186,8 @@ class ConnectomeTelemetry:
                         f"median {median:.1f}s, min {ordered[0]:.1f}s, max {ordered[-1]:.1f}s\n")
             f.write("\n")
 
+
+            self._write_tablet(f)
 
             f.write("--- Where The Night Went ---\n")
             if self.engine_frames:
