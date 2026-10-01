@@ -11,15 +11,17 @@ https://www.youtube.com/watch?v=4UNPlA-YJtw.
 
 ## What the fly actually does
 
-Three behaviours come out of the network, and each one is a different pathway.
+Four behaviours come out of the network, and each one is a different pathway.
 
-**Slamming a door.** The hallway is captured while the light is on and compared against a reference of that same hallway empty. A difference above threshold drives the corresponding eye cluster at full rate, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why the light is held for twelve.
+**Slamming a door.** The hallway is captured while the light is on and compared against a reference of that same hallway empty. A difference above threshold drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why the light is held for twelve.
 
 **Checking a hallway.** The difference in membrane potential between the left and right eye populations is a slow spontaneous signal the network produces on its own, with a lag-1 autocorrelation of 0.97. It is accumulated to a bound together with what the last look revealed and a per-side habituation term, and whichever side wins gets looked at. There is one starvation guard, a clock that forces a look at a hallway left unwatched for thirty seconds, and every look it causes is counted separately in the session report so its share stays visible.
 
 **Raising the monitor.** DNp09's own subthreshold membrane potential is accumulated the same way. A real spike raises the tablet outright, and the tablet comes down when that drive fades rather than when a timer expires.
 
-Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences both descending neurons. The fly is genuinely blind while it watches the cameras, exactly as it would be in the game.
+Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences the Giant Fiber, so no door reflex can fire through the tablet, exactly as no door button can be pressed in the game.
+
+**Watching for Foxy.** The tablet always comes up on Pirate Cove, CAM 1C. What differs from the cove as it looked at the start of the night drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object. When DNp09 fires, the gaze follows to the west hall, CAM 2A. There the size of whatever differs drives LPLC2 and its growth drives LC4, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. The fly then drops the tablet and closes the left door. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent through both (ADR 0026, experiment 13).
 
 ## What this is not
 
@@ -53,7 +55,7 @@ The simulation needs roughly 140 MB of FlyWire data that is deliberately not com
 │       └── brain_mesh_flywire.ply             1 MB, brain outline for the 3D panel
 ├── flywire_annotations/        git clone https://github.com/flyconnectome/flywire_annotations
 │   └── supplemental_files/
-│       └── Supplemental_file1_neuron_annotations.tsv   31 MB, super_class per neuron
+│       └── Supplemental_file1_neuron_annotations.tsv   31 MB, cell type, side and super_class per neuron
 └── Fly-NAF/                    this repository
 ```
 
@@ -135,6 +137,9 @@ each region actually reads.
 - `src/scripts/vision_calibrator.py` writes the measured values into `logs/`.
 - `src/scripts/debug_vision.py` and `src/scripts/debug_camera.py` show live what each capture region is reading.
 - `src/scripts/debug_reflex.py` shows the live contrast of both hallways against the threshold, and says whether a door would slam. Run it with a light held on, because a reading taken with the light off means nothing.
+- `src/scripts/debug_tablet.py 1C` or `2A` records one camera with nothing in view and then prints the live drive it would send into the brain. That is how the spans in `TabletVision` are fitted, and how the CAM 2A button position, inferred from CAM 4B, is confirmed.
+
+The camera references are not cached. At the start of every night the fly raises the tablet once, records a few seconds of CAM 1C and CAM 2A while the curtain is closed and the hall is empty, and lowers it again, which also stalls Foxy while it happens.
 
 The eye references are captured once and cached in `logs/vision_reference/`,
 alongside a fingerprint of the layout they were taken on. They are re-measured
@@ -206,6 +211,13 @@ uv run python src/scripts/verify_connectome.py
 
 It prints the neuron count, the edge count, the coverage against the FlyWire annotations, the super class of every neuron left out, the dimensions of the matrix handed to the engine, how many rows were dropped before it, and the gain in force. It needs the connectome data in place and nothing else.
 
+```bash
+uv run python src/scripts/measure_tablet_pathways.py
+uv run python src/scripts/find_motor_pathway.py --source LC9 --target DNp09
+```
+
+The first drives each tablet channel into the running engine with the inhibitors on and prints which descending neuron answers and on which frame, the table ADR 0026 rests on. The second prints the cheapest excitatory path between any two FlyWire cell types.
+
 Every run also writes a trace to `logs/traces/`, one line per engine frame,
 carrying the input the eyes produced and what the descending neurons did with
 it. `uv run python src/replay.py <trace>` feeds that input back through a real
@@ -228,9 +240,10 @@ uv run python tests/test_hallway_detection.py
 ```
 
 Most of them stub out the vision and motor layers and finish in under a second.
-Four of them, `test_inhibition.py`, `test_pathways.py`, `test_engine_rate_reset.py`
-and `test_search_loop_wiring.py`, load the real connectome, so they need the
-FlyWire data in place and take a few minutes each.
+`test_search_loop_wiring.py` plays scripted nights in real time and takes about
+two minutes. Two of them, `test_inhibition.py` and `test_pathways.py`, run the
+real engine on the full connectome, so they need the FlyWire data in place and
+take several minutes each.
 
 ## Documentation
 
@@ -242,7 +255,10 @@ targets that follow the game window, ADR 0019 covers the trace format and what
 replay does and does not prove, ADR 0020 covers which settings are exposed
 for tuning and where their ranges come from, ADR 0021 covers the launcher
 and why the game is measured only once it is in front, and ADR 0022 covers the
-panel and the rule that only simulation variables drive it.
+panel and the rule that only simulation variables drive it. ADR 0025 covers how
+populations are named by cell type rather than pasted as ids, and ADR 0026 and
+experiment 13 cover the tablet, Foxy and why DNp04 rather than the Giant Fiber
+answers through it.
 
 ## Licensing and credits
 
@@ -276,3 +292,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.13 | Described the one click setup and the git and zip routes for the data | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.14 | Named run.py as the only entry point | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.15 | Pointed to the night package that main now wires | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
+| 1.16 | Described the tablet watch on Foxy, the cell type populations and the new scripts, and corrected which tests are slow | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
