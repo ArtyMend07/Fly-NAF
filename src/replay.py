@@ -18,6 +18,7 @@ class FrameInput:
         self.left_rate = float(payload.get('left_rate', 0.0))
         self.right_rate = float(payload.get('right_rate', 0.0))
         self.cam_inhib = float(payload.get('cam_inhib', 0.0))
+        self.tablet_drive = dict(payload.get('tablet_drive') or {})
         self.recorded_gf_left = bool(payload.get('gf_left', False))
         self.recorded_gf_right = bool(payload.get('gf_right', False))
         self.t = float(payload.get('t', 0.0))
@@ -52,16 +53,22 @@ def replay(trace_path: str, device: str = 'cpu') -> dict:
     left_driven, right_driven = [], []
     gf_left_total = gf_right_total = 0
     idle_frames = idle_spikes = 0
+    tablet_frames = tablet_escapes = tablet_pursuits = 0
 
     for payload in frames:
         recorded = FrameInput(payload)
         state.left_rate = recorded.left_rate
         state.right_rate = recorded.right_rate
         state.cam_inhib = recorded.cam_inhib
+        state.tablet_drive = recorded.tablet_drive
 
         spikes = engine.step(state, recorded.t)
         fired_left = bool(spikes[0, engine.l_motor_idx].any())
         fired_right = bool(spikes[0, engine.r_motor_idx].any())
+        if recorded.tablet_drive:
+            tablet_frames += 1
+            tablet_escapes += int(bool(spikes[0, engine.l_escape_idx].any() or spikes[0, engine.r_escape_idx].any()))
+            tablet_pursuits += int(bool(spikes[0, engine.explore_idx].any()))
 
         gf_left_total += int(fired_left)
         gf_right_total += int(fired_right)
@@ -86,6 +93,9 @@ def replay(trace_path: str, device: str = 'cpu') -> dict:
         'reflex_latency_frames': sorted(latencies),
         'idle_frames': idle_frames,
         'idle_false_alarms': idle_spikes,
+        'tablet_frames': tablet_frames,
+        'tablet_escape_frames': tablet_escapes,
+        'tablet_explore_frames': tablet_pursuits,
     }
 
 
@@ -114,6 +124,11 @@ def report(result: dict) -> str:
     lines += [
         'Idle frames                  : %d' % result['idle_frames'],
         'Spikes with nothing on screen: %d' % result['idle_false_alarms'],
+        '',
+        '--- What the tablet feed drove ---',
+        'Frames with the feed driving : %d' % result.get('tablet_frames', 0),
+        'Frames DNp04 answered        : %d' % result.get('tablet_escape_frames', 0),
+        'Frames DNp09 answered        : %d' % result.get('tablet_explore_frames', 0),
         '',
         '--- How to read this ---',
         'The simulation is driven stochastically on purpose, so this run does not match the',

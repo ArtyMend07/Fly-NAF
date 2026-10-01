@@ -8,7 +8,7 @@ import config
 
 _log = logging.getLogger(__name__)
 
-TRACE_VERSION = 1
+TRACE_VERSION = 2
 
 
 def default_path() -> str:
@@ -73,6 +73,11 @@ class SessionRecorder:
                 'camera_open': bool(camera_open),
                 'gf_left': bool(spikes_left),
                 'gf_right': bool(spikes_right),
+                'escape_left': bool(state.l_escape),
+                'escape_right': bool(state.r_escape),
+                'explore_spike': bool(state.explore_spike),
+                'tablet_camera': state.tablet_camera,
+                'tablet_drive': {name: round(float(level), 4) for name, level in state.tablet_drive.items()},
                 'eye_membrane_diff': round(float(engine.eye_membrane_diff), 4),
                 'explore_membrane': round(float(engine.explore_membrane), 4),
             })

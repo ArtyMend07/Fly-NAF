@@ -6,13 +6,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import recorder
 import replay
+from night.state import SensoryState
 
 
-class FakeState:
-    def __init__(self, left, right, inhib):
-        self.left_rate = left
-        self.right_rate = right
-        self.cam_inhib = inhib
+def FakeState(left, right, inhib, **tablet):
+    return SensoryState(left_rate=left, right_rate=right, cam_inhib=inhib, **tablet)
 
 
 class FakeEngine:
@@ -43,6 +41,22 @@ def test_a_written_trace_reads_back_with_its_header_and_frames():
         assert frames[0]['left_rate'] == 1.0
         assert frames[0]['gf_left'] is True
         assert len(events) == 1
+
+
+def test_the_tablet_drive_survives_the_trace_and_reaches_replay():
+    with tempfile.TemporaryDirectory() as folder:
+        path = os.path.join(folder, 'trace.jsonl')
+        trace = recorder.SessionRecorder(path=path)
+        state = FakeState(0.0, 0.0, 1000.0, camera_open=True, tablet_camera='2A',
+                          tablet_drive={'loom_size_left': 0.4, 'loom_speed_left': 0.9},
+                          l_escape=True)
+        trace.frame(0.1, state, FakeEngine(), False, False, 0.0, 0.0, True)
+        trace.close()
+
+        _header, frames, _events = recorder.load_trace(path)
+        assert frames[0]['tablet_camera'] == '2A'
+        assert frames[0]['escape_left'] is True
+        assert replay.FrameInput(frames[0]).tablet_drive == {'loom_size_left': 0.4, 'loom_speed_left': 0.9}
 
 
 def test_a_disabled_recorder_writes_nothing():
@@ -87,6 +101,7 @@ def test_frame_input_reads_every_field_the_engine_needs():
 def test_a_frame_missing_fields_falls_back_to_silence():
     frame = replay.FrameInput({})
     assert (frame.left_rate, frame.right_rate, frame.cam_inhib) == (0.0, 0.0, 0.0)
+    assert frame.tablet_drive == {}
 
 
 if __name__ == '__main__':
