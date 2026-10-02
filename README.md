@@ -15,13 +15,13 @@ https://www.youtube.com/watch?v=4UNPlA-YJtw.
 
 Four behaviours come out of the network, and each one is a different pathway.
 
-**Slamming a door.** The hallway is captured while the light is on and compared against a reference of that same hallway empty. A difference above threshold drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why the light is held for twelve.
+**Slamming a door.** The hallway is captured while the light is on, which the fly confirms by reading the light button on screen, and compared against the views of that hallway recorded empty at midnight, lit, flickering and dark. A frame that is far from all of them drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why the light is held for twelve. The door stays shut while the fly can still see the threat. With the door closed the light still reaches the window, where Bonnie casts a shadow and Chica stands, and the eye reads that window on its own against the lit view of the empty window behind a closed door, so a dark window never passes for an empty one. A threat still there fires DNp01 again and renews the hold, and the door only reopens once the defensive state has decayed and the latest look at that side, taken with the light confirmed on, came back empty (ADR 0011, experiment 14).
 
 **Checking a hallway.** The difference in membrane potential between the left and right eye populations is a slow spontaneous signal the network produces on its own, with a lag-1 autocorrelation of 0.97. It is accumulated to a bound together with what the last look revealed and a per-side habituation term, and whichever side wins gets looked at. There is one starvation guard, a clock that forces a look at a hallway left unwatched for thirty seconds, and every look it causes is counted separately in the session report so its share stays visible.
 
 **Raising the monitor.** DNp09's own subthreshold membrane potential is accumulated the same way. A real spike raises the tablet outright, and the tablet comes down when that drive fades rather than when a timer expires.
 
-Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences the Giant Fiber, so no door reflex can fire through the tablet, exactly as no door button can be pressed in the game.
+Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences the Giant Fiber, so no door reflex can fire through the tablet, exactly as no door button can be pressed in the game. Whether the tablet is up is read off the screen, by counting the eleven camera buttons of the map, and the fly believes a raise or a lowering only once the map has appeared or gone (ADR 0015).
 
 **Watching for Foxy.** The tablet always comes up on Pirate Cove, CAM 1C. What differs from the cove as it looked at the start of the night drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object. When DNp09 fires, the gaze follows to the west hall, CAM 2A. There the size of whatever differs drives LPLC2 and its growth drives LC4, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. The fly then drops the tablet and closes the left door. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent through both (ADR 0026, experiment 13).
 
@@ -138,8 +138,9 @@ each region actually reads. Each one runs as a module, for example
 
 - `src/flynaf/scripts/select_roi.py` takes a screenshot and lets you drag the two hallway capture boxes.
 - `src/flynaf/scripts/vision_calibrator.py` writes the measured values into `logs/`.
-- `src/flynaf/scripts/debug_vision.py` and `src/flynaf/scripts/debug_camera.py` show live what each capture region is reading.
+- `src/flynaf/scripts/debug_vision.py` shows live what each eye region is reading, and `src/flynaf/scripts/debug_camera.py` prints how many camera buttons the map region holds and whether that counts as the tablet being up.
 - `src/flynaf/scripts/debug_reflex.py` shows the live contrast of both hallways against the threshold, and says whether a door would slam. Run it with a light held on, because a reading taken with the light off means nothing.
+- `src/flynaf/scripts/measure_door_window.py`, given `left` or `right`, closes that door, lights the window and prints how far it strays from the closed-door reference. Run it once with the hallway empty and once with Bonnie or Chica outside, and set `closed_door_mse_threshold` between the two readings.
 - `src/flynaf/scripts/debug_tablet.py`, given `1C` or `2A`, records one camera with nothing in view and then prints the live drive it would send into the brain. That is how the spans in `TabletVision` are fitted, and how the CAM 2A button position, inferred from CAM 4B, is confirmed.
 
 The camera references are not cached. At the start of every night the fly raises the tablet once, records a few seconds of CAM 1C and CAM 2A while the curtain is closed and the hall is empty, and lowers it again, which also stalls Foxy while it happens.
@@ -190,16 +191,18 @@ night.
 `--manual`, or the button at the bottom of the launcher, keeps the old flow. The
 brain loads, the activity panel opens over the office, and a ten second
 countdown starts. Go to the game and start a night inside that window. In every
-case the fly then centres the view, captures its office reference and takes
-over.
+case the fly then makes sure the tablet is down and takes over. Before that,
+while the game loads, the network steps on its own until its activity has
+settled, so the night does not start inside the recruitment wave of a brain
+that was just switched on (ADR 0021).
 
-The first run after a calibration change performs live calibration, which turns each hallway light on in turn to record what an empty hallway looks like. **Both hallways have to be empty at that moment**, otherwise an animatronic gets recorded as the normal state and the fly stays blind for the rest of the night.
+The first run after a calibration change performs live calibration, which turns each hallway light on in turn to record what an empty hallway looks like, then closes that door for a moment to record the empty window behind it. **Both hallways have to be empty at that moment**, otherwise an animatronic gets recorded as the normal state and the fly stays blind for the rest of the night.
 
 Every run writes a report to `logs/session_telemetry_*.txt` covering who decided each look, what the eye measured against the threshold, how long the eye drove the cluster, and how much of the night the inhibitors were active. One real report is kept at `docs/example-session-report.txt` so the format and the numbers can be read without running anything.
 
 ## The live activity panel
 
-When the game runs in a window, the panel sits beside it at the height of the game, so one screen recording holds both. It shows all 138,639 somata in their real anatomical positions, lit as they fire, between two readouts of the same clock. Above the brain is what the fly receives, the patch of each hallway, how far it differs from the reference against the threshold, and whether that input is driving the eye cluster, greyed out while the light on that side is off. Below it is a 20 second timeline of the input, the eye cluster spikes, DNp01, the door and the tablet.
+When the game runs in a window, the panel sits beside it at the height of the game, so one screen recording holds both. A window centred on the screen with no room left beside it is moved to the left edge first. It shows all 138,639 somata in their real anatomical positions, lit as they fire, between two readouts of the same clock. Above the brain is what the fly receives, the patch of each hallway, how far it differs from the reference against the threshold, and whether that input is driving the eye cluster, greyed out while the light on that side is off. Below it is a 20 second timeline of the input, the eye cluster spikes, DNp01, the door and the tablet.
 
 When DNp01 fires, the panel traces the spike backwards through the synapses whose presynaptic neuron fired just before it, and replays that trace over the real neurons 150 times slower than simulated time, with a caption giving its depth in frames and simulated milliseconds and whether it reaches the eye cluster. Nothing on the panel is triggered by the game. Each element is a variable the simulation already holds, and ADR 0022 explains what the trace does and does not show.
 
@@ -269,7 +272,10 @@ and why the game is measured only once it is in front, and ADR 0022 covers the
 panel and the rule that only simulation variables drive it. ADR 0025 covers how
 populations are named by cell type rather than pasted as ids, and ADR 0026 and
 experiment 13 cover the tablet, Foxy and why DNp04 rather than the Giant Fiber
-answers through it. ADR 0027 covers the `flynaf` package and the test pipeline.
+answers through it. ADR 0027 covers the `flynaf` package and the test pipeline,
+and ADR 0028 covers the single clock every time step of a night is read from.
+ADR 0011 and experiment 14 cover why the fly once reopened the door into Bonnie
+and how the window behind a closed door is read now.
 
 ## Licensing and credits
 
@@ -305,3 +311,5 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.15 | Pointed to the night package that main now wires | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.16 | Described the tablet watch on Foxy, the cell type populations and the new scripts, and corrected which tests are slow | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.17 | Moved the paths and commands to the flynaf package, described the pytest and CI pipeline and the connectome marker | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.18 | Described the door that reopens after a clearing look, the closed-door calibration, the tablet read from the camera map, the warm-up and the bank of hallway views | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.19 | Described the window read behind a closed door, the lit look a door needs to reopen and the game moved aside for the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
