@@ -155,21 +155,19 @@ def _launch_brain_view_window(port: int, page_height) -> bool:
 
 
 async def brain_view_task(
-    feed: SpikeFeed, highlights: dict, shutdown: asyncio.Event, view_ready: asyncio.Event,
+    feed: SpikeFeed, shutdown: asyncio.Event, view_ready: asyncio.Event,
     eyes=None,
 ):
     if not config.BRAIN_VIEW.enabled:
         view_ready.set()
         return
 
-    server = BrainViewServer(feed, highlights, eyes)
+    server = BrainViewServer(feed, eyes)
     try:
         port = await server.start()
         _log.info('brain view server listening on %d', port)
         if config.BRAIN_VIEW.launch_browser:
-            await asyncio.get_event_loop().run_in_executor(
-                None, _launch_brain_view_window, port, server.page_height
-            )
+            await asyncio.to_thread(_launch_brain_view_window, port, server.page_height)
         view_ready.set()
         await shutdown.wait()
     except OSError as exc:

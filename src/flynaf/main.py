@@ -37,7 +37,6 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
     view_ready = asyncio.Event()
     tracer = CascadeTracer.from_csr(engine.synapses) if config.BRAIN_VIEW.enabled else None
     feed = SpikeFeed(engine.num_neurons, tracer)
-    highlights = {'gaze': '--', 'gf_l': False, 'gf_r': False, 'camera': False}
     saccade = SaccadeRequest()
     tablet_feed = TabletFeed()
     tablet = TabletWatch(build_gaze(), tablet_feed, controller, telemetry, state)
@@ -52,10 +51,10 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
         ))
         tg.create_task(engine_task(
             engine, vision, controller, state, shutdown, telemetry, calibration_done,
-            feed, highlights, saccade, trace, tablet,
+            feed, saccade, trace, tablet,
         ))
         tg.create_task(brain_view_task(
-            feed, highlights, shutdown, view_ready, vision.latest_patches,
+            feed, shutdown, view_ready, vision.latest_patches,
         ))
 
 

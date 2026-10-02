@@ -17,8 +17,11 @@ class SensoryState:
     l_sensory_count: int = 0
     r_sensory_count: int = 0
     forage_bias: float = 0.0
-    office_centred: bool = True
+    tablet_seen: bool = False
     blind_until: dict = field(default_factory=lambda: {'left': 0.0, 'right': 0.0})
+    door_closed: dict = field(default_factory=lambda: {'left': False, 'right': False})
+    cleared_at: dict = field(default_factory=lambda: {'left': 0.0, 'right': 0.0})
+    look_started: dict = field(default_factory=lambda: {'left': 0.0, 'right': 0.0})
     tablet_camera: str | None = None
     tablet_readable_at: float = 0.0
     tablet_drive: dict = field(default_factory=dict)

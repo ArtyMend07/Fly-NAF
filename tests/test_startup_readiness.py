@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from flynaf import config
 from flynaf.env import overlay
-from flynaf.night import calibration
+from flynaf.night import calibration, monitor
 
 GAME = 789498
 EDITOR = 66778
@@ -112,7 +112,6 @@ def test_a_launcher_hook_replaces_the_countdown():
     vision = MagicMock()
     vision.load_reference_from_disk.return_value = True
     controller = MagicMock()
-    controller.centre_view.return_value.wait.return_value = True
 
     with patch.object(calibration, 'countdown_to_the_night', new=_refuse), \
          patch.object(calibration, 'game_in_front', return_value=0):
@@ -127,27 +126,27 @@ async def _refuse(_seconds):
     raise AssertionError('the countdown ran although the launcher starts the night')
 
 
-def test_the_office_reference_is_taken_with_the_view_centred():
-    order = []
+def test_the_night_starts_by_putting_away_a_tablet_already_on_screen():
+    screen = {'up': True}
     vision = MagicMock()
     vision.load_reference_from_disk.return_value = True
-    vision.capture_camera_closed_reference.side_effect = lambda: order.append('capture')
+    vision.is_camera_up.side_effect = lambda: screen['up']
+    vision.is_camera_down.side_effect = lambda: not screen['up']
 
-    controller = MagicMock()
-
-    def centre():
-        order.append('centre')
+    def flip():
+        screen['up'] = not screen['up']
         event = MagicMock()
         event.wait.return_value = True
         return event
 
-    controller.centre_view.side_effect = centre
+    controller = MagicMock()
+    controller.flip_tablet.side_effect = flip
 
-    with patch.object(calibration, 'countdown_to_the_night', new=_ready), \
-         patch.object(calibration, 'game_in_front', return_value=0):
+    with patch.object(calibration, 'countdown_to_the_night', new=_ready),          patch.object(calibration, 'game_in_front', return_value=0),          patch.object(monitor, 'ALREADY_THERE_SEC', 0.0):
         asyncio.run(calibration.calibrate(vision, controller))
 
-    assert order == ['centre', 'capture']
+    assert controller.flip_tablet.call_count == 1
+    assert screen['up'] is False
 
 
 async def _ready(_seconds):

@@ -49,21 +49,18 @@ def _worker():
         time.sleep(config.MOTOR_CALIBRATION.click_delay_sec)
         desktop.mouse_up()
 
-    def _slide(x: int, y_from: int, y_to: int, steps: int = 20, delay: float = 0.008):
-        side = _pan_side(x)
-        swinging = side != office_facing()
-        _set_facing('panning')
+    def _flip(x: int, y_from: int, y_to: int, steps: int = 20, delay: float = 0.008):
+        desktop.move_cursor(*anchor.point(x, y_from))
         for i in range(1, steps + 1):
             y = y_from + int((y_to - y_from) * i / steps)
             desktop.move_cursor(*anchor.point(x, y))
             time.sleep(delay)
-        if swinging:
-            time.sleep(config.MOTOR_CALIBRATION.pan_delay_sec)
-        _set_facing(side)
-
+        for offset in (8, 16, 8, 0):
+            time.sleep(0.04)
+            desktop.move_cursor(*anchor.point(x + offset, y_to))
+        _set_facing(_pan_side(x))
 
     light_state = {'left': False, 'right': False}
-    camera_state = {'open': False}
     door_state = {'left': False, 'right': False}
 
     while True:
@@ -71,14 +68,14 @@ def _worker():
         action = cmd.get('action')
         done = cmd.get('done')
         try:
-            _dispatch(cmd, action, _reach, _click, _slide, light_state, camera_state, door_state)
+            _dispatch(cmd, action, _reach, _click, _flip, light_state, door_state)
         finally:
             if done is not None:
                 done.set()
             _CMD_QUEUE.task_done()
 
 
-def _dispatch(cmd, action, _reach, _click, _slide, light_state, camera_state, door_state):
+def _dispatch(cmd, action, _reach, _click, _flip, light_state, door_state):
     motor = config.MOTOR_CALIBRATION
 
     if action in ('close_left_door', 'open_left_door'):
@@ -109,18 +106,14 @@ def _dispatch(cmd, action, _reach, _click, _slide, light_state, camera_state, do
             _click()
             light_state['right'] = state
 
-    elif action == 'centre_view':
-        _reach(motor.camera_hover_x, motor.screen_center_y)
+    elif action in ('press_left_light', 'press_right_light'):
+        side = action.split('_')[1]
+        _reach(getattr(motor, f'{side}_light_button_x'), getattr(motor, f'{side}_light_button_y'))
+        _click()
+        light_state[side] = cmd.get('state', not light_state[side])
 
-    elif action == 'open_camera':
-        if not camera_state['open']:
-            _slide(motor.camera_hover_x, motor.screen_center_y, motor.camera_hover_y)
-            camera_state['open'] = True
-
-    elif action == 'close_camera':
-        if camera_state['open'] or cmd.get('force'):
-            _slide(motor.camera_hover_x, motor.camera_hover_y, motor.screen_center_y)
-            camera_state['open'] = False
+    elif action == 'flip_tablet':
+        _flip(motor.camera_hover_x, motor.camera_bar_approach_y, motor.camera_hover_y)
 
     elif action == 'select_camera':
         button = _camera_button(cmd.get('camera'))
@@ -129,12 +122,6 @@ def _dispatch(cmd, action, _reach, _click, _slide, light_state, camera_state, do
             desktop.move_cursor(*anchor.point(button.x, button.y))
             time.sleep(motor.click_delay_sec)
             _click()
-
-    elif action == 'nudge_camera_bar':
-        _slide(motor.camera_hover_x, motor.screen_center_y, motor.camera_hover_y)
-        time.sleep(motor.camera_bar_dwell_sec)
-        _slide(motor.camera_hover_x, motor.camera_hover_y, motor.screen_center_y)
-        camera_state['open'] = False
 
     else:
         _log.warning('unknown command action: %s', action)
@@ -182,17 +169,14 @@ class FNAFController:
     def set_right_light(self, state: bool) -> threading.Event:
         return _submit(action='set_right_light', state=state)
 
-    def centre_view(self) -> threading.Event:
-        return _submit(action='centre_view')
+    def press_left_light(self, state: bool) -> threading.Event:
+        return _submit(action='press_left_light', state=state)
 
-    def open_camera(self) -> threading.Event:
-        return _submit(action='open_camera')
+    def press_right_light(self, state: bool) -> threading.Event:
+        return _submit(action='press_right_light', state=state)
 
-    def close_camera(self, force: bool = False) -> threading.Event:
-        return _submit(action='close_camera', force=force)
-
-    def nudge_camera_bar(self) -> threading.Event:
-        return _submit(action='nudge_camera_bar')
+    def flip_tablet(self) -> threading.Event:
+        return _submit(action='flip_tablet')
 
     def select_camera(self, camera: str, settle_sec: float = 0.0) -> threading.Event:
         return _submit(action='select_camera', camera=camera, settle_sec=settle_sec)

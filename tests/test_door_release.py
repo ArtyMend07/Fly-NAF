@@ -24,12 +24,10 @@ def test_hold_outlives_the_motor_refractory():
     assert seconds > config.FORAGING_PARAMS.motor_refractory_sec
 
 
-def test_reopen_settle_is_shorter_than_the_hold():
-    """The blind window after reopening has to end well before the next hold
-    could start, otherwise the fly reopens into a threat it cannot see."""
+def test_the_blind_window_of_a_moving_door_is_shorter_than_the_hold():
     seconds = decay_frames_to_release() / config.SIMULATION_PARAMS.target_fps
 
-    assert config.DOOR_DYNAMICS.reopen_settle_sec < seconds / 2
+    assert config.DOOR_DYNAMICS.motion_settle_sec < seconds / 2
 
 
 def test_a_renewed_spike_recharges_the_hold_to_full():
@@ -45,6 +43,6 @@ def test_a_renewed_spike_recharges_the_hold_to_full():
 if __name__ == '__main__':
     test_hold_lasts_a_few_seconds_at_the_engine_frame_rate()
     test_hold_outlives_the_motor_refractory()
-    test_reopen_settle_is_shorter_than_the_hold()
+    test_the_blind_window_of_a_moving_door_is_shorter_than_the_hold()
     test_a_renewed_spike_recharges_the_hold_to_full()
     print('ok')

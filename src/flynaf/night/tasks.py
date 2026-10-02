@@ -2,12 +2,13 @@ import asyncio
 import logging
 
 from flynaf import clock, config
-from flynaf.env.brain_view import SpikeFeed
+from flynaf.env.brain_view import PanelFrame, SpikeFeed
 from flynaf.env.input_controller import FNAFController
 from flynaf.env.vision import FNAFVision
 from flynaf.night.calibration import calibrate
 from flynaf.night.doors import DoorControl
 from flynaf.night.engine import ConnectomeEngine
+from flynaf.night.lights import set_light
 from flynaf.night.monitor import MonitorControl
 from flynaf.night.motor import await_motor
 from flynaf.night.state import SaccadeRequest, SensoryState
@@ -27,14 +28,14 @@ async def vision_task(
     delay = config.VISION_DYNAMICS.capture_delay_sec
     senses = senses or BlindSenses()
     while not shutdown.is_set():
-        state.office_centred = controller.facing() == 'centre'
-        cam_up = state.office_centred and vision.is_camera_up()
+        state.tablet_seen = vision.is_camera_up()
         now = clock.now()
         looking_left = state.check_left and now >= state.blind_until['left']
         looking_right = state.check_right and now >= state.blind_until['right']
-        state.left_rate = vision.get_left_sensory_rate() if looking_left else 0.0
-        state.right_rate = vision.get_right_sensory_rate() if looking_right else 0.0
-        state.cam_inhib = config.SIMULATION_PARAMS.base_sensory_rate_hz if cam_up else 0.0
+        closed = state.door_closed
+        state.left_rate = vision.get_left_sensory_rate(closed['left']) if looking_left else 0.0
+        state.right_rate = vision.get_right_sensory_rate(closed['right']) if looking_right else 0.0
+        state.cam_inhib = config.SIMULATION_PARAMS.base_sensory_rate_hz if state.tablet_seen else 0.0
         state.tablet_drive = senses.read(state, now)
         await asyncio.sleep(delay)
 
@@ -44,6 +45,7 @@ async def observe_hallway(
 ) -> tuple:
     foraging = config.FORAGING_PARAMS
     vision.reset_peak_mse(side)
+    state.look_started[side] = clock.now()
     opened_at_frame = engine.frames
     opened_at_driven = engine.driven_frames[side]
     deadline = clock.now() + foraging.light_inspection_max_sec
@@ -93,7 +95,7 @@ async def saccade_task(
         side = saccade.side
         saccade.busy = True
 
-        while state.camera_open and not shutdown.is_set():
+        while (state.camera_open or state.tablet_seen) and not shutdown.is_set():
             await asyncio.sleep(engine.frame_dt)
         if shutdown.is_set():
             break
@@ -101,19 +103,20 @@ async def saccade_task(
         _log.info('%s light check, %s (search drive %+.2f)',
                   side, saccade.reason, saccade.drive)
         telemetry.record_light_saccade(side, saccade.drive, saccade.reason)
-        switch = controller.set_left_light if side == 'left' else controller.set_right_light
-
-        await await_motor(switch(True))
+        lit = await set_light(vision, controller, side, True)
+        if not lit:
+            _log.warning('the %s light would not come on, the hallway is read in the dark', side)
         await asyncio.sleep(config.FORAGING_PARAMS.light_activation_settle_sec)
 
         contrast, frames, driven, fired = await observe_hallway(engine, vision, state, side)
-        switch(False)
+        await set_light(vision, controller, side, False)
 
         threshold = config.FORAGING_PARAMS.mse_threshold
         _log.info('%s hallway read %.0f against a %.0f threshold, eye driven %d of %d frames%s',
                   side, contrast, threshold, driven, frames,
                   ', giant fiber answered' if fired else '')
         telemetry.record_look_contrast(side, contrast, frames, driven)
+        remember_a_clear_look(state, side, fired, driven, lit)
 
         saccade.ready_at = clock.now() + config.FORAGING_PARAMS.saccade_refractory_sec
         saccade.side = None
@@ -129,7 +132,6 @@ async def engine_task(
     telemetry: ConnectomeTelemetry,
     calibration_done: asyncio.Event,
     feed: SpikeFeed,
-    highlights: dict,
     saccade: SaccadeRequest,
     trace: SessionRecorder | None = None,
     tablet=None,
@@ -143,7 +145,6 @@ async def engine_task(
     explore = ExploreDrive()
     monitor = MonitorControl(vision, controller, telemetry, state, tablet)
     doors = DoorControl(controller, telemetry, state)
-    watchdog = InhibitionWatchdog(vision)
     last_frame_at = clock.now()
 
     while not shutdown.is_set():
@@ -152,8 +153,7 @@ async def engine_task(
         last_frame_at = now
 
         inputs = (state.left_rate > 0.0, state.right_rate > 0.0)
-        loop = asyncio.get_event_loop()
-        spikes = await loop.run_in_executor(None, engine.step, state, now)
+        spikes = await asyncio.to_thread(engine.step, state, now)
         read_spikes(engine, spikes, state)
 
         explore.update(engine.explore_membrane, state.explore_spike, frame_elapsed)
@@ -163,15 +163,16 @@ async def engine_task(
         watch_the_tablet(tablet, monitor, doors, telemetry, state, now)
         request_saccade(search, saccade, monitor, engine, state, frame_elapsed, now, look_pending)
 
-        feed.publish(spikes[0].nonzero().flatten().cpu().numpy())
-        fill_highlights(highlights, state, vision, doors, monitor, inputs)
+        feed.publish(
+            spikes[0].nonzero().flatten().cpu().numpy(),
+            panel_frame(state, vision, doors, monitor, inputs),
+        )
         trace.frame(
             now - telemetry.start_time, state, engine,
             state.l_spike, state.r_spike,
             vision.peak_mse('left'), vision.peak_mse('right'), monitor.is_open,
         )
-        watchdog.check(state, monitor, now)
-        doors.release_decayed(now, frame_elapsed)
+        doors.update(now, frame_elapsed)
         answer_giant_fibers(engine, doors, feed, state, now)
 
         remaining = engine.frame_dt - (clock.now() - now)
@@ -187,6 +188,14 @@ async def warm_up(engine: ConnectomeEngine, telemetry: ConnectomeTelemetry):
     else:
         _log.warning('the network was still growing after %d warm-up frames, starting anyway', frames)
     telemetry.record_warmup(frames, settled, engine.warmup_activity)
+
+
+def remember_a_clear_look(state: SensoryState, side: str, fired: bool, driven: int, lit: bool = True):
+    if fired or driven > 0 or not lit:
+        return
+    if state.blind_until[side] > state.look_started[side]:
+        return
+    state.cleared_at[side] = clock.now()
 
 
 def read_spikes(engine, spikes, state: SensoryState):
@@ -223,7 +232,8 @@ def watch_the_tablet(tablet, monitor: MonitorControl, doors: DoorControl, teleme
 def request_saccade(search: SearchDrive, saccade: SaccadeRequest, monitor: MonitorControl,
                     engine, state: SensoryState, frame_elapsed: float, now: float,
                     look_pending: bool):
-    can_look = not look_pending and not monitor.is_open and now >= saccade.ready_at
+    can_look = (not look_pending and not monitor.engaged and not state.tablet_seen
+                and now >= saccade.ready_at)
     wants = search.update(
         engine.eye_membrane_diff, state.l_sensory_count, state.r_sensory_count,
         frame_elapsed, now, can_look,
@@ -252,50 +262,29 @@ def _strongest(drive: dict, prefix: str) -> float:
     return max((level for name, level in drive.items() if name.startswith(prefix)), default=0.0)
 
 
-def fill_highlights(highlights: dict, state: SensoryState, vision: FNAFVision,
-                    doors: DoorControl, monitor: MonitorControl, inputs: tuple):
-    highlights['gf_l'] = state.l_spike
-    highlights['gf_r'] = state.r_spike
-    highlights['camera'] = monitor.is_open
-    highlights['in_l'], highlights['in_r'] = inputs
-    highlights['look_l'] = state.check_left
-    highlights['look_r'] = state.check_right
-    highlights['mse_l'] = vision.last_mse('left') if state.check_left else None
-    highlights['mse_r'] = vision.last_mse('right') if state.check_right else None
-    highlights['mse_th'] = vision.mse_threshold
-    highlights['eye_l'] = state.l_sensory_count
-    highlights['eye_r'] = state.r_sensory_count
-    highlights['door_l'] = doors.closed['left']
-    highlights['door_r'] = doors.closed['right']
-    highlights['cam'] = state.tablet_camera
-    highlights['figure'] = _strongest(state.tablet_drive, 'figure')
-    highlights['loom'] = _strongest(state.tablet_drive, 'loom')
-    highlights['dnp09'] = state.explore_spike
-    highlights['dnp04_l'] = state.l_escape
-    highlights['dnp04_r'] = state.r_escape
-    highlights['gaze'] = 'LEFT' if state.check_left else 'RIGHT' if state.check_right else '--'
+def panel_frame(state: SensoryState, vision: FNAFVision, doors: DoorControl,
+                monitor: MonitorControl, inputs: tuple) -> PanelFrame:
+    return PanelFrame(
+        gaze='LEFT' if state.check_left else 'RIGHT' if state.check_right else '--',
+        camera=monitor.is_open,
+        cam=state.tablet_camera,
+        gf_l=state.l_spike,
+        gf_r=state.r_spike,
+        in_l=inputs[0],
+        in_r=inputs[1],
+        look_l=state.check_left,
+        look_r=state.check_right,
+        mse_l=vision.last_mse('left') if state.check_left else None,
+        mse_r=vision.last_mse('right') if state.check_right else None,
+        mse_th=vision.mse_threshold,
+        eye_l=state.l_sensory_count,
+        eye_r=state.r_sensory_count,
+        door_l=doors.closed['left'],
+        door_r=doors.closed['right'],
+        figure=_strongest(state.tablet_drive, 'figure'),
+        loom=_strongest(state.tablet_drive, 'loom'),
+        dnp09=state.explore_spike,
+        dnp04_l=state.l_escape,
+        dnp04_r=state.r_escape,
+    )
 
-
-class InhibitionWatchdog:
-    def __init__(self, vision: FNAFVision):
-        self._vision = vision
-        self._warn_after = config.CAMERA_DETECTION.stuck_warn_sec
-        self._since = 0.0
-        self._warned_at = 0.0
-
-    def check(self, state: SensoryState, monitor: MonitorControl, now: float):
-        if state.cam_inhib <= 0 or monitor.is_open:
-            self._since = 0.0
-            return
-        if self._since == 0.0:
-            self._since = now
-            return
-        if now - self._since <= self._warn_after or now - self._warned_at <= 30.0:
-            return
-        _log.warning(
-            'the office reference has disagreed with the screen for %.0fs at %.0f mse; '
-            'the inhibitors are being driven with the tablet down, which silences '
-            'the giant fiber and DNp09. Recapture it with the office on screen.',
-            now - self._since, self._vision.camera_mse(),
-        )
-        self._warned_at = now

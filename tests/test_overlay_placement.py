@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+
 from flynaf import config
 from flynaf.env import anchor
 from flynaf.env.overlay import (
@@ -14,6 +16,13 @@ from flynaf.env.overlay import (
 )
 
 EDGE_MIN_WIDTH = 265
+
+
+@pytest.fixture(autouse=True)
+def unanchored():
+    anchor.set_game_rect(None)
+    yield
+    anchor.set_game_rect(None)
 
 
 def _beside(game_rect, screen=(1920, 1080)):

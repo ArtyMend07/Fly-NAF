@@ -24,7 +24,7 @@ and `main.py` keeps only the wiring of a run and its entry function.
 | `night/engine.py` | `ConnectomeEngine` |
 | `night/motor.py` | `await_motor`, the wait on a motor command |
 | `night/calibration.py` | the countdown, the game in front check, the eye reference capture and `calibrate` |
-| `night/monitor.py` | `MonitorControl` and the recovery of the office reference |
+| `night/monitor.py` | `MonitorControl` and the tablet gesture confirmed on screen |
 | `night/tasks.py` | the vision, saccade and engine loops and `observe_hallway` |
 | `night/panel.py` | the browser window of the panel, its pinning, its focus handback and its shutdown |
 
@@ -64,3 +64,4 @@ print it, so nothing visible changed.
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | Recorded the split of main into the night package | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
+| 1.1 | Updated the monitor row after the office reference was retired | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |

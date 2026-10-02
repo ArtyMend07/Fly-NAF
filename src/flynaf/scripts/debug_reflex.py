@@ -26,17 +26,13 @@ def main():
         return
 
     print(f'threat threshold (MSE): {threshold:.0f}')
-    print(f'camera-up threshold   : {config.CAMERA_DETECTION.mse_trigger:.0f}')
-    print('Capturing the camera-closed reference in 3s, stay in the office.')
-    time.sleep(3.0)
-    vision.capture_camera_closed_reference()
     print('Ready. Hold a light on and watch the side that is lit. Ctrl+C to stop.\n')
     print(f"{'left MSE':>10} {'right MSE':>10}  {'tablet':>8}   verdict")
 
     try:
         while True:
-            left, _ = vision._get_peak_mse_from_buffer(vision.ref_left, vision._left_buf)
-            right, _ = vision._get_peak_mse_from_buffer(vision.ref_right, vision._right_buf)
+            left = (vision.evidence('left', door_closed=False) or (0.0,))[0]
+            right = (vision.evidence('right', door_closed=False) or (0.0,))[0]
             up = vision.is_camera_up()
 
             verdict = []

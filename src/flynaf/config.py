@@ -22,6 +22,8 @@ class VisionCalibration:
     right_target_x: int = 851
     right_target_y: int = 328
     right_bbox_size: int = 335
+    left_window: tuple = (340, 200, 540, 560)
+    right_window: tuple = (684, 161, 1019, 496)
 
 
 @dataclass(frozen=True)
@@ -36,8 +38,7 @@ class MotorCalibration:
     right_light_button_y: int = 467
     camera_hover_x: int = 552
     camera_hover_y: int = 665
-    camera_bar_dwell_sec: float = 0.25
-    screen_center_y: int = 540
+    camera_bar_approach_y: int = 540
     click_delay_sec: float = 0.05
     pan_delay_sec: float = 1.0
 
@@ -56,7 +57,7 @@ class SimulationParams:
 @dataclass(frozen=True)
 class ForagingParams:
     subliminal_noise_hz: float = 1.0
-    mse_threshold: float = 1500.0
+    mse_threshold: float = 40.0
     light_inspection_frames: int = 12
     light_inspection_max_sec: float = 8.0
     light_activation_settle_sec: float = 0.4
@@ -66,15 +67,18 @@ class ForagingParams:
     camera_watch_max_sec: float = 6.0
     camera_watch_min_sec: float = 0.8
     camera_release_forage_bias: float = 0.5
-
+    closed_door_mse_threshold: float = 30.0
 
 
 @dataclass(frozen=True)
 class VisionDynamics:
     frame_buffer_size: int = 5
     capture_delay_sec: float = 0.016
-    calibration_peak_frames: int = 10
-    calibration_peak_delay_sec: float = 0.03
+    reference_sweep_sec: float = 4.0
+    bank_tolerance_mse: float = 5.0
+    light_button_half_size: int = 10
+    light_button_lit_level: float = 140.0
+    light_check_interval_sec: float = 0.08
 
 
 @dataclass(frozen=True)
@@ -94,14 +98,18 @@ class NeuralParams:
 
 @dataclass(frozen=True)
 class CameraDetection:
-    patch_x: int = 521
-    patch_y: int = 300
-    patch_size: int = 200
-    mse_trigger: float = 1200.0
-    close_settle_sec: float = 1.0
-    stuck_warn_sec: float = 5.0
+    map_left: int = 820
+    map_top: int = 345
+    map_right: int = 1240
+    map_bottom: int = 680
+    white_level: int = 200
+    button_width: tuple = (40, 75)
+    button_height: tuple = (25, 45)
+    button_fill: float = 0.6
+    min_buttons: int = 6
+    agreeing_frames: int = 3
+    flip_confirm_sec: float = 1.5
     lower_retry_sec: float = 3.0
-    lower_confirm_sec: float = 3.0
     lower_gesture_attempts: int = 4
 
 
@@ -173,7 +181,7 @@ class SearchDynamics:
 class DoorDynamics:
     hold_leak_per_frame: float = 0.972
     release_threshold: float = 0.25
-    reopen_settle_sec: float = 0.5
+    motion_settle_sec: float = 0.5
 
 
 @dataclass(frozen=True)

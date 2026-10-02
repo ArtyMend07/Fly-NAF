@@ -38,9 +38,10 @@ KNOBS = (
     ),
     Knob(
         'mse_threshold', 'FORAGING_PARAMS', 'mse_threshold',
-        1500.0, 200.0, 20000.0, False,
-        'How different a lit hallway must look before the eye drives its cluster. '
-        'Lower means more door slams and more false alarms.',
+        40.0, 10.0, 100.0, False,
+        'How far a hallway may be from the nearest view calibrated at midnight, lit, '
+        'flickering or dark, before the eye drives its cluster. Bonnie in the doorway '
+        'measured 118, so a value near that leaves the fly blind to him.',
     ),
     Knob(
         'starvation_sec', 'SEARCH_DYNAMICS', 'starvation_sec',

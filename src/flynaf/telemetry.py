@@ -14,11 +14,14 @@ class ConnectomeTelemetry:
             'right_door_panics': 0,
             'left_door_releases': 0,
             'right_door_releases': 0,
+            'left_hold_renewals': 0,
+            'right_hold_renewals': 0,
             'camera_pulls': 0,
             'left_light_saccades': 0,
             'right_light_saccades': 0
         }
         self.door_holds = []
+        self.verification_waits = []
         self.saccade_reasons = {'drift': 0, 'evidence': 0, 'guard': 0}
         self.camera_causes = {'spike': 0, 'drive': 0}
         self.camera_watches = []
@@ -33,6 +36,8 @@ class ConnectomeTelemetry:
         self.inhibited_frames = 0
         self.looking_frames = 0
         self.monitor_stuck = 0
+        self.tablet_found_up = 0
+        self.raises_missed = 0
         self.saccade_gaps = []
         self._last_saccade_at = None
         self._first_frame_at = None
@@ -59,11 +64,22 @@ class ConnectomeTelemetry:
             f"[{t:>6.1f}s] DNp04 {side} fired on a looming shape in CAM {camera}. Tablet dropped for the door."
         )
 
-    def record_door_release(self, side: str, held_sec: float):
+    def record_door_hold_renewed(self, side: str, cause: str):
+        t = clock.now() - self.start_time
+        self.stats[f'{side}_hold_renewals'] += 1
+        self.events.append(
+            f"[{t:>6.1f}s] {cause.capitalize()} fired behind the closed {side} door, the threat is still there. Hold renewed."
+        )
+
+    def record_door_release(self, side: str, held_sec: float, waited_sec: float = 0.0):
         t = clock.now() - self.start_time
         self.stats[f'{side}_door_releases'] += 1
         self.door_holds.append(held_sec)
-        self.events.append(f"[{t:>6.1f}s] Escape drive decayed after {held_sec:.1f}s. {side.capitalize()} door reopened.")
+        self.verification_waits.append(waited_sec)
+        self.events.append(
+            f"[{t:>6.1f}s] Escape drive decayed and a look found the {side} hallway empty. "
+            f"{side.capitalize()} door reopened after {held_sec:.1f}s."
+        )
 
     def record_camera_pull(self, commanded: bool, drive: float):
         t = clock.now() - self.start_time
@@ -111,7 +127,21 @@ class ConnectomeTelemetry:
         t = clock.now() - self.start_time
         self.monitor_stuck += 1
         self.events.append(
-            f"[{t:>6.1f}s] Monitor stayed up after both lowering gestures. Retrying."
+            f"[{t:>6.1f}s] The camera map was still on screen after the lowering gesture. Retrying."
+        )
+
+    def record_tablet_found_up(self):
+        t = clock.now() - self.start_time
+        self.tablet_found_up += 1
+        self.events.append(
+            f"[{t:>6.1f}s] The camera map was on screen while the fly believed the tablet was down. Putting it away."
+        )
+
+    def record_raise_missed(self):
+        t = clock.now() - self.start_time
+        self.raises_missed += 1
+        self.events.append(
+            f"[{t:>6.1f}s] The camera map did not appear after the raising gesture. Camera pull dropped."
         )
 
     CAUSES = {
@@ -166,6 +196,10 @@ class ConnectomeTelemetry:
                 mean_hold = sum(self.door_holds) / len(self.door_holds)
                 f.write(f"Mean Door Hold             : {mean_hold:.1f}s\n")
                 f.write(f"Total Door-Closed Time     : {sum(self.door_holds):.1f}s\n")
+                waits = sorted(self.verification_waits)
+                f.write(f"Wait For The Clearing Look : median {waits[len(waits) // 2]:.1f}s, max {waits[-1]:.1f}s\n")
+            f.write(f"Holds Renewed By A Look    : {self.stats['left_hold_renewals']} left, "
+                    f"{self.stats['right_hold_renewals']} right\n")
             f.write(f"Spontaneous Camera Pulls   : {self.stats['camera_pulls']}\n")
             if self.camera_watches:
                 watches = len(self.camera_watches)
@@ -174,7 +208,9 @@ class ConnectomeTelemetry:
                 f.write(f"Monitor Raised By          : {self.camera_causes['spike']} DNp09 spikes, {self.camera_causes['drive']} accumulated drive\n")
                 by = self.camera_release_reasons
                 f.write(f"Monitor Lowered By         : {by['drive']} drive faded, {by['search']} hallway won, {by['cap']} power cap, {by['escape']} looming escape\n")
-            f.write(f"Left Light Checks          : {self.stats['left_light_saccades']}\n")
+            f.write(f"Tablet Gestures Missed     : {self.raises_missed} raises, {self.monitor_stuck} lowerings retried\n")
+            f.write(f"Tablet Found Up Unasked    : {self.tablet_found_up}\n")
+            f.write(f"Left Light Checks         : {self.stats['left_light_saccades']}\n")
             f.write(f"Right Light Checks         : {self.stats['right_light_saccades']}\n\n")
 
             f.write("--- Who Decided To Look ---\n")

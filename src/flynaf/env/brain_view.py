@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import csv
+import dataclasses
 import json
 import os
 import struct
@@ -31,9 +32,35 @@ _REGION_BY_SUPER_CLASS = {
 }
 
 
+@dataclasses.dataclass(frozen=True)
+class PanelFrame:
+    gaze: str = '--'
+    camera: bool = False
+    cam: str | None = None
+    gf_l: bool = False
+    gf_r: bool = False
+    in_l: bool = False
+    in_r: bool = False
+    look_l: bool = False
+    look_r: bool = False
+    mse_l: float | None = None
+    mse_r: float | None = None
+    mse_th: float = 0.0
+    eye_l: int = 0
+    eye_r: int = 0
+    door_l: bool = False
+    door_r: bool = False
+    figure: float = 0.0
+    loom: float = 0.0
+    dnp09: bool = False
+    dnp04_l: bool = False
+    dnp04_r: bool = False
+
+
 class SpikeFeed:
     def __init__(self, num_neurons: int = 0, tracer=None):
         self.indices = np.empty(0, dtype=np.uint32)
+        self.panel = PanelFrame()
         self._seen = np.zeros(num_neurons, dtype=bool)
         self._tracer = tracer
         self.fired_total = 0
@@ -42,7 +69,9 @@ class SpikeFeed:
         self.cascade = None
         self.cascade_revision = 0
 
-    def publish(self, spiking: np.ndarray):
+    def publish(self, spiking: np.ndarray, panel: PanelFrame | None = None):
+        if panel is not None:
+            self.panel = panel
         self.indices = np.unique(spiking).astype(np.uint32, copy=False)
         self.spike_total += int(self.indices.size)
         if self._seen.size:
@@ -181,9 +210,8 @@ def build_blobs() -> tuple:
 
 
 class BrainViewServer:
-    def __init__(self, feed: SpikeFeed, highlights: dict, eyes=None):
+    def __init__(self, feed: SpikeFeed, eyes=None):
         self._feed = feed
-        self._highlights = highlights
         self._eyes = eyes
         self._geometry = None
         self._outline = None
@@ -196,8 +224,7 @@ class BrainViewServer:
         return self._page_height
 
     async def start(self) -> int:
-        loop = asyncio.get_event_loop()
-        self._geometry, self._outline = await loop.run_in_executor(None, build_blobs)
+        self._geometry, self._outline = await asyncio.to_thread(build_blobs)
         self._server = await asyncio.start_server(
             self._handle, '127.0.0.1', self._params.port
         )
@@ -260,7 +287,7 @@ class BrainViewServer:
             feed = self._feed
             if feed.revision != sent:
                 sent = feed.revision
-                frame = dict(self._highlights)
+                frame = dataclasses.asdict(feed.panel)
                 frame['s'] = base64.b64encode(feed.indices.tobytes()).decode('ascii')
                 frame['n'] = feed.revision
                 frame['fired'] = feed.fired_total

@@ -26,7 +26,8 @@ The tablet reads the west side through two lobula channels, chosen by the camera
 - The cove is compared against a bank of frames captured at the start of the night with the curtain closed. Taking the nearest frame in the bank absorbs the camera pan. The distance above the bank's own noise, over `figure_span_mse`, drives LC9 and LC31a on the left.
 - A DNp09 spike while the cove is readable moves the gaze to CAM 2A, once per raise. The object has left and the fly follows it.
 - In CAM 2A the same distance drives LPLC2 and its growth per second drives LC4, the size and velocity split of the door reflex.
-- A DNp04 spike while the tablet is up drops the tablet, closes the door on that side, recentres the view and re-anchors the office before the lowering counts as done.
+- A DNp04 spike while the tablet is up drops the tablet, waits for the camera map to leave the screen and only then closes the door on that side (ADR 0015).
+- A watch only counts as boring once the feed has been readable for `camera_watch_min_sec`. Counted from the raise, as it first was, every watch on 2026-10-01 ended 0.7 to 1.0 seconds in, before the 1.2 second settle had passed, and CAM 1C never reached the brain once in a night Foxy won. Counted from the moment the feed is readable, the same night's watches fed 0.02 to 0.27 of figure drive while Foxy changed in the cove. That sits around the 0.25 the table above needs for DNp09, so a peeking Foxy is noticed weakly and rarely pursued, and the empty cove with its sign has not yet been caught on a watch.
 
 `env/tablet_feed.py` captures and compares the feed, `night/tablet/` holds the transduction, the gaze, the per-frame watch and the start-of-night references, and the door bookkeeping moves out of the engine loop into `night/doors.py` so the Giant Fiber and DNp04 close doors through one path.
 
@@ -42,3 +43,5 @@ The tablet reads the west side through two lobula channels, chosen by the camera
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | CAM 1C drives LC9 and LC31a, DNp09 pursues to CAM 2A, CAM 2A drives LPLC2 and LC4, DNp04 closes the door | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
+| 1.1 | Described the escape against the camera map instead of the office reference | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.2 | Counted the minimum watch from the moment the feed is readable and recorded the drive Foxy produced | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |

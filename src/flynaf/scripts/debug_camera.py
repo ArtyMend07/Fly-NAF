@@ -1,47 +1,25 @@
-﻿import os
 import time
 
-import cv2
-import mss
-import numpy as np
-
 from flynaf import config
+from flynaf.env.overlay import anchor_to_game
+from flynaf.env.vision import FNAFVision
 
 
 def main():
-    cx = config.CAMERA_DETECTION.patch_x
-    cy = config.CAMERA_DETECTION.patch_y
-    csize = config.CAMERA_DETECTION.patch_size
-    offset = csize // 2
-    bbox = {'top': cy - offset, 'left': cx - offset, 'width': csize, 'height': csize}
-    
-    print('Aguardando 3s para capturar ref-fechada. Volte para o jogo e fique na sala!')
-    time.sleep(3)
-    with mss.MSS() as sct:
-        ref_img = np.array(sct.grab(bbox))
-        ref_gray = cv2.cvtColor(ref_img, cv2.COLOR_BGRA2GRAY).astype(np.float32)
-    
-    print('Referencia capturada! Gravando log em logs/mse_camera.txt...')
-    print('Abra a camera, espere 2 segundos, feche e depois de ALT+TAB para fechar o script.')
-    
-    os.makedirs('logs', exist_ok=True)
-    with open('logs/mse_camera.txt', 'w') as f:
-        f.write('--- LOG DE MSE DA CAMERA ---\n')
-        
-    with mss.MSS() as sct:
-        try:
-            while True:
-                cur_img = np.array(sct.grab(bbox))
-                cur_gray = cv2.cvtColor(cur_img, cv2.COLOR_BGRA2GRAY).astype(np.float32)
-                mse = float(np.mean((cur_gray - ref_gray) ** 2))
-                
-                with open('logs/mse_camera.txt', 'a') as f:
-                    f.write(f'MSE: {mse:.1f}\n')
-                    
-                print(f'\rGravando... (MSE Atual: {mse:.1f})', end='')
-                time.sleep(0.1)
-        except KeyboardInterrupt:
-            print('\nFinalizado pelo usuario.')
+    if not anchor_to_game():
+        print('the game window was not found, the 1280x720 layout is read from the top left')
+    vision = FNAFVision()
+    needed = config.CAMERA_DETECTION.min_buttons
+    print(f'the tablet counts as up with {needed} or more camera buttons in view. Ctrl+C to stop.')
+    try:
+        while True:
+            seen = vision.map_buttons()
+            verdict = 'UP' if vision.is_camera_up() else 'down' if vision.is_camera_down() else 'changing'
+            print(f'\rbuttons {seen}  tablet {verdict:<8}', end='', flush=True)
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print('\nstopped')
+
 
 if __name__ == '__main__':
     main()
