@@ -130,6 +130,7 @@ class BrainView:
     patch_interval_sec: float = 0.3
     patch_pixels: int = 72
     beside_min_width: int = 420
+    dock_game: bool = True
     corner_radius: int = 14
     launch_browser: bool = True
 

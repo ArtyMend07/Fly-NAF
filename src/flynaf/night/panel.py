@@ -11,6 +11,7 @@ from flynaf.env.overlay import (
     anchor_to_game,
     beside_game_rect,
     capture_regions,
+    dock_game_for_panel,
     find_browser,
     find_game_window,
     game_in_front,
@@ -51,41 +52,54 @@ def restore_game_focus(game: int, panel: int, timeout_sec: float):
     )
 
 
+def _beside_the_game(screen_w: int, screen_h: int):
+    params = config.BRAIN_VIEW
+    beside = beside_game_rect(
+        screen_w, screen_h, params.beside_min_width, params.width, params.ingame_margin,
+    )
+    if beside is not None or not params.dock_game:
+        return beside
+    if not dock_game_for_panel(screen_w, params.beside_min_width, params.ingame_margin):
+        return None
+    _log.info('game window moved to the left edge to make room for the panel')
+    return beside_game_rect(
+        screen_w, screen_h, params.beside_min_width, params.width, params.ingame_margin,
+    )
+
+
+def _choose_panel_placement(url: str):
+    params = config.BRAIN_VIEW
+    screen_w, screen_h = screen_size()
+    beside = _beside_the_game(screen_w, screen_h)
+    if beside is not None:
+        _log.info('brain view beside the game, panel %dx%d at %d,%d', beside[2], beside[3], *beside[:2])
+        return (*beside, f'{url}?corner={params.corner_radius}', True)
+
+    ingame = ingame_overlay_rect(params.ingame_width, params.ingame_height, params.ingame_margin)
+    if ingame is not None:
+        _log.info('brain view in-game overlay, panel %dx%d at %d,%d',
+                  params.ingame_width, params.ingame_height, *ingame)
+        return (*ingame, params.ingame_width, params.ingame_height,
+                f'{url}?mini=1&corner={params.corner_radius}', True)
+
+    position = pick_overlay_position(
+        screen_w, screen_h, params.width, params.height, capture_regions() + motor_regions(),
+    )
+    if position is None:
+        _log.warning('brain view has no screen area clear of capture and motor targets')
+        return None
+    _log.info('brain view side panel, panel %dx%d at %d,%d', params.width, params.height, *position)
+    return (*position, params.width, params.height, url, False)
+
+
 def _launch_brain_view_window(port: int, page_height) -> bool:
     params = config.BRAIN_VIEW
     url = f'http://127.0.0.1:{port}/'
 
-    screen_w, screen_h = screen_size()
-    beside = beside_game_rect(
-        screen_w, screen_h, params.beside_min_width, params.width, params.ingame_margin,
-    )
-    ingame = None if beside else ingame_overlay_rect(
-        params.ingame_width, params.ingame_height, params.ingame_margin,
-    )
-    if beside is not None:
-        x, y, width, height = beside
-        page = f'{url}?corner={params.corner_radius}'
-        topmost = True
-        _log.info('brain view beside the game, panel %dx%d at %d,%d', width, height, x, y)
-    elif ingame is not None:
-        x, y = ingame
-        width, height = params.ingame_width, params.ingame_height
-        page = f'{url}?mini=1&corner={params.corner_radius}'
-        topmost = True
-        _log.info('brain view in-game overlay, panel %dx%d at %d,%d', width, height, x, y)
-    else:
-        position = pick_overlay_position(
-            screen_w, screen_h, params.width, params.height,
-            capture_regions() + motor_regions(),
-        )
-        if position is None:
-            _log.warning('brain view has no screen area clear of capture and motor targets')
-            return False
-        x, y = position
-        width, height = params.width, params.height
-        page = url
-        topmost = False
-        _log.info('brain view side panel, panel %dx%d at %d,%d', width, height, x, y)
+    placement = _choose_panel_placement(url)
+    if placement is None:
+        return False
+    x, y, width, height, page, topmost = placement
 
     browser = find_browser()
     if browser is None:

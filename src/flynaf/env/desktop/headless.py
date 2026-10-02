@@ -57,6 +57,10 @@ def apply_overlay_style(handle: int, x: int, y: int, w: int, h: int) -> bool:
     return False
 
 
+def move_window(handle: int, x: int, y: int) -> bool:
+    return False
+
+
 def outer_rect(handle: int):
     return None
 

@@ -6,7 +6,7 @@ import signal
 import subprocess
 import time
 
-from Xlib import X, display
+from Xlib import X, display, error
 from Xlib.ext import shape, xtest
 
 _log = logging.getLogger(__name__)
@@ -50,14 +50,14 @@ def _window(handle: int):
         return None
     try:
         return _dpy().create_resource_object('window', handle)
-    except Exception:
+    except error.XError:
         return None
 
 
 def _property(window, name: str, kind=X.AnyPropertyType):
     try:
         value = window.get_full_property(_atom(name), kind)
-    except Exception:
+    except error.XError:
         return None
     return value.value if value else None
 
@@ -68,7 +68,7 @@ def _has_shape() -> bool:
         _SHAPE_CHECKED = True
         try:
             _HAS_SHAPE = _dpy().has_extension('SHAPE')
-        except Exception:
+        except error.XError:
             _HAS_SHAPE = False
     return _HAS_SHAPE
 
@@ -93,7 +93,7 @@ def is_window(handle: int) -> bool:
     try:
         window.get_attributes()
         return True
-    except Exception:
+    except error.XError:
         return False
 
 
@@ -146,7 +146,7 @@ def window_rect(handle: int):
     try:
         geometry = window.get_geometry()
         coords = window.translate_coords(_root(), 0, 0)
-    except Exception:
+    except error.XError:
         return None
     if geometry.width <= 0 or geometry.height <= 0:
         return None
@@ -170,7 +170,7 @@ def _client_of(window, depth: int = 2):
         return None
     try:
         children = window.query_tree().children
-    except Exception:
+    except error.XError:
         return None
     for child in children:
         client = _client_of(child, depth - 1)
@@ -185,7 +185,7 @@ def _mapped_clients() -> list:
         try:
             if frame.get_attributes().map_state != X.IsViewable:
                 continue
-        except Exception:
+        except error.XError:
             continue
         client = _client_of(frame)
         if client is not None:
@@ -199,7 +199,7 @@ def top_level_windows() -> list:
         return [int(handle) for handle in raw]
     try:
         return _mapped_clients()
-    except Exception:
+    except error.XError:
         return []
 
 
@@ -251,6 +251,18 @@ def apply_overlay_style(handle: int, x: int, y: int, w: int, h: int) -> bool:
         if placed or time.monotonic() >= deadline:
             return bool(placed and click_through)
         time.sleep(0.05)
+
+
+def move_window(handle: int, x: int, y: int) -> bool:
+    window = _window(handle)
+    if window is None:
+        return False
+    try:
+        window.configure(x=x, y=y)
+        _dpy().sync()
+    except error.XError:
+        return False
+    return True
 
 
 def outer_rect(handle: int):

@@ -18,6 +18,8 @@ _WS_EX_LAYERED = 0x00080000
 _WS_EX_TRANSPARENT = 0x00000020
 _WS_EX_NOACTIVATE = 0x08000000
 _WS_EX_TOOLWINDOW = 0x00000080
+_SWP_NOSIZE = 0x0001
+_SWP_NOZORDER = 0x0004
 _SWP_NOACTIVATE = 0x0010
 _SWP_FRAMECHANGED = 0x0020
 _SW_RESTORE = 9
@@ -225,6 +227,13 @@ def apply_overlay_style(handle: int, x: int, y: int, w: int, h: int) -> bool:
     still_framed = bool(user32.GetWindowLongW(handle, _GWL_STYLE) & (_WS_CAPTION | _WS_THICKFRAME))
     on_top = bool(user32.GetWindowLongW(handle, _GWL_EXSTYLE) & _WS_EX_TOPMOST)
     return placed and on_top and not still_framed
+
+
+def move_window(handle: int, x: int, y: int) -> bool:
+    if not handle:
+        return False
+    flags = _SWP_NOSIZE | _SWP_NOZORDER | _SWP_NOACTIVATE
+    return bool(_user32().SetWindowPos(handle, None, x, y, 0, 0, flags))
 
 
 def outer_rect(handle: int):

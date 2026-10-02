@@ -91,6 +91,20 @@ def beside_game_rect(
     return None
 
 
+def dock_game_for_panel(screen_w: int, min_width: int, margin: int) -> bool:
+    handle = find_game_window()
+    client = desktop.window_rect(handle) if handle else None
+    outer = desktop.outer_rect(handle) if handle else None
+    if client is None or outer is None:
+        return False
+    if margin + client[2] + 2 * margin + min_width > screen_w:
+        return False
+    border = client[0] - outer[0]
+    if not desktop.move_window(handle, margin - border, outer[1]):
+        return False
+    return anchor_to_game()
+
+
 def ingame_overlay_rect(panel_w: int, panel_h: int, margin: int, step: int = 4) -> tuple | None:
     left, _top, right, bottom = game_bounds()
     forbidden = capture_regions() + motor_regions()

@@ -88,6 +88,10 @@ def apply_overlay_style(handle: int, x: int, y: int, w: int, h: int) -> bool:
     return _backend.apply_overlay_style(handle, x, y, w, h)
 
 
+def move_window(handle: int, x: int, y: int) -> bool:
+    return _backend.move_window(handle, x, y)
+
+
 def outer_rect(handle: int):
     return _backend.outer_rect(handle)
 
