@@ -1,6 +1,6 @@
 [project]
 name = "fly-naf"
-version = "0.1.0"
+version = "0.3.0"
 description = "A whole-brain Drosophila connectome simulation that plays Five Nights at Freddy's 1"
 readme = "README.md"
 license = "GPL-3.0-or-later"
