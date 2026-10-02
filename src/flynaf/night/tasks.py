@@ -1,8 +1,7 @@
 import asyncio
 import logging
-import time
 
-from flynaf import config
+from flynaf import clock, config
 from flynaf.env.brain_view import SpikeFeed
 from flynaf.env.input_controller import FNAFController
 from flynaf.env.vision import FNAFVision
@@ -30,7 +29,7 @@ async def vision_task(
     while not shutdown.is_set():
         state.office_centred = controller.facing() == 'centre'
         cam_up = state.office_centred and vision.is_camera_up()
-        now = time.time()
+        now = clock.now()
         looking_left = state.check_left and now >= state.blind_until['left']
         looking_right = state.check_right and now >= state.blind_until['right']
         state.left_rate = vision.get_left_sensory_rate() if looking_left else 0.0
@@ -47,7 +46,7 @@ async def observe_hallway(
     vision.reset_peak_mse(side)
     opened_at_frame = engine.frames
     opened_at_driven = engine.driven_frames[side]
-    deadline = time.time() + foraging.light_inspection_max_sec
+    deadline = clock.now() + foraging.light_inspection_max_sec
 
     if side == 'left':
         state.check_left = True
@@ -59,7 +58,7 @@ async def observe_hallway(
         if state.l_spike if side == 'left' else state.r_spike:
             fired = True
             break
-        if time.time() >= deadline:
+        if clock.now() >= deadline:
             break
         await asyncio.sleep(engine.frame_dt / 2)
 
@@ -116,7 +115,7 @@ async def saccade_task(
                   ', giant fiber answered' if fired else '')
         telemetry.record_look_contrast(side, contrast, frames, driven)
 
-        saccade.ready_at = time.time() + config.FORAGING_PARAMS.saccade_refractory_sec
+        saccade.ready_at = clock.now() + config.FORAGING_PARAMS.saccade_refractory_sec
         saccade.side = None
         saccade.busy = False
 
@@ -135,6 +134,7 @@ async def engine_task(
     trace: SessionRecorder | None = None,
     tablet=None,
 ):
+    await warm_up(engine, telemetry)
     await calibration_done.wait()
     trace = trace or SessionRecorder(enabled=False)
     tablet = tablet or IdleTablet()
@@ -144,11 +144,10 @@ async def engine_task(
     monitor = MonitorControl(vision, controller, telemetry, state, tablet)
     doors = DoorControl(controller, telemetry, state)
     watchdog = InhibitionWatchdog(vision)
-    last_frame_at = time.time()
+    last_frame_at = clock.now()
 
     while not shutdown.is_set():
-        t_start = time.perf_counter()
-        now = time.time()
+        now = clock.now()
         frame_elapsed = now - last_frame_at
         last_frame_at = now
 
@@ -175,8 +174,19 @@ async def engine_task(
         doors.release_decayed(now, frame_elapsed)
         answer_giant_fibers(engine, doors, feed, state, now)
 
-        remaining = engine.frame_dt - (time.perf_counter() - t_start)
+        remaining = engine.frame_dt - (clock.now() - now)
         await asyncio.sleep(max(remaining, 0.0))
+
+
+async def warm_up(engine: ConnectomeEngine, telemetry: ConnectomeTelemetry):
+    settled = await asyncio.to_thread(engine.settle)
+    frames = len(engine.warmup_activity)
+    if settled:
+        _log.info('the network settled after %d warm-up frames, %d neurons active per frame',
+                  frames, engine.warmup_activity[-1])
+    else:
+        _log.warning('the network was still growing after %d warm-up frames, starting anyway', frames)
+    telemetry.record_warmup(frames, settled, engine.warmup_activity)
 
 
 def read_spikes(engine, spikes, state: SensoryState):

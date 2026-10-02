@@ -7,7 +7,7 @@ import cv2
 import mss
 import numpy as np
 
-from flynaf import config
+from flynaf import clock, config
 from flynaf.env import anchor
 
 _log = logging.getLogger(__name__)
@@ -83,8 +83,8 @@ class TabletFeed:
         return True
 
     def _collect(self, seconds: float) -> list:
-        frames, deadline, last = [], time.time() + seconds, None
-        while time.time() < deadline:
+        frames, deadline, last = [], clock.now() + seconds, None
+        while clock.now() < deadline:
             with self._lock:
                 frame = self._latest[-1] if self._latest else None
             if frame is not None and frame is not last:

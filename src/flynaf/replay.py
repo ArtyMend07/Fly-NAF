@@ -43,6 +43,7 @@ def replay(trace_path: str, device: str = 'cpu') -> dict:
 
     _log.info('replaying %d frames from %s', len(frames), os.path.basename(trace_path))
     engine = ConnectomeEngine(device)
+    engine.settle()
     state = SensoryState()
 
     left_driven, right_driven = [], []

@@ -7,6 +7,14 @@ from flynaf.night.neurons import build_neuron_map, stimulus_rates
 from flynaf.night.state import SensoryState
 
 
+def has_settled(activity: list, window: int, growth_ratio: float) -> bool:
+    if len(activity) < 2 * window:
+        return False
+    earlier = sum(activity[-2 * window:-window])
+    recent = sum(activity[-window:])
+    return recent <= earlier * growth_ratio
+
+
 class ConnectomeEngine:
     def __init__(self, device: str, cell_index: CellTypeIndex | None = None):
         self._device = device
@@ -29,6 +37,7 @@ class ConnectomeEngine:
         self.explore_membrane = 0.0
         self.frames = 0
         self.driven_frames = {'left': 0, 'right': 0}
+        self.warmup_activity = []
 
     @property
     def sensory_span(self) -> int:
@@ -53,6 +62,18 @@ class ConnectomeEngine:
 
     def reset(self):
         self._adapter.model.reset_state()
+
+    def settle(self) -> bool:
+        params = config.SIMULATION_PARAMS
+        quiet = SensoryState()
+        self.warmup_activity = []
+        while len(self.warmup_activity) < params.settle_max_frames:
+            self._load_rates(quiet)
+            spikes = self._adapter.step(self._rates, steps=self._steps)
+            self.warmup_activity.append(int(spikes.count_nonzero()))
+            if has_settled(self.warmup_activity, params.settle_window_frames, params.settle_growth_ratio):
+                return True
+        return False
 
     def _load_rates(self, state: SensoryState):
         self._rates.zero_()

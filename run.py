@@ -2,6 +2,7 @@ import argparse
 import glob
 import logging
 import os
+from datetime import datetime
 
 from flynaf import config, launcher
 from flynaf.env import desktop
@@ -95,8 +96,17 @@ def cmd_play(mode: str | None) -> int:
     return 0
 
 
+def _log_handlers() -> list:
+    folder = os.path.join(config.PROJECT_ROOT, 'logs')
+    os.makedirs(folder, exist_ok=True)
+    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    path = os.path.join(folder, f'run_{stamp}.log')
+    return [logging.StreamHandler(), logging.FileHandler(path, encoding='utf-8')]
+
+
 def main() -> int:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s',
+                        handlers=_log_handlers())
     parser = argparse.ArgumentParser(description='Run Fly-NAF, or one of the ways to inspect it.')
     parser.add_argument('--verify', action='store_true', help='check the connectome and exit')
     parser.add_argument('--replay', nargs='?', const='', metavar='TRACE',

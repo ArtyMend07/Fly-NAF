@@ -45,7 +45,12 @@ class FakeEngine:
         self.r_escape_idx = [6]
         self.frames = 0
         self.driven_frames = {'left': 0, 'right': 0}
+        self.warmup_activity = []
         self._t0 = None
+
+    def settle(self):
+        self.warmup_activity = [NEURONS]
+        return True
 
     def step(self, state, now):
         self.frames += 1

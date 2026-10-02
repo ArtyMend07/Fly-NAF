@@ -38,6 +38,13 @@ _VK_RETURN = 0x0D
 _KEYEVENTF_KEYUP = 0x0002
 
 
+def _read_physical_pixels():
+    ctypes.windll.user32.SetProcessDPIAware()
+
+
+_read_physical_pixels()
+
+
 def _user32():
     user32 = ctypes.windll.user32
     user32.SetWindowPos.argtypes = [
@@ -116,7 +123,6 @@ def find_browser():
 
 def screen_size() -> tuple:
     user32 = ctypes.windll.user32
-    user32.SetProcessDPIAware()
     return (user32.GetSystemMetrics(0), user32.GetSystemMetrics(1))
 
 

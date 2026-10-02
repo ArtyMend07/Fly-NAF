@@ -1,7 +1,7 @@
 import argparse
 import time
 
-from flynaf import config
+from flynaf import clock, config
 from flynaf.env.overlay import anchor_to_game
 from flynaf.env.tablet_feed import TabletFeed
 from flynaf.night.state import SensoryState
@@ -27,10 +27,10 @@ def main() -> int:
     state = SensoryState(camera_open=True, tablet_camera=args.camera)
     senses = TabletSenses(feed)
     print('watching, bring something into view. Ctrl+C stops.')
-    deadline = time.time() + args.seconds
+    deadline = clock.now() + args.seconds
     try:
-        while time.time() < deadline:
-            now = time.time()
+        while clock.now() < deadline:
+            now = clock.now()
             contrast = feed.contrast(args.camera) or 0.0
             levels = senses.read(state, now)
             shown = '  '.join(f'{name} {level:.2f}' for name, level in levels.items())

@@ -1,14 +1,13 @@
 import os
-import time
 from datetime import datetime
 
-from flynaf import config
+from flynaf import clock, config
 
 REFLEX_FRAMES = 10
 
 class ConnectomeTelemetry:
     def __init__(self):
-        self.start_time = time.time()
+        self.start_time = clock.now()
         self.events = []
         self.stats = {
             'left_door_panics': 0,
@@ -36,14 +35,16 @@ class ConnectomeTelemetry:
         self.monitor_stuck = 0
         self.saccade_gaps = []
         self._last_saccade_at = None
+        self._first_frame_at = None
+        self.warmup = None
 
     def record_door_panic(self, side: str, cause: str = 'giant fiber'):
-        t = time.time() - self.start_time
+        t = clock.now() - self.start_time
         self.stats[f'{side}_door_panics'] += 1
         self.events.append(f"[{t:>6.1f}s] Visual threat detected. {cause.capitalize()} fired. {side.capitalize()} door slammed.")
 
     def record_camera_view(self, camera: str, cause: str):
-        t = time.time() - self.start_time
+        t = clock.now() - self.start_time
         self.camera_views[camera] = self.camera_views.get(camera, 0) + 1
         if cause in self.camera_view_causes:
             self.camera_view_causes[cause] += 1
@@ -51,7 +52,7 @@ class ConnectomeTelemetry:
         self.events.append(f"[{t:>6.1f}s] Watching CAM {camera}, {why}.")
 
     def record_tablet_escape(self, side: str, camera: str):
-        t = time.time() - self.start_time
+        t = clock.now() - self.start_time
         key = f'{camera} {side}'
         self.tablet_escapes[key] = self.tablet_escapes.get(key, 0) + 1
         self.events.append(
@@ -59,13 +60,13 @@ class ConnectomeTelemetry:
         )
 
     def record_door_release(self, side: str, held_sec: float):
-        t = time.time() - self.start_time
+        t = clock.now() - self.start_time
         self.stats[f'{side}_door_releases'] += 1
         self.door_holds.append(held_sec)
         self.events.append(f"[{t:>6.1f}s] Escape drive decayed after {held_sec:.1f}s. {side.capitalize()} door reopened.")
 
     def record_camera_pull(self, commanded: bool, drive: float):
-        t = time.time() - self.start_time
+        t = clock.now() - self.start_time
         self.stats['camera_pulls'] += 1
         self.camera_causes['spike' if commanded else 'drive'] += 1
         how = ('DNp09 fired outright' if commanded
@@ -80,7 +81,7 @@ class ConnectomeTelemetry:
     }
 
     def record_camera_release(self, watched_sec: float, reason: str):
-        t = time.time() - self.start_time
+        t = clock.now() - self.start_time
         self.camera_watches.append(watched_sec)
         if reason in self.camera_release_reasons:
             self.camera_release_reasons[reason] += 1
@@ -89,7 +90,12 @@ class ConnectomeTelemetry:
             f"[{t:>6.1f}s] Monitor lowered after {watched_sec:.1f}s, {why}."
         )
 
+    def record_warmup(self, frames: int, settled: bool, activity: list):
+        self.warmup = (frames, settled, activity[-1] if activity else 0)
+
     def record_frame(self, inhibited: bool, looking: bool):
+        if self._first_frame_at is None:
+            self._first_frame_at = clock.now()
         self.engine_frames += 1
         if inhibited:
             self.inhibited_frames += 1
@@ -102,7 +108,7 @@ class ConnectomeTelemetry:
         self.look_driven.append(driven)
 
     def record_monitor_stuck(self):
-        t = time.time() - self.start_time
+        t = clock.now() - self.start_time
         self.monitor_stuck += 1
         self.events.append(
             f"[{t:>6.1f}s] Monitor stayed up after both lowering gestures. Retrying."
@@ -115,11 +121,11 @@ class ConnectomeTelemetry:
     }
 
     def record_light_saccade(self, side: str, drive: float, reason: str):
-        t = time.time() - self.start_time
+        t = clock.now() - self.start_time
         self.stats[f'{side}_light_saccades'] += 1
         if reason in self.saccade_reasons:
             self.saccade_reasons[reason] += 1
-        now = time.time()
+        now = clock.now()
         if self._last_saccade_at is not None:
             self.saccade_gaps.append(now - self._last_saccade_at)
         self._last_saccade_at = now
@@ -141,7 +147,7 @@ class ConnectomeTelemetry:
         f.write(f"{'DNp04 escapes from the tablet':<38}: {escapes}\n\n")
 
     def dump_report(self):
-        duration = time.time() - self.start_time
+        duration = clock.now() - self.start_time
         os.makedirs("logs", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = os.path.join("logs", f"session_telemetry_{timestamp}.txt")
@@ -190,8 +196,14 @@ class ConnectomeTelemetry:
             self._write_tablet(f)
 
             f.write("--- Where The Night Went ---\n")
+            if self.warmup is not None:
+                frames, settled, active = self.warmup
+                verdict = 'settled' if settled else 'still growing, the cap ended it'
+                f.write(f"{'Network warm-up before the night':<38}: "
+                        f"{frames} frames, {verdict}, {active} neurons active per frame\n")
             if self.engine_frames:
-                rate = self.engine_frames / max(duration, 1.0)
+                running = clock.now() - (self._first_frame_at or self.start_time)
+                rate = self.engine_frames / max(running, 1.0)
                 f.write(f"{'Engine rate':<38}: {rate:.1f} frames/sec, "
                         f"{self.engine_frames} frames\n")
                 f.write(f"{'Inhibitors driven':<38}: "

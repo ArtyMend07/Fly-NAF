@@ -48,6 +48,9 @@ class SimulationParams:
     steps_per_frame: int = 2
     target_fps: int = 10
     arousal_multiplier: float = 3.0
+    settle_window_frames: int = 10
+    settle_growth_ratio: float = 1.2
+    settle_max_frames: int = 200
 
 
 @dataclass(frozen=True)

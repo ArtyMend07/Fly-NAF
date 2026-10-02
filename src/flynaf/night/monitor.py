@@ -1,8 +1,7 @@
 import asyncio
 import logging
-import time
 
-from flynaf import config
+from flynaf import clock, config
 from flynaf.env.input_controller import FNAFController
 from flynaf.env.vision import FNAFVision
 from flynaf.night.motor import await_motor
@@ -16,9 +15,9 @@ async def office_comes_back(
     vision: FNAFVision, controller, settle_sec: float, confirm_sec: float
 ) -> bool:
     vision.clear_buffers()
-    deadline = time.time() + confirm_sec
+    deadline = clock.now() + confirm_sec
     agreed = 0
-    while time.time() < deadline:
+    while clock.now() < deadline:
         await asyncio.sleep(settle_sec / 2.0)
         if controller is not None and controller.facing() != 'centre':
             agreed = 0
