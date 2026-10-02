@@ -2,18 +2,15 @@ import gzip
 import json
 import os
 import struct
-import sys
 import tempfile
 from unittest.mock import patch
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from flynaf import config
+from flynaf.env import brain_view
 
-import config
-from env import brain_view
-
-ASSET = os.path.join(config.PROJECT_ROOT, 'src', 'env', 'assets', 'neuromechfly.bin.gz')
+ASSET = os.path.join(config.PROJECT_ROOT, 'src', 'flynaf', 'env', 'assets', 'neuromechfly.bin.gz')
 
 
 def _codex_file(folder: str, rows: list):

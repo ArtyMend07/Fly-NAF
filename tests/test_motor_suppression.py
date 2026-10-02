@@ -1,12 +1,5 @@
 import unittest
-from unittest.mock import MagicMock
-import asyncio
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from night.state import SensoryState
 
 def evaluate_motor_action(spiked: bool, camera_open: bool) -> bool:
     if spiked and not camera_open:

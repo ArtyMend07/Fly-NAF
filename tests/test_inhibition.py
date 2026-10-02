@@ -1,49 +1,70 @@
-import sys
-import os
-import torch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-import config
-from neural.models import FlyBrainModel
-from neural.data_loader import get_hash_tables, load_connectome_weights
+import pytest
+
+from flynaf import config
+from flynaf.night.engine import ConnectomeEngine
+from flynaf.night.state import SensoryState
+
+pytestmark = pytest.mark.connectome
+
+FRAMES = 2500
+TABLET_FRAMES = 40
+TABLET_UP_HZ = config.SIMULATION_PARAMS.base_sensory_rate_hz
+
+_ENGINE = {}
+
+
+def _engine() -> ConnectomeEngine:
+    if 'engine' not in _ENGINE:
+        _ENGINE['engine'] = ConnectomeEngine('cpu')
+    return _ENGINE['engine']
+
+
+def _spike_frames(state: SensoryState, frames: int) -> dict:
+    engine = _engine()
+    engine.reset()
+    readouts = {
+        'giant_fiber': engine.l_motor_idx,
+        'looming_escape': engine.l_escape_idx,
+        'explore': engine.explore_idx,
+    }
+    counts = dict.fromkeys(readouts, 0)
+    for frame in range(frames):
+        spikes = engine.step(state, frame * engine.frame_dt)[0]
+        for name, indices in readouts.items():
+            counts[name] += int(bool(spikes[indices].any()))
+    return counts
 
 
 def test_biological_inhibition():
-    device = 'cpu'
-    flyid2i, _ = get_hash_tables(config.COMPLETENESS_CSV)
-    weights = load_connectome_weights(
-        config.CONNECTIVITY_PARQUET, config.COMPLETENESS_CSV, config.DATA_DIR,
-        csr=True, device=device,
+    startle = _spike_frames(SensoryState(left_rate=1.0), FRAMES)
+    assert startle['giant_fiber'] > 0, f'expected startle reflex, got {startle}'
+
+    inhibited = _spike_frames(SensoryState(left_rate=1.0, cam_inhib=TABLET_UP_HZ), FRAMES)
+    assert inhibited['giant_fiber'] == 0, (
+        f'inhibition failed, giant fiber spiked on {inhibited["giant_fiber"]} frames with camera open'
     )
-    num_neurons = weights.shape[0]
-    weights = weights * config.SIMULATION_PARAMS.arousal_multiplier
 
-    exc_indices = [flyid2i[n] for n in config.SENSORY_NEURONS.left_eye_cluster if n in flyid2i]
-    inhib_indices = [flyid2i[n] for n in config.SENSORY_NEURONS.camera_inhibitor_left if n in flyid2i]
-    motor_idx = flyid2i[config.MOTOR_NEURONS.dnp01_giant_fiber[0]]
 
-    model = FlyBrainModel(num_neurons, weights, exc_indices=exc_indices + inhib_indices, device=device)
+TABLET_CASES = (
+    ('looming on the camera', {'loom_size_left': 0.25, 'loom_speed_left': 0.25},
+     'looming_escape', ('giant_fiber', 'explore')),
+    ('a figure in the cove', {'figure_left': 0.25},
+     'explore', ('giant_fiber', 'looming_escape')),
+)
 
-    rates = torch.zeros(1, num_neurons, device=device)
-    rates[:, exc_indices] = config.SIMULATION_PARAMS.base_sensory_rate_hz
-    total_spikes = sum(
-        model.step(rates)[0, motor_idx].item()
-        for _ in range(5000)
-    )
-    assert total_spikes > 0, f'expected startle reflex, got {total_spikes} spikes'
 
-    model.reset_state()
-
-    rates[:, inhib_indices] = config.SIMULATION_PARAMS.base_sensory_rate_hz
-    total_inhibited = sum(
-        model.step(rates)[0, motor_idx].item()
-        for _ in range(5000)
-    )
-    assert total_inhibited == 0, (
-        f'inhibition failed, giant fiber spiked {total_inhibited} times with camera open'
-    )
+def test_each_tablet_channel_wakes_its_own_descending_neuron():
+    for label, drive, answers, silent in TABLET_CASES:
+        counts = _spike_frames(SensoryState(cam_inhib=TABLET_UP_HZ, tablet_drive=drive), TABLET_FRAMES)
+        assert counts[answers] > 0, f'{label}: {answers} never fired, {counts}'
+        assert counts['giant_fiber'] == 0, f'{label}: the giant fiber broke through the inhibitors, {counts}'
+        crossed = [name for name in silent if name != 'giant_fiber' and counts[name] > counts[answers] / 4]
+        assert not crossed, f'{label}: {crossed} answered a channel that is not theirs, {counts}'
 
 
 if __name__ == '__main__':
-    test_biological_inhibition()
+    for name, fn in sorted(globals().items()):
+        if name.startswith('test_'):
+            fn()
     print('ok')

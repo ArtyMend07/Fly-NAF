@@ -1,5 +1,7 @@
 # Fly-NAF
 
+[![tests](https://github.com/ArtyMend07/Fly-NAF/actions/workflows/tests.yml/badge.svg)](https://github.com/ArtyMend07/Fly-NAF/actions/workflows/tests.yml)
+
 A whole-brain *Drosophila melanogaster* connectome simulation that plays Five Nights at Freddy's 1.
 
 138,639 of the 139,255 proofread neurons in the FlyWire 783 connectome run as leaky integrate-and-fire units, wired by the measured synaptic weights. That is 99.56% of the brain, and the ones left out are almost all sensory afferents rather than interneurons. Nothing else is subset. The screen is fed into the fly's visual clusters, and the mouse is driven by reading its descending neurons.
@@ -11,21 +13,23 @@ https://www.youtube.com/watch?v=4UNPlA-YJtw.
 
 ## What the fly actually does
 
-Three behaviours come out of the network, and each one is a different pathway.
+Four behaviours come out of the network, and each one is a different pathway.
 
-**Slamming a door.** The hallway is captured while the light is on and compared against a reference of that same hallway empty. A difference above threshold drives the corresponding eye cluster at full rate, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why the light is held for twelve.
+**Slamming a door.** The hallway is captured while the light is on, which the fly confirms by reading the light button on screen, and compared against the views of that hallway recorded empty at midnight, lit, flickering and dark. A frame that is far from all of them drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why the light is held for twelve. The door stays shut while the fly can still see the threat. With the door closed the light still reaches the window, where Bonnie casts a shadow and Chica stands, and the eye reads that window on its own against the lit view of the empty window behind a closed door, so a dark window never passes for an empty one. A threat still there fires DNp01 again and renews the hold, and the door only reopens once the defensive state has decayed and the latest look at that side, taken with the light confirmed on, came back empty (ADR 0011, experiment 14).
 
 **Checking a hallway.** The difference in membrane potential between the left and right eye populations is a slow spontaneous signal the network produces on its own, with a lag-1 autocorrelation of 0.97. It is accumulated to a bound together with what the last look revealed and a per-side habituation term, and whichever side wins gets looked at. There is one starvation guard, a clock that forces a look at a hallway left unwatched for thirty seconds, and every look it causes is counted separately in the session report so its share stays visible.
 
 **Raising the monitor.** DNp09's own subthreshold membrane potential is accumulated the same way. A real spike raises the tablet outright, and the tablet comes down when that drive fades rather than when a timer expires.
 
-Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences both descending neurons. The fly is genuinely blind while it watches the cameras, exactly as it would be in the game.
+Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences the Giant Fiber, so no door reflex can fire through the tablet, exactly as no door button can be pressed in the game. Whether the tablet is up is read off the screen, by counting the eleven camera buttons of the map, and the fly believes a raise or a lowering only once the map has appeared or gone (ADR 0015).
+
+**Watching for Foxy.** The tablet always comes up on Pirate Cove, CAM 1C. What differs from the cove as it looked at the start of the night drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object. When DNp09 fires, the gaze follows to the west hall, CAM 2A. There the size of whatever differs drives LPLC2 and its growth drives LC4, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. The fly then drops the tablet and closes the left door. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent through both (ADR 0026, experiment 13).
 
 ## What this is not
 
-There is no policy, no reward, no training and no learning whatsoever. The connectome is fixed at what FlyWire measured. Every constant in `src/config.py` was fitted against measurements of the simulated network rather than chosen by feel.
+There is no policy, no reward, no training and no learning whatsoever. The connectome is fixed at what FlyWire measured. Every constant in `src/flynaf/config.py` was fitted against measurements of the simulated network rather than chosen by feel.
 
-One thing is not a measurement. `arousal_multiplier` in `src/config.py` multiplies every weight in the matrix by 3, standing in for the neuromodulatory tone a brain in a body would have. The sign and the topology are untouched, the gain is uniform, and no edge is treated differently from any other, but the magnitude is not what FlyWire recorded.
+One thing is not a measurement. `arousal_multiplier` in `src/flynaf/config.py` multiplies every weight in the matrix by 3, standing in for the neuromodulatory tone a brain in a body would have. The sign and the topology are untouched, the gain is uniform, and no edge is treated differently from any other, but the magnitude is not what FlyWire recorded.
 
 FlyWire maps the brain and stops at the neck. There is no ventral nerve cord here, so the descending neurons are read where they leave the brain rather than driving a simulated body.
 
@@ -41,7 +45,7 @@ FlyWire maps the brain and stops at the neck. There is no ventral nerve cord her
 
 The simulation needs roughly 140 MB of FlyWire data that is deliberately not committed here. It comes from [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain), which is where the neural engine this project builds on lives, and from the FlyWire annotation supplement.
 
-`src/config.py` resolves the data path relative to the parent of this repository, so the layout on disk has to look like this. The folder this repository sits in can have any name.
+`src/flynaf/config.py` resolves the data path relative to the parent of this repository, so the layout on disk has to look like this. The folder this repository sits in can have any name.
 
 ```
 <parent folder>/
@@ -53,7 +57,7 @@ The simulation needs roughly 140 MB of FlyWire data that is deliberately not com
 │       └── brain_mesh_flywire.ply             1 MB, brain outline for the 3D panel
 ├── flywire_annotations/        git clone https://github.com/flyconnectome/flywire_annotations
 │   └── supplemental_files/
-│       └── Supplemental_file1_neuron_annotations.tsv   31 MB, super_class per neuron
+│       └── Supplemental_file1_neuron_annotations.tsv   31 MB, cell type, side and super_class per neuron
 └── Fly-NAF/                    this repository
 ```
 
@@ -83,7 +87,7 @@ For a developer the same thing is done from a terminal.
 git clone <this repository> Fly-NAF
 cd Fly-NAF
 uv sync
-uv run python src/scripts/fetch_data.py
+uv run python -m flynaf.scripts.fetch_data
 ```
 
 `fetch_data.py` prints the licences first, then fetches the two repositories and
@@ -118,7 +122,7 @@ uv run python run.py
 ## Calibration
 
 The screen targets follow the game window. Once the game is the window in
-front, its client rectangle is measured and every coordinate in `src/config.py`
+front, its client rectangle is measured and every coordinate in `src/flynaf/config.py`
 is treated as a position inside a 1280x720 reference layout and scaled onto it.
 A window of a different size or in a different corner works without any
 measuring. The game draws at 1280x720 whatever the display, and in fullscreen
@@ -129,12 +133,17 @@ A minimised window is never measured, because Windows reports it as a small
 rectangle far off screen. If the game is not in front when the night starts,
 the coordinates are used exactly as written, which assumes a 1280x720 window at
 the top left. The scripts below stay for that case, and for inspecting what
-each region actually reads.
+each region actually reads. Each one runs as a module, for example
+`uv run python -m flynaf.scripts.select_roi`.
 
-- `src/scripts/select_roi.py` takes a screenshot and lets you drag the two hallway capture boxes.
-- `src/scripts/vision_calibrator.py` writes the measured values into `logs/`.
-- `src/scripts/debug_vision.py` and `src/scripts/debug_camera.py` show live what each capture region is reading.
-- `src/scripts/debug_reflex.py` shows the live contrast of both hallways against the threshold, and says whether a door would slam. Run it with a light held on, because a reading taken with the light off means nothing.
+- `src/flynaf/scripts/select_roi.py` takes a screenshot and lets you drag the two hallway capture boxes.
+- `src/flynaf/scripts/vision_calibrator.py` writes the measured values into `logs/`.
+- `src/flynaf/scripts/debug_vision.py` shows live what each eye region is reading, and `src/flynaf/scripts/debug_camera.py` prints how many camera buttons the map region holds and whether that counts as the tablet being up.
+- `src/flynaf/scripts/debug_reflex.py` shows the live contrast of both hallways against the threshold, and says whether a door would slam. Run it with a light held on, because a reading taken with the light off means nothing.
+- `src/flynaf/scripts/measure_door_window.py`, given `left` or `right`, closes that door, lights the window and prints how far it strays from the closed-door reference. Run it once with the hallway empty and once with Bonnie or Chica outside, and set `closed_door_mse_threshold` between the two readings.
+- `src/flynaf/scripts/debug_tablet.py`, given `1C` or `2A`, records one camera with nothing in view and then prints the live drive it would send into the brain. That is how the spans in `TabletVision` are fitted, and how the CAM 2A button position, inferred from CAM 4B, is confirmed.
+
+The camera references are not cached. At the start of every night the fly raises the tablet once, records a few seconds of CAM 1C and CAM 2A while the curtain is closed and the hall is empty, and lowers it again, which also stalls Foxy while it happens.
 
 The eye references are captured once and cached in `logs/vision_reference/`,
 alongside a fingerprint of the layout they were taken on. They are re-measured
@@ -161,14 +170,15 @@ uv run python run.py
 ```
 
 On Windows, double-clicking `Fly-NAF.bat` does the same. `run.py` is the only
-entry point, `src/main.py` wires a night together and `src/night/` holds its parts (ADR 0024).
+entry point, `src/flynaf/main.py` wires a night together and `src/flynaf/night/` holds its
+parts (ADR 0024).
 
 A launcher window opens with the two choices the game's menu offers, New Game
 and Continue, and the night the save file is on. Picking one opens the game
 through Steam, loads the brain, brings the game to the front and clicks that
 option in the menu, so the night starts only once the brain is ready to play
 it. A copy outside Steam is opened through `GameLauncher.executable` in
-`src/config.py`. `--new` and `--continue` do the same without the window.
+`src/flynaf/config.py`. `--new` and `--continue` do the same without the window.
 
 The menu clicks need two points measured once, `new_game_x`, `new_game_y`,
 `continue_x` and `continue_y` in `GameLauncher`, in the same 1280x720 layout as
@@ -181,16 +191,18 @@ night.
 `--manual`, or the button at the bottom of the launcher, keeps the old flow. The
 brain loads, the activity panel opens over the office, and a ten second
 countdown starts. Go to the game and start a night inside that window. In every
-case the fly then centres the view, captures its office reference and takes
-over.
+case the fly then makes sure the tablet is down and takes over. Before that,
+while the game loads, the network steps on its own until its activity has
+settled, so the night does not start inside the recruitment wave of a brain
+that was just switched on (ADR 0021).
 
-The first run after a calibration change performs live calibration, which turns each hallway light on in turn to record what an empty hallway looks like. **Both hallways have to be empty at that moment**, otherwise an animatronic gets recorded as the normal state and the fly stays blind for the rest of the night.
+The first run after a calibration change performs live calibration, which turns each hallway light on in turn to record what an empty hallway looks like, then closes that door for a moment to record the empty window behind it. **Both hallways have to be empty at that moment**, otherwise an animatronic gets recorded as the normal state and the fly stays blind for the rest of the night.
 
 Every run writes a report to `logs/session_telemetry_*.txt` covering who decided each look, what the eye measured against the threshold, how long the eye drove the cluster, and how much of the night the inhibitors were active. One real report is kept at `docs/example-session-report.txt` so the format and the numbers can be read without running anything.
 
 ## The live activity panel
 
-When the game runs in a window, the panel sits beside it at the height of the game, so one screen recording holds both. It shows all 138,639 somata in their real anatomical positions, lit as they fire, between two readouts of the same clock. Above the brain is what the fly receives, the patch of each hallway, how far it differs from the reference against the threshold, and whether that input is driving the eye cluster, greyed out while the light on that side is off. Below it is a 20 second timeline of the input, the eye cluster spikes, DNp01, the door and the tablet.
+When the game runs in a window, the panel sits beside it at the height of the game, so one screen recording holds both. A window centred on the screen with no room left beside it is moved to the left edge first. It shows all 138,639 somata in their real anatomical positions, lit as they fire, between two readouts of the same clock. Above the brain is what the fly receives, the patch of each hallway, how far it differs from the reference against the threshold, and whether that input is driving the eye cluster, greyed out while the light on that side is off. Below it is a 20 second timeline of the input, the eye cluster spikes, DNp01, the door and the tablet.
 
 When DNp01 fires, the panel traces the spike backwards through the synapses whose presynaptic neuron fired just before it, and replays that trace over the real neurons 150 times slower than simulated time, with a caption giving its depth in frames and simulated milliseconds and whether it reaches the eye cluster. Nothing on the panel is triggered by the game. Each element is a variable the simulation already holds, and ADR 0022 explains what the trace does and does not show.
 
@@ -201,14 +213,21 @@ A game that fills the screen gets the smaller overlay pinned over the office ins
 The claim at the top of this file is checkable without installing the game.
 
 ```bash
-uv run python src/scripts/verify_connectome.py
+uv run python -m flynaf.scripts.verify_connectome
 ```
 
 It prints the neuron count, the edge count, the coverage against the FlyWire annotations, the super class of every neuron left out, the dimensions of the matrix handed to the engine, how many rows were dropped before it, and the gain in force. It needs the connectome data in place and nothing else.
 
+```bash
+uv run python -m flynaf.scripts.measure_tablet_pathways
+uv run python -m flynaf.scripts.find_motor_pathway --source LC9 --target DNp09
+```
+
+The first drives each tablet channel into the running engine with the inhibitors on and prints which descending neuron answers and on which frame, the table ADR 0026 rests on. The second prints the cheapest excitatory path between any two FlyWire cell types.
+
 Every run also writes a trace to `logs/traces/`, one line per engine frame,
 carrying the input the eyes produced and what the descending neurons did with
-it. `uv run python src/replay.py <trace>` feeds that input back through a real
+it. `uv run python -m flynaf.replay <trace>` feeds that input back through a real
 engine and reports whether the giant fiber answers, how long it took and whether
 it stayed quiet on idle frames.
 
@@ -220,17 +239,25 @@ recording off.
 
 ## Tests
 
-There is no test framework dependency. Every file under `tests/` is a script
-that runs its own cases and prints `ok` when they all hold.
+The tests run under pytest, which `uv sync` installs with ruff as development
+dependencies.
 
 ```bash
-uv run python tests/test_hallway_detection.py
+uv run pytest
+uv run pytest -m "not connectome"
+uv run ruff check src run.py tests
 ```
 
 Most of them stub out the vision and motor layers and finish in under a second.
-Four of them, `test_inhibition.py`, `test_pathways.py`, `test_engine_rate_reset.py`
-and `test_search_loop_wiring.py`, load the real connectome, so they need the
-FlyWire data in place and take a few minutes each.
+`test_search_loop_wiring.py` plays scripted nights in real time and takes about
+two minutes. Two of them, `test_inhibition.py` and `test_pathways.py`, carry the
+`connectome` marker because they run the real engine on the full connectome.
+They need the FlyWire data in place, take several minutes each, and are skipped
+when the data is missing. The second command leaves them out.
+
+Every push to `main` and every pull request runs the lint and the tests on a
+Windows runner. The FlyWire data cannot be redistributed, so the two connectome
+tests are skipped there and run only on a machine that holds the data.
 
 ## Documentation
 
@@ -242,17 +269,23 @@ targets that follow the game window, ADR 0019 covers the trace format and what
 replay does and does not prove, ADR 0020 covers which settings are exposed
 for tuning and where their ranges come from, ADR 0021 covers the launcher
 and why the game is measured only once it is in front, and ADR 0022 covers the
-panel and the rule that only simulation variables drive it.
+panel and the rule that only simulation variables drive it. ADR 0025 covers how
+populations are named by cell type rather than pasted as ids, and ADR 0026 and
+experiment 13 cover the tablet, Foxy and why DNp04 rather than the Giant Fiber
+answers through it. ADR 0027 covers the `flynaf` package and the test pipeline,
+and ADR 0028 covers the single clock every time step of a night is read from.
+ADR 0011 and experiment 14 cover why the fly once reopened the door into Bonnie
+and how the window behind a closed door is read now.
 
 ## Licensing and credits
 
 This project is licensed under the GNU General Public License version 3 or any later version, in `LICENSE`.
 
-It has to be. Two files under `src/neural/` are adapted from `code/run_pytorch.py` in [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain). `models.py` carries the LIF neuron with alpha synapses, the delay buffer and the surrogate gradient, and `data_loader.py` carries the connectome loading. That repository is licensed under GPL version 2 or any later version, so this one inherits it, and version 3 is taken under the "or later" clause. The data files also come from its `data` folder.
+It has to be. Two files under `src/flynaf/neural/` are adapted from `code/run_pytorch.py` in [eonsystemspbc/fly-brain](https://github.com/eonsystemspbc/fly-brain). `models.py` carries the LIF neuron with alpha synapses, the delay buffer and the surrogate gradient, and `data_loader.py` carries the connectome loading. That repository is licensed under GPL version 2 or any later version, so this one inherits it, and version 3 is taken under the "or later" clause. The data files also come from its `data` folder.
 
 Everything else here is original. An audit of all twenty source files against the upstream project found no meaningful overlap outside those two.
 
-The fly in the launcher is the NeuroMechFly body model from [NeLy-EPFL/flygym](https://github.com/NeLy-EPFL/flygym), built from a micro-CT scan of an adult female fly and licensed under Apache 2.0, which the GPL v3 can include. `src/scripts/build_fly_model.py` downloads its simplified meshes at a fixed commit, poses them in the neutral stance and writes `src/env/assets/neuromechfly.bin.gz`, and the Apache licence travels with it as `src/env/assets/LICENSE-neuromechfly.txt`. The brain outline in the panel comes from [navis-flybrains](https://github.com/navis-org/navis-flybrains), GPL v3, made from the FAFB tissue mask, and is downloaded rather than committed. `src/env/assets/CHANGES-neuromechfly.txt` states what was changed from the original meshes, as the Apache licence asks of a derived file. The model is Lobato-Rios et al., *NeuroMechFly, a neuromechanical model of adult Drosophila melanogaster*, Nature Methods 2022, and Wang-Chen et al., *NeuroMechFly v2*, Nature Methods 2024, and both ask to be cited by anyone using the model, which this note does on their behalf.
+The fly in the launcher is the NeuroMechFly body model from [NeLy-EPFL/flygym](https://github.com/NeLy-EPFL/flygym), built from a micro-CT scan of an adult female fly and licensed under Apache 2.0, which the GPL v3 can include. `src/flynaf/scripts/build_fly_model.py` downloads its simplified meshes at a fixed commit, poses them in the neutral stance and writes `src/flynaf/env/assets/neuromechfly.bin.gz`, and the Apache licence travels with it as `src/flynaf/env/assets/LICENSE-neuromechfly.txt`. The brain outline in the panel comes from [navis-flybrains](https://github.com/navis-org/navis-flybrains), GPL v3, made from the FAFB tissue mask, and is downloaded rather than committed. `src/flynaf/env/assets/CHANGES-neuromechfly.txt` states what was changed from the original meshes, as the Apache licence asks of a derived file. The model is Lobato-Rios et al., *NeuroMechFly, a neuromechanical model of adult Drosophila melanogaster*, Nature Methods 2022, and Wang-Chen et al., *NeuroMechFly v2*, Nature Methods 2024, and both ask to be cited by anyone using the model, which this note does on their behalf.
 
 The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It is released under CC BY-NC 4.0 and stays subject to FlyWire's own terms and citation requirements, so anyone using this project has to obtain it from the sources listed above.
 
@@ -276,3 +309,7 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.13 | Described the one click setup and the git and zip routes for the data | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.14 | Named run.py as the only entry point | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.15 | Pointed to the night package that main now wires | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
+| 1.16 | Described the tablet watch on Foxy, the cell type populations and the new scripts, and corrected which tests are slow | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
+| 1.17 | Moved the paths and commands to the flynaf package, described the pytest and CI pipeline and the connectome marker | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.18 | Described the door that reopens after a clearing look, the closed-door calibration, the tablet read from the camera map, the warm-up and the bank of hallway views | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.19 | Described the window read behind a closed door, the lit look a door needs to reopen and the game moved aside for the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |

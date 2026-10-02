@@ -6,19 +6,13 @@ the decision used to live inside the coroutine that blocks for two seconds
 every time the fly looks at something.
 """
 import asyncio
-import os
-import sys
 from unittest.mock import patch
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import torch
 
-import config
-from night import tasks
-from night import calibration
-from night.state import SaccadeRequest, SensoryState
-from telemetry import ConnectomeTelemetry
+from flynaf.night import calibration, tasks
+from flynaf.night.state import SaccadeRequest, SensoryState
+from flynaf.telemetry import ConnectomeTelemetry
 
 NEURONS = 8
 TYPICAL = 30.0
@@ -47,9 +41,16 @@ class FakeEngine:
         self.explore_idx = [2]
         self.l_sensory_idx = [3]
         self.r_sensory_idx = [4]
+        self.l_escape_idx = [5]
+        self.r_escape_idx = [6]
         self.frames = 0
         self.driven_frames = {'left': 0, 'right': 0}
+        self.warmup_activity = []
         self._t0 = None
+
+    def settle(self):
+        self.warmup_activity = [NEURONS]
+        return True
 
     def step(self, state, now):
         self.frames += 1
@@ -70,6 +71,7 @@ class FakeController:
         self.calls = []
         self.log = []
         self.tablet = []
+        self.tablet_up = False
         self._state = state
 
     def _done(self, name):
@@ -83,7 +85,7 @@ class FakeController:
             elif self._state.check_right:
                 gaze = 'right'
         self.log.append((name, gaze))
-        self.tablet.append((name, bool(self._state and self._state.camera_open)))
+        self.tablet.append((name, self.tablet_up or bool(self._state and self._state.camera_open)))
         return _ImmediateEvent()
 
     def set_left_light(self, on):
@@ -104,28 +106,25 @@ class FakeController:
     def trigger_right_door(self):
         return self._done('trigger_right_door')
 
-    def centre_view(self):
-        return self._done('centre_view')
-
-    def open_camera(self):
-        return self._done('open_camera')
-
-    def close_camera(self, force=False):
-        return self._done('close_camera')
-
-    def nudge_camera_bar(self):
-        return self._done('nudge_camera_bar')
+    def flip_tablet(self):
+        done = self._done('flip_tablet')
+        self.tablet_up = not self.tablet_up
+        return done
 
 
 class _ImmediateEvent:
     def wait(self, timeout=None):
         return True
 
+    def is_set(self):
+        return True
+
 
 class FakeVision:
-    mse_threshold = 1500.0
+    mse_threshold = 40.0
 
-    def __init__(self):
+    def __init__(self, controller=None):
+        self._controller = controller
         self.peaks = {'left': 0.0, 'right': 0.0}
         self.ref_left = None
         self.ref_right = None
@@ -140,15 +139,18 @@ class FakeVision:
         return self.peaks[side]
 
     def is_camera_up(self):
-        return False
+        return bool(self._controller and self._controller.tablet_up)
 
-    def get_left_sensory_rate(self):
+    def is_camera_down(self):
+        return not self.is_camera_up()
+
+    def light_on(self, side):
+        return None
+
+    def get_left_sensory_rate(self, door_closed=False):
         return 0.0
 
-    def get_right_sensory_rate(self):
-        return 0.0
-
-    def camera_mse(self):
+    def get_right_sensory_rate(self, door_closed=False):
         return 0.0
 
     def clear_buffers(self):
@@ -157,12 +159,9 @@ class FakeVision:
     def load_reference_from_disk(self):
         return True
 
-    def capture_camera_closed_reference(self):
-        pass
-
 
 class FakeFeed:
-    def publish(self, indices):
+    def publish(self, indices, panel=None):
         pass
 
     def trace_escape(self, side, target, sources, door_moved):
@@ -207,16 +206,16 @@ async def _play(seconds: float, engine=None):
         shutdown.set()
 
     vision_task = asyncio.create_task(tasks.vision_task(
-        FakeVision(), controller, state, shutdown,
+        FakeVision(controller), controller, state, shutdown,
     ))
     engine_task = asyncio.create_task(tasks.engine_task(
-        engine, FakeVision(), controller, state, shutdown, telemetry,
-        calibrated, FakeFeed(), {}, saccade,
+        engine, FakeVision(controller), controller, state, shutdown, telemetry,
+        calibrated, FakeFeed(), saccade,
     ))
     view_ready = asyncio.Event()
     view_ready.set()
     saccade_task = asyncio.create_task(tasks.saccade_task(
-        engine, FakeVision(), controller, state, shutdown, telemetry, calibrated,
+        engine, FakeVision(controller), controller, state, shutdown, telemetry, calibrated,
         saccade, view_ready,
     ))
     watcher = asyncio.create_task(watch_gaze())
@@ -236,7 +235,7 @@ async def _play(seconds: float, engine=None):
 
 
 def _run(seconds, engine=None):
-    with patch.object(calibration, 'countdown_to_the_night', new=_office_is_up):
+    with patch.object(calibration, 'countdown_to_the_night', new=_office_is_up),          patch.object(calibration, 'game_in_front', return_value=0):
         return asyncio.run(_play(seconds, engine))
 
 

@@ -1,13 +1,10 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
 from unittest.mock import patch
 
-import config
-from env import anchor
-from env.overlay import (
+import pytest
+
+from flynaf import config
+from flynaf.env import anchor
+from flynaf.env.overlay import (
     beside_game_rect,
     capture_regions,
     centered_rect,
@@ -19,6 +16,13 @@ from env.overlay import (
 )
 
 EDGE_MIN_WIDTH = 265
+
+
+@pytest.fixture(autouse=True)
+def unanchored():
+    anchor.set_game_rect(None)
+    yield
+    anchor.set_game_rect(None)
 
 
 def _beside(game_rect, screen=(1920, 1080)):
@@ -91,7 +95,7 @@ def test_real_config_regions_leave_room_on_this_layout():
     regions = capture_regions()
     vision = config.VISION_CALIBRATION
 
-    assert len(regions) == 3
+    assert len(regions) == 4
     assert regions[0] == centered_rect(
         vision.left_target_x, vision.left_target_y, vision.left_bbox_size
     )

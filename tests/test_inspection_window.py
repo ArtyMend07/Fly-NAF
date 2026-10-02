@@ -1,12 +1,8 @@
 import asyncio
-import os
-import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-from night import tasks
-from night.state import SensoryState
+from flynaf import config
+from flynaf.night import tasks
+from flynaf.night.state import SensoryState
 
 FRAMES = config.FORAGING_PARAMS.light_inspection_frames
 

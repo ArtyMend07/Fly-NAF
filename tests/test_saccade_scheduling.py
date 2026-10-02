@@ -1,10 +1,5 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-from search_drive import SearchDrive
+from flynaf import config
+from flynaf.search_drive import SearchDrive
 
 SPAN = 100          # 50 sensory neurons x 2 steps per frame
 DT = 1.0 / config.SIMULATION_PARAMS.target_fps
@@ -129,7 +124,10 @@ def test_a_static_offset_is_adapted_away_instead_of_parking_the_fly():
     drive = SearchDrive(SPAN)
     clock = Clock()
     drift = measured_drift(1500)
-    biased = lambda i: 25.0 + drift[i]
+
+    def biased(i):
+        return 25.0 + drift[i]
+
     looks = feed(drive, clock, 1500, membrane_diff=biased, busy_frames=BUSY_FRAMES)
     sides = [side for _, side, _ in looks]
     assert sides.count('left') > 0 and sides.count('right') > 0

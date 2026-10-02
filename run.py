@@ -2,15 +2,11 @@ import argparse
 import glob
 import logging
 import os
-import sys
+from datetime import datetime
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, 'src'))
-
-import config
-from env import desktop
-import launcher
-from scripts import fetch_data
+from flynaf import config, launcher
+from flynaf.env import desktop
+from flynaf.scripts import fetch_data
 
 _log = logging.getLogger('run')
 
@@ -37,14 +33,13 @@ def _report_platform():
 
 
 def cmd_verify() -> int:
-    from scripts import verify_connectome
+    from flynaf.scripts import verify_connectome
     verify_connectome.main()
     return 0
 
 
 def cmd_replay(trace: str | None) -> int:
-    import replay as replay_module
-
+    from flynaf import replay as replay_module
     path = trace or _latest_trace()
     if path is None:
         _log.error(
@@ -69,8 +64,7 @@ def _choose(session, mode: str | None):
 
 
 def cmd_play(mode: str | None) -> int:
-    import main as main_module
-
+    from flynaf import main as main_module
     if not fetch_data.ready():
         fetch_data.print_status()
         if not fetch_data.fetch():
@@ -102,8 +96,17 @@ def cmd_play(mode: str | None) -> int:
     return 0
 
 
+def _log_handlers() -> list:
+    folder = os.path.join(config.PROJECT_ROOT, 'logs')
+    os.makedirs(folder, exist_ok=True)
+    stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    path = os.path.join(folder, f'run_{stamp}.log')
+    return [logging.StreamHandler(), logging.FileHandler(path, encoding='utf-8')]
+
+
 def main() -> int:
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s',
+                        handlers=_log_handlers())
     parser = argparse.ArgumentParser(description='Run Fly-NAF, or one of the ways to inspect it.')
     parser.add_argument('--verify', action='store_true', help='check the connectome and exit')
     parser.add_argument('--replay', nargs='?', const='', metavar='TRACE',

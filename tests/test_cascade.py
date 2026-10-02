@@ -1,11 +1,7 @@
-import os
-import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from env.cascade import CascadeTracer
+from flynaf.env.cascade import CascadeTracer
 
 
 def _tracer(synapses: list, size: int, frames: list, **limits) -> CascadeTracer:

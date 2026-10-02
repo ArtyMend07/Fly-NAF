@@ -1,13 +1,9 @@
-import os
-import sys
 import queue
 import threading
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-import env.input_controller as input_controller
+import flynaf.env.input_controller as input_controller
+from flynaf import config
 
 
 def _start_isolated_worker() -> queue.Queue:
@@ -28,9 +24,6 @@ def test_pan_side_classifies_every_real_button():
 
 
 def test_the_office_reports_which_way_it_faces():
-    """The camera-up detector reads a fixed patch of the office, so a pan the
-    fly caused itself looks exactly like a raised tablet unless it knows it is
-    mid-turn."""
     mock_desktop = MagicMock()
 
     with patch.object(input_controller, 'desktop', mock_desktop),          patch.object(input_controller.time, 'sleep'):
@@ -47,7 +40,7 @@ def test_the_office_reports_which_way_it_faces():
         cmd_queue.join()
         assert controller.facing() == 'right'
 
-        controller.open_camera()
+        controller.flip_tablet()
         cmd_queue.join()
         assert controller.facing() == 'centre'
 

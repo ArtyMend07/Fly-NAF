@@ -1,10 +1,6 @@
-import os
-import sys
 from unittest.mock import patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from night import panel
+from flynaf.night import panel
 
 GAME = 4242
 PANEL = 99

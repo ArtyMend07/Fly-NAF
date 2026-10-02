@@ -1,64 +1,41 @@
 import asyncio
-import os
-import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+import pytest
 
-from night import monitor
-from night.state import SensoryState
-from telemetry import ConnectomeTelemetry
+from flynaf.night import monitor
+from flynaf.night.state import SensoryState
+from flynaf.telemetry import ConnectomeTelemetry
 
 
-class _ImmediateEvent:
+class Done:
     def wait(self, timeout=None):
         return True
 
 
-import config
-
-CONFIRM = config.CAMERA_DETECTION.lower_confirm_sec
-BUDGET = config.CAMERA_DETECTION.lower_gesture_attempts
-
-
-class ScriptedVision:
-    def __init__(self, still_up_for: int):
-        self.still_up_for = still_up_for
-        self.checks = 0
-        self.captures = 0
-        self.clears = 0
-
-    def clear_buffers(self):
-        self.clears += 1
+class Screen:
+    def __init__(self, up=False, ignored_flips=0):
+        self.up = up
+        self.ignored_flips = ignored_flips
 
     def is_camera_up(self):
-        self.checks += 1
-        return self.checks <= self.still_up_for
+        return self.up
 
-    def capture_camera_closed_reference(self):
-        self.captures += 1
-
-    def camera_mse(self):
-        return 4200.0
+    def is_camera_down(self):
+        return not self.up
 
 
-class RecordingController:
-    def __init__(self):
-        self.calls = []
+class Bar:
+    def __init__(self, screen: Screen):
+        self.screen = screen
+        self.flips = 0
 
-    def facing(self):
-        return 'centre'
-
-    def close_camera(self, force=False):
-        self.calls.append('close_camera')
-        return _ImmediateEvent()
-
-    def nudge_camera_bar(self):
-        self.calls.append('nudge_camera_bar')
-        return _ImmediateEvent()
-
-    def open_camera(self):
-        self.calls.append('open_camera')
-        return _ImmediateEvent()
+    def flip_tablet(self):
+        self.flips += 1
+        if self.screen.ignored_flips:
+            self.screen.ignored_flips -= 1
+        else:
+            self.screen.up = not self.screen.up
+        return Done()
 
 
 class StubExplore:
@@ -69,160 +46,168 @@ class StubExplore:
         self.drive = 1.2
 
 
-def _lower(vision, controller, attempt=0, confirm=0.05):
-    return asyncio.run(monitor.lower_monitor(
-        vision, controller, settle_sec=0.02, confirm_sec=confirm,
-        attempt=attempt, gesture_budget=BUDGET,
-    ))
+@pytest.fixture(autouse=True)
+def quick_confirmation(monkeypatch):
+    monkeypatch.setattr(monitor, 'ALREADY_THERE_SEC', 0.0)
 
 
-def test_the_reference_is_not_recaptured_while_the_tablet_is_still_up():
-    vision = ScriptedVision(still_up_for=99)
-
-    reanchored = asyncio.run(monitor.reanchor_office_reference(vision, 0.02, 0.05))
-
-    assert reanchored is False
-    assert vision.captures == 0
+def put(screen, up):
+    bar = Bar(screen)
+    reached = asyncio.run(monitor.put_tablet(screen, bar, up, confirm_sec=0.05))
+    return reached, bar.flips
 
 
-def test_the_reference_is_recaptured_once_the_office_is_back():
-    vision = ScriptedVision(still_up_for=0)
+@pytest.mark.parametrize('start_up, wanted_up', [(False, True), (True, False)])
+def test_one_gesture_puts_the_tablet_where_it_is_wanted(start_up, wanted_up):
+    screen = Screen(up=start_up)
 
-    reanchored = asyncio.run(monitor.reanchor_office_reference(vision, 0.02, 0.05))
-
-    assert reanchored is True
-    assert vision.captures == 1
-    assert vision.clears == 1
+    assert put(screen, wanted_up) == (True, 1)
+    assert screen.up is wanted_up
 
 
-def test_one_early_reading_does_not_condemn_a_close_that_worked():
-    """The gestures alternate, so declaring failure too soon makes the next
-    attempt tap the bar and put the tablet straight back up. That flap is what
-    left the fly blind for fifty seconds on 2026-09-17."""
-    vision = ScriptedVision(still_up_for=1)
-    controller = RecordingController()
-
-    lowered = _lower(vision, controller)
-
-    assert lowered is True
-    assert controller.calls == ['close_camera']
-    assert vision.captures == 1
+@pytest.mark.parametrize('up', [True, False])
+def test_no_gesture_when_the_screen_already_shows_the_wanted_state(up):
+    assert put(Screen(up=up), up) == (True, 0)
 
 
-def test_each_attempt_makes_exactly_one_gesture():
-    vision = ScriptedVision(still_up_for=99)
-    controller = RecordingController()
+def test_a_gesture_the_game_ignored_is_reported_as_a_miss():
+    screen = Screen(up=True, ignored_flips=1)
 
-    assert _lower(vision, controller, attempt=0) is False
-    assert controller.calls == ['close_camera']
-
-    assert _lower(vision, RecordingController(), attempt=1) is False
-
-    second = RecordingController()
-    _lower(vision, second, attempt=1)
-    assert second.calls == ['nudge_camera_bar']
+    assert put(screen, False) == (False, 1)
+    assert screen.up is True
 
 
-def test_the_fly_stops_reaching_once_the_budget_is_spent():
-    vision = ScriptedVision(still_up_for=99)
-    controller = RecordingController()
+def test_putting_the_tablet_down_retries_until_the_screen_agrees():
+    screen = Screen(up=True, ignored_flips=2)
+    bar = Bar(screen)
 
-    lowered = _lower(vision, controller, attempt=BUDGET)
-
-    assert lowered is False
-    assert controller.calls == []
-
-
-def test_a_tablet_lowered_by_hand_is_picked_up_without_a_gesture():
-    vision = ScriptedVision(still_up_for=0)
-    controller = RecordingController()
-
-    lowered = _lower(vision, controller, attempt=BUDGET)
+    lowered = asyncio.run(monitor.put_tablet_down(screen, bar, attempts=4))
 
     assert lowered is True
-    assert controller.calls == []
-    assert vision.captures == 1
+    assert bar.flips == 3
 
 
-async def _settle_lowering(monitor):
-    while monitor._lowering is not None:
-        await asyncio.wait_for(asyncio.shield(monitor._lowering), timeout=10.0)
-        await asyncio.sleep(0)
-        monitor.update(2000.0, StubExplore(wants=False, spent=True), 0.0, look_pending=False)
-
-
-def _monitor(vision, controller):
-    state = SensoryState()
+def control(screen, state=None):
+    state = state or SensoryState()
     telemetry = ConnectomeTelemetry()
-    return monitor.MonitorControl(vision, controller, telemetry, state), state, telemetry
+    bar = Bar(screen)
+    control_ = monitor.MonitorControl(screen, bar, telemetry, state)
+    control_._confirm_sec = 0.05
+    return control_, state, telemetry, bar
+
+
+async def settle(control_, now, explore):
+    for _ in range(50):
+        control_._state.tablet_seen = control_._vision.up
+        control_.update(now, explore, 0.0, look_pending=False)
+        if control_._gesture is None:
+            return
+        await asyncio.sleep(0.01)
 
 
 def test_the_tablet_does_not_rise_while_a_look_is_pending():
-    monitor, state, _ = _monitor(ScriptedVision(0), RecordingController())
+    control_, state, _, bar = control(Screen())
 
     async def scenario():
-        monitor.update(1000.0, StubExplore(wants=True), 0.0, look_pending=True)
+        control_.update(1000.0, StubExplore(wants=True), 0.0, look_pending=True)
 
     asyncio.run(scenario())
 
-    assert monitor.is_open is False
-    assert state.camera_open is False
+    assert bar.flips == 0
+    assert control_.is_open is False
 
 
-def test_the_tablet_rises_when_nothing_else_is_running():
-    controller = RecordingController()
-    monitor, state, telemetry = _monitor(ScriptedVision(0), controller)
+def test_the_fly_only_believes_the_tablet_is_up_once_the_map_is_on_screen():
+    control_, state, telemetry, bar = control(Screen())
 
     async def scenario():
-        monitor.update(1000.0, StubExplore(wants=True), 0.0, look_pending=False)
+        await settle(control_, 1000.0, StubExplore(wants=True))
 
     asyncio.run(scenario())
 
-    assert monitor.is_open is True
+    assert control_.is_open is True
     assert state.camera_open is True
-    assert 'open_camera' in controller.calls
     assert telemetry.stats['camera_pulls'] == 1
 
 
-def test_the_tablet_stays_up_until_the_screen_confirms_it_came_down():
-    vision = ScriptedVision(still_up_for=99)
-    controller = RecordingController()
-    monitor, state, telemetry = _monitor(vision, controller)
+def test_a_raise_the_game_ignored_leaves_the_fly_believing_the_tablet_is_down():
+    control_, state, telemetry, _ = control(Screen(ignored_flips=1))
 
     async def scenario():
-        monitor.update(1000.0, StubExplore(wants=True), 0.0, look_pending=False)
-        bored = StubExplore(wants=False, spent=True)
-        monitor.update(1002.0, bored, 0.0, look_pending=False)
-        await _settle_lowering(monitor)
+        await settle(control_, 1000.0, StubExplore(wants=True))
 
     asyncio.run(scenario())
 
-    assert monitor.is_open is True
-    assert state.camera_open is True
-    assert telemetry.monitor_stuck == 1
-
-
-def test_a_confirmed_lowering_clears_the_open_state():
-    vision = ScriptedVision(still_up_for=0)
-    controller = RecordingController()
-    monitor, state, telemetry = _monitor(vision, controller)
-
-    async def scenario():
-        monitor.update(1000.0, StubExplore(wants=True), 0.0, look_pending=False)
-        bored = StubExplore(wants=False, spent=True)
-        monitor.update(1002.0, bored, 0.0, look_pending=False)
-        await _settle_lowering(monitor)
-
-    asyncio.run(scenario())
-
-    assert monitor.is_open is False
+    assert control_.is_open is False
     assert state.camera_open is False
-    assert telemetry.monitor_stuck == 0
-    assert len(telemetry.camera_watches) == 1
+    assert telemetry.raises_missed == 1
 
 
-if __name__ == '__main__':
-    for name, fn in sorted(globals().items()):
-        if name.startswith('test_'):
-            fn()
-    print('ok')
+def test_a_lowering_counts_only_when_the_map_has_left_the_screen():
+    screen = Screen()
+    control_, state, telemetry, _ = control(screen)
+
+    async def scenario():
+        await settle(control_, 1000.0, StubExplore(wants=True))
+        screen.ignored_flips = 1
+        await settle(control_, 1002.0, StubExplore(wants=False, spent=True))
+        assert control_.is_open is True
+        await settle(control_, 1010.0, StubExplore(wants=False, spent=True))
+
+    asyncio.run(scenario())
+
+    assert telemetry.monitor_stuck == 1
+    assert control_.is_open is False
+    assert state.camera_open is False
+    assert screen.up is False
+
+
+def test_a_tablet_found_on_screen_behind_the_flys_back_is_put_away():
+    screen = Screen(up=True)
+    control_, _, telemetry, bar = control(screen)
+
+    async def scenario():
+        await settle(control_, 1000.0, StubExplore(wants=False))
+
+    asyncio.run(scenario())
+
+    assert screen.up is False
+    assert bar.flips == 1
+    assert telemetry.tablet_found_up == 1
+    assert control_.is_open is False
+
+
+@pytest.mark.parametrize('ignored, door_closed', [(0, True), (2, False)])
+def test_the_escape_closes_the_door_only_after_the_tablet_is_down(ignored, door_closed):
+    screen = Screen()
+    control_, _, _, _ = control(screen)
+    closed = []
+
+    async def reflex():
+        assert screen.up is False
+        closed.append(True)
+
+    async def scenario():
+        await settle(control_, 1000.0, StubExplore(wants=True))
+        screen.ignored_flips = ignored
+        control_.escape(1001.0, reflex)
+        await control_._gesture[1]
+
+    asyncio.run(scenario())
+
+    assert bool(closed) is door_closed
+
+
+@pytest.mark.parametrize('watched, still_open', [(1.0, True), (1.9, True), (2.1, False)])
+def test_the_fly_only_tires_of_a_camera_after_it_could_read_it(watched, still_open):
+    screen = Screen()
+    control_, state, _, _ = control(screen)
+
+    async def scenario():
+        await settle(control_, 1000.0, StubExplore(wants=True))
+        state.tablet_readable_at = 1000.0 + 1.2
+        await settle(control_, 1000.0 + watched, StubExplore(wants=False, spent=True))
+
+    asyncio.run(scenario())
+
+    assert control_.is_open is still_open
