@@ -39,15 +39,15 @@ def _tablet_view() -> tuple:
 
 def _beside(game_rect, screen=(1920, 1080)):
     with patch.object(anchor, 'game_rect', return_value=game_rect):
-        return beside_game_rect(screen[0], screen[1], 420, 620, 8)
+        return beside_game_rect(screen[0], 420, 620, 8)
 
 
-def test_the_panel_sits_right_of_a_windowed_game_down_to_the_taskbar():
-    assert _beside((0, 31, 1280, 720)) == (1288, 31, 620, 1001)
+def test_the_panel_sits_right_of_a_windowed_game_at_the_game_height():
+    assert _beside((0, 31, 1280, 720)) == (1288, 31, 620, 720)
 
 
 def test_the_panel_takes_the_left_side_when_only_that_one_fits():
-    assert _beside((600, 31, 1280, 720)) == (8, 31, 584, 1001)
+    assert _beside((600, 31, 1280, 720)) == (8, 31, 584, 720)
 
 
 def test_no_panel_beside_a_game_that_fills_the_screen():

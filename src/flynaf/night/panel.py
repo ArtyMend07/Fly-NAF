@@ -52,10 +52,10 @@ def restore_game_focus(game: int, panel: int, timeout_sec: float):
     )
 
 
-def _beside_the_game(screen_w: int, screen_h: int):
+def _beside_the_game(screen_w: int):
     params = config.BRAIN_VIEW
     beside = beside_game_rect(
-        screen_w, screen_h, params.beside_min_width, params.width, params.ingame_margin,
+        screen_w, params.beside_min_width, params.width, params.ingame_margin,
     )
     if beside is not None or not params.dock_game:
         return beside
@@ -63,14 +63,14 @@ def _beside_the_game(screen_w: int, screen_h: int):
         return None
     _log.info('game window moved to the left edge to make room for the panel')
     return beside_game_rect(
-        screen_w, screen_h, params.beside_min_width, params.width, params.ingame_margin,
+        screen_w, params.beside_min_width, params.width, params.ingame_margin,
     )
 
 
 def _choose_panel_placement(url: str):
     params = config.BRAIN_VIEW
     screen_w, screen_h = screen_size()
-    beside = _beside_the_game(screen_w, screen_h)
+    beside = _beside_the_game(screen_w)
     if beside is not None:
         _log.info('brain view beside the game, panel %dx%d at %d,%d', beside[2], beside[3], *beside[:2])
         return (*beside, f'{url}?corner={params.corner_radius}', True)
