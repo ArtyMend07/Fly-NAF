@@ -13,7 +13,7 @@ Night 3 from midnight to 5 AM, sped up. The game is on the left and the fly's br
 ## Best run so far
 
 The fly reached 5 AM on night 3 with 9% of the power left, and Foxy got in
-before 6. That is the night in the clip above, and the full run is recorded at
+before 6. That is the night in the clip above, and the video is at
 https://www.youtube.com/watch?v=R4Ogbf33Gfo.
 
 ## What the fly actually does
