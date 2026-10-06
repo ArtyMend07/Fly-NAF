@@ -50,7 +50,7 @@ def quick_confirmation(monkeypatch):
 
 
 class StubTablet:
-    camera = '2A'
+    camera = '1C'
 
     def __init__(self, escape_side):
         self.escape_side = escape_side
@@ -117,7 +117,7 @@ def test_the_escape_is_reported_as_its_own_release_and_door_cause():
     control, doors, controller, telemetry, state, tablet = _run('right')
     assert telemetry.camera_release_reasons['escape'] == 1
     assert telemetry.stats['right_door_panics'] == 1
-    assert telemetry.tablet_escapes == {'2A right': 1}
+    assert telemetry.tablet_escapes == {'1C right': 1}
     assert tablet.lowered >= 1
 
 

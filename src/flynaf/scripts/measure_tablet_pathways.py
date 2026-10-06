@@ -20,6 +20,9 @@ def conditions() -> list:
         rows.append((f'loom {level:.2f}, tablet up',
                      {'loom_size_left': level, 'loom_speed_left': level}, rate, 0.0))
     for level in LEVELS:
+        rows.append((f'loom {level:.2f}, tablet down',
+                     {'loom_size_left': level, 'loom_speed_left': level}, 0.0, 0.0))
+    for level in LEVELS:
         rows.append((f'figure {level:.2f}, tablet up', {'figure_left': level}, rate, 0.0))
     return rows
 

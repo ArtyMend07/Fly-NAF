@@ -27,13 +27,12 @@ def capture_regions() -> list:
     right = anchor.point(vision.right_target_x, vision.right_target_y)
     map_corner = anchor.point(camera.map_left, camera.map_top)
     map_far_corner = anchor.point(camera.map_right, camera.map_bottom)
-    tablet = config.TABLET_VISION
-    feed = anchor.point(tablet.feed_x, tablet.feed_y)
+    view = config.TABLET_VISION.view
     return [
         centered_rect(left[0], left[1], anchor.size(vision.left_bbox_size)),
         centered_rect(right[0], right[1], anchor.size(vision.right_bbox_size)),
         (*map_corner, *map_far_corner),
-        centered_rect(feed[0], feed[1], anchor.size(tablet.feed_size)),
+        (*anchor.point(view[0], view[1]), *anchor.point(view[2], view[3])),
     ]
 
 

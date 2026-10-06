@@ -1,15 +1,15 @@
 from flynaf import config
 from flynaf.night.state import SensoryState
 from flynaf.night.tablet.gaze import TabletGaze
+from flynaf.night.tablet.memory import ObjectMemory
 from flynaf.night.tablet.watch import TabletWatch
 from flynaf.telemetry import ConnectomeTelemetry
 
 RAISE = 1.2
-SWITCH = 0.5
 
 
 def _gaze() -> TabletGaze:
-    return TabletGaze(config.TABLET_VISION.cameras, '1C', RAISE, SWITCH)
+    return TabletGaze(config.TABLET_VISION.cameras, '1C', RAISE)
 
 
 class _Done:
@@ -48,7 +48,7 @@ def test_raising_the_tablet_always_opens_on_the_cove():
 PURSUIT_CASES = (
     ('no spike', 20.0, False, None),
     ('spike during the raise static', 10.1, True, None),
-    ('spike once the cove is readable', 20.0, True, '2A'),
+    ('spike once the cove is readable', 20.0, True, '1C'),
 )
 
 
@@ -56,19 +56,40 @@ def test_pursuit_needs_a_dnp09_spike_on_a_readable_cove():
     for label, now, fired, expected in PURSUIT_CASES:
         gaze = _gaze()
         gaze.on_raised(now=10.0)
-        assert gaze.pursue(now, fired) == expected, label
+        pursued = gaze.pursued(now, fired)
+        assert (pursued.name if pursued else None) == expected, label
 
 
-def test_pursuit_happens_once_per_raise_and_never_from_the_hall():
+def test_the_gaze_never_leaves_the_cove_on_its_own():
     gaze = _gaze()
     gaze.on_raised(now=0.0)
-    assert gaze.pursue(5.0, True) == '2A'
-    assert gaze.camera == '2A'
-    assert gaze.pursue(10.0, True) is None
+    gaze.pursued(5.0, True)
+    assert gaze.camera == '1C'
 
-    gaze.on_lowered()
-    gaze.on_raised(now=20.0)
-    assert gaze.pursue(25.0, True) == '2A'
+
+def _watching_the_cove(figure: float):
+    state = SensoryState(camera_open=True)
+    controller, telemetry = RecordingController(), ConnectomeTelemetry()
+    memory = ObjectMemory(decay_sec=4.0)
+    watch = TabletWatch(_gaze(), RecordingFeed(), controller, telemetry, state, memory)
+    watch.on_raise(now=0.0)
+    state.tablet_drive = {'figure_left': figure}
+    return watch, memory, controller, telemetry
+
+
+def test_a_dnp09_spike_on_the_cove_remembers_the_figure_it_was_looking_at():
+    watch, memory, controller, telemetry = _watching_the_cove(figure=0.6)
+    watch.update(5.0, explore_fired=True, escape_fired={})
+    assert abs(memory.level(5.0, 'left') - 0.6) < 1e-9
+    assert controller.selected == [('1C', config.TABLET_VISION.map_ready_sec)]
+    assert telemetry.figures_remembered == {'1C': 1}
+
+
+def test_a_spontaneous_dnp09_spike_on_an_empty_view_remembers_nothing():
+    watch, memory, controller, telemetry = _watching_the_cove(figure=0.0)
+    watch.update(5.0, explore_fired=True, escape_fired={})
+    assert memory.level(5.0) == 0.0
+    assert telemetry.figures_remembered == {}
 
 
 def test_the_watch_taps_the_map_and_tells_the_senses_where_it_looks():
@@ -80,11 +101,7 @@ def test_the_watch_taps_the_map_and_tells_the_senses_where_it_looks():
     assert feed.active
     assert state.tablet_camera == '1C'
     assert state.tablet_readable_at == RAISE
-
-    watch.update(5.0, explore_fired=True, escape_fired={})
-    assert controller.selected == [('1C', config.TABLET_VISION.map_ready_sec), ('2A', 0.0)]
-    assert state.tablet_camera == '2A'
-    assert telemetry.camera_view_causes == {'raise': 1, 'pursuit': 1}
+    assert telemetry.camera_views == {'1C': 1}
 
     watch.on_lower()
     assert not feed.active

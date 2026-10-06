@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from flynaf import config
-from flynaf.env import anchor
+from flynaf.env import anchor, overlay
 from flynaf.env.overlay import (
     beside_game_rect,
     capture_regions,
@@ -23,6 +23,18 @@ def unanchored():
     anchor.set_game_rect(None)
     yield
     anchor.set_game_rect(None)
+
+
+@pytest.fixture
+def tablet_view_ignored():
+    regions = [region for region in capture_regions() if region != _tablet_view()]
+    with patch.object(overlay, 'capture_regions', return_value=regions):
+        yield
+
+
+def _tablet_view() -> tuple:
+    left, top, right, bottom = config.TABLET_VISION.view
+    return (*anchor.point(left, top), *anchor.point(right, bottom))
 
 
 def _beside(game_rect, screen=(1920, 1080)):
@@ -101,14 +113,19 @@ def test_real_config_regions_leave_room_on_this_layout():
     )
 
 
-def test_ingame_overlay_clears_every_capture_and_motor_region():
+def test_no_ingame_overlay_over_the_camera_view_the_tablet_reads():
+    params = config.BRAIN_VIEW
+    assert ingame_overlay_rect(params.ingame_width, params.ingame_height, params.ingame_margin) is None
+
+
+def test_ingame_overlay_clears_every_capture_and_motor_region(tablet_view_ignored):
     params = config.BRAIN_VIEW
     position = ingame_overlay_rect(params.ingame_width, params.ingame_height, params.ingame_margin)
 
     assert position is not None
     x, y = position
     panel = (x, y, x + params.ingame_width, y + params.ingame_height)
-    for region in capture_regions() + motor_regions():
+    for region in overlay.capture_regions() + motor_regions():
         assert not rects_overlap(panel, region)
 
 
@@ -118,7 +135,7 @@ def test_ingame_panel_is_wide_enough_for_the_browser_to_honour_it():
     assert config.BRAIN_VIEW.ingame_width >= EDGE_MIN_WIDTH
 
 
-def test_ingame_overlay_stays_inside_the_game_area():
+def test_ingame_overlay_stays_inside_the_game_area(tablet_view_ignored):
     params = config.BRAIN_VIEW
     left, _top, right, bottom = game_bounds()
     x, y = ingame_overlay_rect(params.ingame_width, params.ingame_height, params.ingame_margin)
@@ -133,7 +150,7 @@ def test_ingame_overlay_returns_none_when_the_panel_cannot_fit():
     assert ingame_overlay_rect(right - left + 1, 100, margin=1) is None
 
 
-def test_ingame_overlay_prefers_the_top_of_the_screen():
+def test_ingame_overlay_prefers_the_top_of_the_screen(tablet_view_ignored):
     params = config.BRAIN_VIEW
     _x, y = ingame_overlay_rect(params.ingame_width, params.ingame_height, params.ingame_margin)
 

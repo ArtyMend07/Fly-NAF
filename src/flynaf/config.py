@@ -65,7 +65,7 @@ class ForagingParams:
     camera_refractory_sec: float = 15.0
     saccade_refractory_sec: float = 2.5
     camera_watch_max_sec: float = 6.0
-    camera_watch_min_sec: float = 0.8
+    camera_watch_min_sec: float = 2.0
     camera_release_forage_bias: float = 0.5
     closed_door_mse_threshold: float = 30.0
 
@@ -191,16 +191,24 @@ class CameraButton:
     x: int
     y: int
     side: str
-    channel: str
-    pursue_to: str | None = None
 
 
 @dataclass(frozen=True)
 class TabletVision:
-    feed_x: int = 470
-    feed_y: int = 330
-    feed_size: int = 360
-    feed_pixels: int = 64
+    view: tuple = (40, 20, 1250, 640)
+    hud: tuple = (
+        (820, 280, 1250, 640),
+        (1100, 20, 1250, 110),
+        (40, 20, 160, 110),
+        (40, 600, 300, 640),
+    )
+    view_scale: int = 8
+    pan_reach: int = 360
+    pan_coarse_step: int = 3
+    nearest_references: int = 3
+    cell_pixels: int = 5
+    strongest_cells: int = 3
+    start_raise_patience_sec: float = 6.0
     capture_delay_sec: float = 0.03
     map_ready_sec: float = 0.4
     raise_settle_sec: float = 1.2
@@ -208,15 +216,12 @@ class TabletVision:
     reference_sweep_sec: float = 3.0
     reference_frames: int = 24
     noise_margin: float = 1.5
-    figure_span_mse: float = 1000.0
-    loom_span_mse: float = 1000.0
-    loom_speed_span_mse_per_sec: float = 3000.0
-    loom_speed_decay_sec: float = 0.3
+    figure_span_mse: float = 1500.0
+    object_memory_sec: float = 10.0
     lower_settle_sec: float = 0.35
     first_camera: str = '1C'
     cameras: tuple = (
-        CameraButton('1C', 925, 484, 'left', 'figure', pursue_to='2A'),
-        CameraButton('2A', 983, 599, 'left', 'loom'),
+        CameraButton('1C', 925, 484, 'left'),
     )
 
 

@@ -725,7 +725,7 @@ function drawTimeline(now) {
       } else if (row.kind === 'door') {
         if (f['door_' + row.side]) { tctx.fillStyle = 'rgba(255,92,74,0.35)'; tctx.fillRect(x, y + 2, dx, inner); }
       } else if (row.kind === 'tablet') {
-        if (f.camera) { tctx.fillStyle = f.cam === '2A' ? 'rgba(236,72,153,0.5)' : 'rgba(168,85,247,0.45)'; tctx.fillRect(x, y + 2, dx, inner); }
+        if (f.camera) { tctx.fillStyle = 'rgba(168,85,247,0.45)'; tctx.fillRect(x, y + 2, dx, inner); }
       } else if (row.kind === 'feed') {
         const level = Math.max(f.figure, f.loom);
         if (level > 0) {

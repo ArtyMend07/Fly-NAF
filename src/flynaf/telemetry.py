@@ -27,7 +27,7 @@ class ConnectomeTelemetry:
         self.camera_watches = []
         self.camera_release_reasons = {'drive': 0, 'search': 0, 'cap': 0, 'escape': 0}
         self.camera_views = {}
-        self.camera_view_causes = {'raise': 0, 'pursuit': 0}
+        self.figures_remembered = {}
         self.tablet_escapes = {}
         self.look_contrast = {'left': [], 'right': []}
         self.look_frames = []
@@ -48,20 +48,24 @@ class ConnectomeTelemetry:
         self.stats[f'{side}_door_panics'] += 1
         self.events.append(f"[{t:>6.1f}s] Visual threat detected. {cause.capitalize()} fired. {side.capitalize()} door slammed.")
 
-    def record_camera_view(self, camera: str, cause: str):
+    def record_camera_view(self, camera: str):
         t = clock.now() - self.start_time
         self.camera_views[camera] = self.camera_views.get(camera, 0) + 1
-        if cause in self.camera_view_causes:
-            self.camera_view_causes[cause] += 1
-        why = 'the tablet came up on it' if cause == 'raise' else 'DNp09 fired and the gaze followed'
-        self.events.append(f"[{t:>6.1f}s] Watching CAM {camera}, {why}.")
+        self.events.append(f"[{t:>6.1f}s] Watching CAM {camera}, the tablet came up on it.")
+
+    def record_figure_remembered(self, camera: str, side: str, strength: float):
+        t = clock.now() - self.start_time
+        self.figures_remembered[camera] = self.figures_remembered.get(camera, 0) + 1
+        self.events.append(
+            f"[{t:>6.1f}s] DNp09 fired on a figure in CAM {camera}, remembered on the {side} at {strength:.2f}."
+        )
 
     def record_tablet_escape(self, side: str, camera: str):
         t = clock.now() - self.start_time
         key = f'{camera} {side}'
         self.tablet_escapes[key] = self.tablet_escapes.get(key, 0) + 1
         self.events.append(
-            f"[{t:>6.1f}s] DNp04 {side} fired on a looming shape in CAM {camera}. Tablet dropped for the door."
+            f"[{t:>6.1f}s] DNp04 {side} fired while watching CAM {camera}. Tablet dropped for the door."
         )
 
     def record_door_hold_renewed(self, side: str, cause: str):
@@ -171,8 +175,10 @@ class ConnectomeTelemetry:
             return
         views = ', '.join(f'{camera} x{count}' for camera, count in sorted(self.camera_views.items()))
         f.write(f"{'Cameras watched':<38}: {views}\n")
-        causes = self.camera_view_causes
-        f.write(f"{'Chosen by':<38}: {causes['raise']} on raising, {causes['pursuit']} DNp09 pursuit\n")
+        remembered = ', '.join(
+            f'{camera} x{count}' for camera, count in sorted(self.figures_remembered.items())
+        ) or 'none'
+        f.write(f"{'Figures remembered after DNp09':<38}: {remembered}\n")
         escapes = ', '.join(f'{key} x{count}' for key, count in sorted(self.tablet_escapes.items())) or 'none'
         f.write(f"{'DNp04 escapes from the tablet':<38}: {escapes}\n\n")
 
