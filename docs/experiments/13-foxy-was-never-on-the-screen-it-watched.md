@@ -82,14 +82,19 @@ tenth and a quarter of the span on both channels.
 
 ## What The Fly Does Now
 
-The tablet always comes up on Pirate Cove. The cove is compared against a bank
-of frames recorded at the start of the night, while the curtain is still
-closed, and the distance drives LC9 and LC31a on the left. When DNp09 fires
-the gaze follows the object down the west hall to 2A, once per raise. In 2A
-the distance drives LPLC2 and its growth drives LC4, and when DNp04 fires the
-fly drops the tablet, closes the left door, comes back to centre and checks the
-office before it trusts the inhibitors are off again. Which camera to open
-first is a fixed gesture and I would rather say so than dress it up.
+The tablet always comes up on Pirate Cove, and it is the only camera the fly
+watches. The cove is compared against a bank of frames recorded at the start
+of the night, while the curtain is still closed, and the distance drives LC9
+and LC31a on the left. When DNp09 fires on a cove the fly can read, it keeps a
+memory of the object on its left that fades over about ten seconds. The memory
+drives LPLC2 and LC4 on that side, and when DNp04 fires the fly drops the
+tablet, closes the left door, comes back to centre and checks the office
+before it trusts the inhibitors are off again. With the tablet down the same
+memory keeps the giant fiber firing, which holds the door for about twenty
+seconds. The west hall is left out, because Foxy reaches the door 1.7 seconds
+after CAM 2A shows him and the escape takes longer than that (ADR 0026). Which
+camera to open first is a fixed gesture and I would rather say so than dress
+it up.
 
 Any camera already stalls Foxy, so the fly watching the cove longer when
 something is in it is the strategy a good player uses, and here it falls out
@@ -97,18 +102,24 @@ of a neuron that was already doing the watching.
 
 ## What Is Not Measured Yet
 
-Everything on the game side. The spans that turn an image distance into a
-drive level, 1000 for both channels and 3000 per second for growth, are placed
-so a clearly visible Foxy lands well above a quarter of the span, but I have
-not recorded him. The 2A button position comes from the symmetry with 4B and
-has to be checked. `src/scripts/debug_tablet.py` prints the live levels for
-one camera so the spans can be fitted, and every trace now records the tablet
-drive frame by frame, so a night with Foxy in it can be replayed through the
-brain the same way the hallways are.
+Most of the game side. The one live night with Foxy in it, on 2026-10-04, read
+the cove ten times. The first read nothing behind the closed curtain and the
+other nine landed between 0.37 and 1.00 of the span, so a peeking Foxy already
+sits above the quarter the brain asks for. Only one of those nine became a
+memory, because the fly gave up the watch 0.8 seconds after the feed turned
+readable and DNp09 needs four to seven engine frames to answer. The minimum
+watch is now 2.0 seconds and a night with it is still owed.
+`src/scripts/debug_tablet.py` prints the live levels for one camera, and every
+trace records the tablet drive frame by frame, so that night can be replayed
+through the brain the same way the hallways are.
 
-The part I trust least is time. The run from 2A to the office is short, and
-lowering the tablet, panning to the door and pressing it takes most of it.
+The part I trust least is time. Foxy arrives 25 seconds after he leaves the
+cove and the memory holds the door for 18 to 26, so the door can reopen just
+before he gets there unless the fly goes back to the cove and reads it empty
+again. What every closing costs in power over a whole night is not measured
+either.
 
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | Why the fly never saw Foxy, the cell types behind the fix and the double dissociation that justifies it | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
+| 1.1 | The fly no longer follows Foxy to CAM 2A, and the first live night with him is reported | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-05 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-05 |

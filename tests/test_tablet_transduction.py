@@ -1,7 +1,16 @@
+import cv2
 import numpy as np
 
-from flynaf.env.tablet_feed import bank_distance, bank_noise, prepare, spread_sample
-from flynaf.night.tablet.transduction import LoomChannel, camera_drive, figure_level
+from flynaf import config
+from flynaf.env.tablet_feed import (
+    bank_distance,
+    bank_noise,
+    feed_size,
+    prepare,
+    spread_sample,
+    view_mask,
+)
+from flynaf.night.tablet.transduction import figure_level
 
 FIGURE_CASES = (
     (0.0, 100.0, 1000.0, 0.0),
@@ -17,71 +26,64 @@ def test_figure_level_is_the_contrast_above_noise_over_the_span():
         assert abs(figure_level(contrast, noise, span) - expected) < 1e-9, (contrast, noise)
 
 
-def _loom() -> LoomChannel:
-    return LoomChannel(size_span=1000.0, speed_span_per_sec=3000.0, speed_decay_sec=0.3)
+def _scene(seed: int = 3) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    width, height = feed_size()
+    return cv2.GaussianBlur(rng.uniform(0, 120, (height, width)).astype(np.float32), (5, 5), 0)
 
 
-def test_a_growing_shape_drives_speed_and_a_standing_one_only_size():
-    loom = _loom()
-    loom.update(0.0, 0.0, now=0.0)
-    size, speed = loom.update(600.0, 0.0, now=0.1)
-    assert size == 0.6
-    assert speed > 0.9
-
-    for step in range(2, 20):
-        size, speed = loom.update(600.0, 0.0, now=step * 0.1)
-    assert size == 0.6
-    assert speed < 0.01
+def _panned(scene: np.ndarray, columns: int) -> np.ndarray:
+    return np.roll(scene, columns, axis=1)
 
 
-def test_speed_is_held_briefly_so_a_slow_engine_frame_can_still_read_it():
-    loom = _loom()
-    loom.update(0.0, 0.0, now=0.0)
-    _, peak = loom.update(900.0, 0.0, now=0.05)
-    _, after = loom.update(900.0, 0.0, now=0.10)
-    assert 0.0 < after < peak
-
-
-def test_a_shape_that_shrinks_is_not_looming():
-    loom = _loom()
-    loom.update(900.0, 0.0, now=0.0)
-    _, speed = loom.update(100.0, 0.0, now=0.1)
-    assert speed == 0.0
-
-
-def test_reset_forgets_the_previous_camera():
-    loom = _loom()
-    loom.update(0.0, 0.0, now=0.0)
-    loom.update(900.0, 0.0, now=0.1)
-    loom.reset()
-    _, speed = loom.update(900.0, 0.0, now=0.2)
-    assert speed == 0.0
-
-
-DRIVE_CASES = (
-    ('figure', 'left', {'figure': 0.4}, {'figure_left': 0.4}),
-    ('loom', 'left', {'size': 0.2, 'speed': 0.7}, {'loom_size_left': 0.2, 'loom_speed_left': 0.7}),
-    ('loom', 'right', {}, {'loom_size_right': 0.0, 'loom_speed_right': 0.0}),
-)
-
-
-def test_camera_drive_names_the_population_on_the_camera_side():
-    for channel, side, levels, expected in DRIVE_CASES:
-        assert camera_drive(channel, side, levels) == expected, (channel, side)
-
-
-def test_bank_distance_takes_the_nearest_reference_so_panning_is_not_a_threat():
-    left = np.zeros((8, 8), np.float32)
-    right = np.full((8, 8), 50.0, np.float32)
+def test_bank_distance_takes_the_nearest_reference():
+    left = np.zeros((10, 10), np.float32)
+    right = np.full((10, 10), 50.0, np.float32)
     assert bank_distance(right, [left, right]) == 0.0
-    assert bank_distance(np.full((8, 8), 45.0, np.float32), [left, right]) == 25.0
+    assert bank_distance(np.full((10, 10), 45.0, np.float32), [left, right]) == 25.0
     assert bank_distance(left, []) == 0.0
 
 
+def test_the_camera_pan_is_aligned_away_before_comparing():
+    scene = _scene()
+    bank = [scene[:, 20:60]]
+    for columns in (-12, -5, 0, 7, 15):
+        assert bank_distance(_panned(scene, columns)[:, 20:60], bank) < 1.0, columns
+
+
+def test_a_small_object_stands_out_instead_of_being_diluted_by_the_frame():
+    scene = _scene()
+    figure = scene.copy()
+    figure[5:12, 30:37] = 255.0
+    whole_frame_mse = float(np.mean((figure - scene) ** 2))
+    assert bank_distance(figure, [scene]) > 10 * whole_frame_mse
+
+
+def test_changes_under_the_hud_mask_are_ignored():
+    scene = _scene()
+    clock_changed = scene.copy()
+    clock_changed[:10, 60:] = 255.0
+    mask = np.ones(scene.shape, bool)
+    mask[:10, 60:] = False
+    assert bank_distance(clock_changed, [scene], mask) < 1.0
+    assert bank_distance(clock_changed, [scene]) > 100.0
+
+
 def test_bank_noise_is_the_worst_leave_one_out_distance():
-    frames = [np.full((4, 4), value, np.float32) for value in (0.0, 1.0, 3.0)]
+    frames = [np.full((10, 10), value, np.float32) for value in (0.0, 1.0, 3.0)]
     assert bank_noise(frames) == 4.0
     assert bank_noise(frames[:1]) == 0.0
+
+
+def test_the_view_mask_hides_the_camera_map_and_keeps_the_middle_of_the_feed():
+    mask = view_mask()
+    width, height = feed_size()
+    assert mask.shape == (height, width)
+    left, top, right, bottom = config.TABLET_VISION.view
+    scale = config.TABLET_VISION.view_scale
+    assert not mask[(400 - top) // scale, (1000 - left) // scale]
+    assert mask[(200 - top) // scale, (900 - left) // scale]
+    assert mask[(330 - top) // scale, (470 - left) // scale]
 
 
 def test_spread_sample_keeps_the_whole_sweep():
@@ -89,10 +91,10 @@ def test_spread_sample_keeps_the_whole_sweep():
     assert spread_sample(list(range(100)), 4) == [0, 25, 50, 75]
 
 
-def test_prepare_shrinks_colour_frames_to_a_square_grey_patch():
-    frame = np.random.default_rng(1).integers(0, 255, (120, 120, 4), dtype=np.uint8)
-    patch = prepare(frame, 32)
-    assert patch.shape == (32, 32)
+def test_prepare_shrinks_colour_frames_to_the_feed_size():
+    frame = np.random.default_rng(1).integers(0, 255, (120, 200, 4), dtype=np.uint8)
+    patch = prepare(frame, (50, 30))
+    assert patch.shape == (30, 50)
     assert patch.dtype == np.float32
 
 

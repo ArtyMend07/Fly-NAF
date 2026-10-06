@@ -27,13 +27,12 @@ def capture_regions() -> list:
     right = anchor.point(vision.right_target_x, vision.right_target_y)
     map_corner = anchor.point(camera.map_left, camera.map_top)
     map_far_corner = anchor.point(camera.map_right, camera.map_bottom)
-    tablet = config.TABLET_VISION
-    feed = anchor.point(tablet.feed_x, tablet.feed_y)
+    view = config.TABLET_VISION.view
     return [
         centered_rect(left[0], left[1], anchor.size(vision.left_bbox_size)),
         centered_rect(right[0], right[1], anchor.size(vision.right_bbox_size)),
         (*map_corner, *map_far_corner),
-        centered_rect(feed[0], feed[1], anchor.size(tablet.feed_size)),
+        (*anchor.point(view[0], view[1]), *anchor.point(view[2], view[3])),
     ]
 
 
@@ -68,18 +67,12 @@ def game_bounds() -> tuple:
     )
 
 
-_TASKBAR_RESERVE = 48
-
-
-def beside_game_rect(
-    screen_w: int, screen_h: int, min_width: int, max_width: int, margin: int,
-) -> tuple | None:
+def beside_game_rect(screen_w: int, min_width: int, max_width: int, margin: int) -> tuple | None:
     rect = anchor.game_rect()
     if rect is None:
         return None
-    game_x, game_y, game_w, game_h = rect
+    game_x, game_y, game_w, height = rect
     top = max(0, game_y)
-    height = max(game_h, screen_h - top - _TASKBAR_RESERVE)
     right_space = screen_w - (game_x + game_w) - 2 * margin
     if right_space >= min_width:
         width = min(max_width, right_space)

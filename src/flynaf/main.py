@@ -15,7 +15,7 @@ from flynaf.night.engine import ConnectomeEngine
 from flynaf.night.panel import brain_view_task
 from flynaf.night.state import SaccadeRequest, SensoryState
 from flynaf.night.tablet.senses import TabletSenses
-from flynaf.night.tablet.watch import TabletWatch, build_gaze
+from flynaf.night.tablet.watch import TabletWatch, build_gaze, build_memory
 from flynaf.night.tasks import engine_task, saccade_task, vision_task
 from flynaf.recorder import SessionRecorder
 from flynaf.telemetry import ConnectomeTelemetry
@@ -39,11 +39,12 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
     feed = SpikeFeed(engine.num_neurons, tracer)
     saccade = SaccadeRequest()
     tablet_feed = TabletFeed()
-    tablet = TabletWatch(build_gaze(), tablet_feed, controller, telemetry, state)
+    memory = build_memory()
+    tablet = TabletWatch(build_gaze(), tablet_feed, controller, telemetry, state, memory)
 
     async with asyncio.TaskGroup() as tg:
         tg.create_task(vision_task(
-            vision, controller, state, shutdown, TabletSenses(tablet_feed),
+            vision, controller, state, shutdown, TabletSenses(tablet_feed, memory),
         ))
         tg.create_task(saccade_task(
             engine, vision, controller, state, shutdown, telemetry, calibration_done,

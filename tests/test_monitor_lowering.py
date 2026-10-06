@@ -198,7 +198,7 @@ def test_the_escape_closes_the_door_only_after_the_tablet_is_down(ignored, door_
     assert bool(closed) is door_closed
 
 
-@pytest.mark.parametrize('watched, still_open', [(1.0, True), (1.9, True), (2.1, False)])
+@pytest.mark.parametrize('watched, still_open', [(1.0, True), (3.1, True), (3.3, False)])
 def test_the_fly_only_tires_of_a_camera_after_it_could_read_it(watched, still_open):
     screen = Screen()
     control_, state, _, _ = control(screen)

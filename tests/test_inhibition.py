@@ -63,6 +63,12 @@ def test_each_tablet_channel_wakes_its_own_descending_neuron():
         assert not crossed, f'{label}: {crossed} answered a channel that is not theirs, {counts}'
 
 
+def test_a_remembered_figure_keeps_the_giant_fiber_answering_once_the_tablet_is_down():
+    faint = {'loom_size_left': 0.05, 'loom_speed_left': 0.05}
+    counts = _spike_frames(SensoryState(tablet_drive=faint), TABLET_FRAMES)
+    assert counts['giant_fiber'] > 0, f'the giant fiber ignored the remembered figure, {counts}'
+
+
 if __name__ == '__main__':
     for name, fn in sorted(globals().items()):
         if name.startswith('test_'):
