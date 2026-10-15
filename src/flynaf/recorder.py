@@ -8,7 +8,7 @@ from flynaf import config
 
 _log = logging.getLogger(__name__)
 
-TRACE_VERSION = 2
+TRACE_VERSION = 3
 
 
 def default_path() -> str:
@@ -31,6 +31,10 @@ def _settings() -> dict:
         'mse_threshold': foraging.mse_threshold,
         'starvation_sec': search.starvation_sec,
     }
+
+
+def _rounded(drive: dict) -> dict:
+    return {name: round(float(level), 4) for name, level in drive.items()}
 
 
 class SessionRecorder:
@@ -76,8 +80,11 @@ class SessionRecorder:
                 'escape_left': bool(state.l_escape),
                 'escape_right': bool(state.r_escape),
                 'explore_spike': bool(state.explore_spike),
+                'door_left': bool(state.door_closed['left']),
+                'door_right': bool(state.door_closed['right']),
                 'tablet_camera': state.tablet_camera,
-                'tablet_drive': {name: round(float(level), 4) for name, level in state.tablet_drive.items()},
+                'tablet_drive': _rounded(state.tablet_drive),
+                'memory_drive': _rounded(state.memory_drive),
                 'eye_membrane_diff': round(float(engine.eye_membrane_diff), 4),
                 'explore_membrane': round(float(engine.explore_membrane), 4),
             })

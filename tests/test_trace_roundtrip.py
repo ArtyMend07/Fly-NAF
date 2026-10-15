@@ -45,6 +45,7 @@ def test_the_tablet_drive_survives_the_trace_and_reaches_replay():
         trace = recorder.SessionRecorder(path=path)
         state = FakeState(0.0, 0.0, 1000.0, camera_open=True, tablet_camera='2A',
                           tablet_drive={'loom_size_left': 0.4, 'loom_speed_left': 0.9},
+                          memory_drive={'loom_size_right': 0.25},
                           l_escape=True)
         trace.frame(0.1, state, FakeEngine(), False, False, 0.0, 0.0, True)
         trace.close()
@@ -52,7 +53,9 @@ def test_the_tablet_drive_survives_the_trace_and_reaches_replay():
         _header, frames, _events = recorder.load_trace(path)
         assert frames[0]['tablet_camera'] == '2A'
         assert frames[0]['escape_left'] is True
-        assert replay.FrameInput(frames[0]).tablet_drive == {'loom_size_left': 0.4, 'loom_speed_left': 0.9}
+        recorded = replay.FrameInput(frames[0])
+        assert recorded.tablet_drive == {'loom_size_left': 0.4, 'loom_speed_left': 0.9}
+        assert recorded.memory_drive == {'loom_size_right': 0.25}
 
 
 def test_a_disabled_recorder_writes_nothing():
