@@ -119,3 +119,11 @@ class ConnectomeEngine:
     def r_sensory_idx(self):
         return self.neurons.inputs['eye_right']
 
+    @property
+    def l_ring_idx(self):
+        return self.neurons.outputs['orientation_left']
+
+    @property
+    def r_ring_idx(self):
+        return self.neurons.outputs['orientation_right']
+

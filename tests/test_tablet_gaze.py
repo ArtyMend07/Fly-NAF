@@ -1,15 +1,23 @@
+import dataclasses
+import math
+
+import pytest
+
 from flynaf import config
+from flynaf.night.memory import DefensiveState, Memories, OrientationMemory
 from flynaf.night.state import SensoryState
-from flynaf.night.tablet.gaze import TabletGaze
-from flynaf.night.tablet.memory import ObjectMemory
-from flynaf.night.tablet.watch import TabletWatch
+from flynaf.night.tablet.gaze import TabletGaze, watched_cameras
+from flynaf.night.tablet.watch import TabletWatch, build_gaze
 from flynaf.telemetry import ConnectomeTelemetry
 
 RAISE = 1.2
 
 
-def _gaze() -> TabletGaze:
-    return TabletGaze(config.TABLET_VISION.cameras, '1C', RAISE)
+BOTH_HALLS = dataclasses.replace(config.TABLET_VISION, watched=('1C', '4B'))
+
+
+def _gaze(params=None) -> TabletGaze:
+    return TabletGaze(watched_cameras(params or config.TABLET_VISION), '1C', RAISE)
 
 
 class _Done:
@@ -67,29 +75,83 @@ def test_the_gaze_never_leaves_the_cove_on_its_own():
     assert gaze.camera == '1C'
 
 
-def _watching_the_cove(figure: float):
-    state = SensoryState(camera_open=True)
+@pytest.mark.parametrize('params, leaning, camera', [
+    (config.TABLET_VISION, 'left', '1C'),
+    (config.TABLET_VISION, 'right', '1C'),
+    (BOTH_HALLS, 'left', '1C'),
+    (BOTH_HALLS, 'right', '4B'),
+    (BOTH_HALLS, None, '1C'),
+])
+def test_the_tablet_opens_on_the_watched_camera_of_the_side_the_fly_leans_to(params, leaning, camera):
+    assert _gaze(params).on_raised(now=0.0, side=leaning) == camera
+
+
+def test_only_watched_cameras_are_built_into_the_gaze():
+    assert [camera.name for camera in watched_cameras(config.TABLET_VISION)] == ['1C']
+    assert build_gaze(BOTH_HALLS).on_raised(now=0.0, side='right') == '4B'
+
+
+def _watching(figure: float, camera: str = '1C', side: str = 'left'):
+    state = SensoryState(camera_open=True, gaze_side=side)
     controller, telemetry = RecordingController(), ConnectomeTelemetry()
-    memory = ObjectMemory(decay_sec=4.0)
-    watch = TabletWatch(_gaze(), RecordingFeed(), controller, telemetry, state, memory)
+    memories = Memories(OrientationMemory(), DefensiveState(4.0))
+    watch = TabletWatch(_gaze(BOTH_HALLS), RecordingFeed(), controller, telemetry, state, memories)
     watch.on_raise(now=0.0)
-    state.tablet_drive = {'figure_left': figure}
-    return watch, memory, controller, telemetry
+    state.tablet_drive = {f'figure_{side}': figure}
+    assert watch.camera == camera
+    return watch, memories, controller, telemetry, state
 
 
-def test_a_dnp09_spike_on_the_cove_remembers_the_figure_it_was_looking_at():
-    watch, memory, controller, telemetry = _watching_the_cove(figure=0.6)
+@pytest.mark.parametrize('camera, side', [('1C', 'left'), ('4B', 'right')])
+def test_a_dnp09_spike_on_a_figure_adds_it_to_the_defensive_state_on_its_side(camera, side):
+    watch, memories, controller, telemetry, _state = _watching(0.6, camera, side)
     watch.update(5.0, explore_fired=True, escape_fired={})
-    assert abs(memory.level(5.0, 'left') - 0.6) < 1e-9
-    assert controller.selected == [('1C', config.TABLET_VISION.map_ready_sec)]
-    assert telemetry.figures_remembered == {'1C': 1}
+    assert memories.defence.level(5.0, side) == pytest.approx(0.6)
+    assert memories.orientation.level(5.0, side) == 0.0
+    assert controller.selected == [(camera, config.TABLET_VISION.map_ready_sec)]
+    assert telemetry.figures_remembered == {camera: 1}
 
 
 def test_a_spontaneous_dnp09_spike_on_an_empty_view_remembers_nothing():
-    watch, memory, controller, telemetry = _watching_the_cove(figure=0.0)
+    watch, memories, _controller, telemetry, _state = _watching(0.0)
     watch.update(5.0, explore_fired=True, escape_fired={})
-    assert memory.level(5.0) == 0.0
+    assert memories.defence.drive(5.0) == {}
     assert telemetry.figures_remembered == {}
+
+
+def test_a_figure_dnp09_never_answered_is_not_remembered():
+    watch, memories, _controller, telemetry, _state = _watching(0.6)
+    watch.update(5.0, explore_fired=False, escape_fired={})
+    assert memories.defence.drive(5.0) == {}
+    assert telemetry.figures_remembered == {}
+
+
+def test_nothing_is_remembered_from_the_static_of_a_camera_that_just_came_up():
+    watch, memories, _controller, _telemetry, _state = _watching(0.6)
+    watch.update(RAISE - 0.1, explore_fired=True, escape_fired={})
+    assert memories.defence.drive(RAISE - 0.1) == {}
+
+
+def test_one_view_counts_as_one_threat_at_the_strongest_level_dnp09_answered():
+    watch, memories, _controller, telemetry, state = _watching(0.2)
+    watch.update(5.0, explore_fired=True, escape_fired={})
+    state.tablet_drive = {'figure_left': 0.7}
+    watch.update(5.1, explore_fired=True, escape_fired={})
+    watch.update(5.2, explore_fired=True, escape_fired={})
+    fade = math.exp(-0.1 / 4.0)
+    assert memories.defence.level(5.2, 'left') == pytest.approx((0.2 * fade + 0.5) * fade)
+    assert telemetry.figures_remembered == {'1C': 1}
+
+
+def test_a_second_view_adds_to_what_the_first_one_left():
+    watch, memories, _controller, _telemetry, state = _watching(0.4)
+    watch.update(5.0, explore_fired=True, escape_fired={})
+    left_over = memories.defence.level(9.0, 'left')
+    watch.on_lower()
+    watch.on_raise(now=7.0)
+    state.tablet_drive = {'figure_left': 0.4}
+    watch.update(9.0, explore_fired=True, escape_fired={})
+    assert memories.defence.level(9.0, 'left') == pytest.approx(left_over + 0.4)
 
 
 def test_the_watch_taps_the_map_and_tells_the_senses_where_it_looks():
@@ -129,9 +191,3 @@ def test_nothing_is_read_from_the_watch_while_the_tablet_is_down():
                         SensoryState())
     assert watch.update(1.0, explore_fired=True, escape_fired={'left': True}) is None
 
-
-if __name__ == '__main__':
-    for name, fn in sorted(globals().items()):
-        if name.startswith('test_'):
-            fn()
-    print('ok')

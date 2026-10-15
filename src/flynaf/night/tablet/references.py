@@ -4,6 +4,7 @@ import logging
 from flynaf import clock, config
 from flynaf.night.monitor import put_tablet, put_tablet_down, screen_shows
 from flynaf.night.motor import await_motor
+from flynaf.night.tablet.gaze import watched_cameras
 
 _log = logging.getLogger(__name__)
 
@@ -18,7 +19,9 @@ async def capture_camera_references(feed, controller, vision, params=None) -> bo
 
     feed.activate()
     try:
-        recorded = [await _record(feed, controller, camera.name, params) for camera in params.cameras]
+        recorded = [
+            await _record(feed, controller, camera.name, params) for camera in watched_cameras(params)
+        ]
     finally:
         feed.deactivate()
         await _lower(vision, controller)

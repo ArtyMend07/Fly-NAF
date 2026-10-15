@@ -75,13 +75,16 @@ def test_inhibitors_keep_their_refractory_period():
 
 def test_stimulus_rates_scale_levels_and_pass_the_inhibitor_rate_through():
     neurons = NeuronMap(
-        inputs={'eye_left': [0], 'eye_right': [1], 'inhibitors_left': [2],
-                'inhibitors_right': [3], 'figure_left': [4]},
+        inputs={'eye_left': [0], 'eye_right': [1], 'wide_field_left': [5], 'wide_field_right': [6],
+                'inhibitors_left': [2], 'inhibitors_right': [3], 'figure_left': [4]},
         outputs={},
     )
     state = SensoryState(left_rate=1.0, cam_inhib=250.0, tablet_drive={'figure_left': 0.5})
     rates = [(tuple(indices), rate) for indices, rate in stimulus_rates(neurons, state, 1000.0)]
-    assert rates == [((0,), 1000.0), ((1,), 0.0), ((2,), 250.0), ((3,), 250.0), ((4,), 500.0)]
+    assert rates == [
+        ((0,), 1000.0), ((1,), 0.0), ((5,), 1000.0), ((6,), 0.0),
+        ((2,), 250.0), ((3,), 250.0), ((4,), 500.0),
+    ]
 
 
 if __name__ == '__main__':

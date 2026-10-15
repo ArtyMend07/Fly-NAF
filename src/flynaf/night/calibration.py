@@ -8,6 +8,7 @@ from flynaf.env.vision import FNAFVision
 from flynaf.night.lights import set_light
 from flynaf.night.monitor import put_tablet_down
 from flynaf.night.motor import await_motor
+from flynaf.night.tablet.gaze import watched_cameras
 from flynaf.night.tablet.references import capture_camera_references
 
 _log = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ async def calibrate(vision: FNAFVision, controller: FNAFController, begin_night=
 
     if tablet_feed is not None and await capture_camera_references(tablet_feed, controller, vision):
         _log.info('camera references captured for %s',
-                  ', '.join(camera.name for camera in config.TABLET_VISION.cameras))
+                  ', '.join(camera.name for camera in watched_cameras(config.TABLET_VISION)))
 
 
 async def start_with_the_tablet_down(vision: FNAFVision, controller: FNAFController):

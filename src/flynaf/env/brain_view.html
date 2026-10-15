@@ -132,7 +132,7 @@
   }
 
   #timeline-wrap { border-top: 1px solid var(--line); position: relative; }
-  #timeline { width: 100%; height: 150px; }
+  #timeline { width: 100%; height: 184px; }
 
   #counters {
     display: flex; border-top: 1px solid var(--line);
@@ -638,7 +638,8 @@ function connect() {
       gf_l: frame.gf_l, gf_r: frame.gf_r, door_l: frame.door_l, door_r: frame.door_r,
       camera: frame.camera, cam: frame.cam,
       figure: frame.figure || 0, loom: frame.loom || 0,
-      dnp09: frame.dnp09, dnp04_l: frame.dnp04_l,
+      recall_l: frame.recall_l || 0, recall_r: frame.recall_r || 0,
+      dnp09: frame.dnp09, dnp04_l: frame.dnp04_l, dnp04_r: frame.dnp04_r,
     });
     while (history.length && history[0].t < now - WINDOW_SECONDS - 1) history.shift();
     while (timelineMarks.length && timelineMarks[0].t < now - WINDOW_SECONDS - 1) timelineMarks.shift();
@@ -666,16 +667,20 @@ const ROWS = [
   { label: 'EYE CLUSTER L', kind: 'eye', side: 'l' },
   { label: 'DNp01       L', kind: 'gf', side: 'l' },
   { label: 'DOOR        L', kind: 'door', side: 'l' },
+  { label: 'ER3 MEMORY  L', kind: 'level', key: 'recall_l' },
   { label: 'LIGHT / IN  R', kind: 'stim', side: 'r' },
   { label: 'EYE CLUSTER R', kind: 'eye', side: 'r' },
   { label: 'DNp01       R', kind: 'gf', side: 'r' },
   { label: 'DOOR        R', kind: 'door', side: 'r' },
+  { label: 'ER3 MEMORY  R', kind: 'level', key: 'recall_r' },
   { label: 'TABLET', kind: 'tablet' },
   { label: 'CAM FEED', kind: 'feed' },
   { label: 'DNp09', kind: 'spike', key: 'dnp09' },
   { label: 'DNp04       L', kind: 'spike', key: 'dnp04_l' },
+  { label: 'DNp04       R', kind: 'spike', key: 'dnp04_r' },
   { label: 'WHOLE BRAIN', kind: 'brain' },
 ];
+const FIRST_ROW = { left: 0, right: ROWS.findIndex(row => row.kind === 'stim' && row.side === 'r') };
 
 function sizeTimeline() {
   if (mini) return;
@@ -733,6 +738,13 @@ function drawTimeline(now) {
           tctx.fillStyle = f.loom >= f.figure ? 'rgba(255,92,74,0.85)' : 'rgba(245,185,74,0.85)';
           tctx.fillRect(x, y + 2 + inner - h, dx, h);
         }
+      } else if (row.kind === 'level') {
+        const level = f[row.key];
+        if (level > 0) {
+          const h = inner * Math.min(1, level);
+          tctx.fillStyle = 'rgba(255,201,74,0.8)';
+          tctx.fillRect(x, y + 2 + inner - h, dx, h);
+        }
       } else if (row.kind === 'spike') {
         if (f[row.key]) { tctx.fillStyle = color('--motor'); tctx.fillRect(x, y + 1, Math.max(dx, 2), rowH - 2); }
       } else if (row.kind === 'brain') {
@@ -744,7 +756,7 @@ function drawTimeline(now) {
   });
 
   for (const m of timelineMarks) {
-    const first = m.side === 'left' ? 0 : 4;
+    const first = FIRST_ROW[m.side];
     const x1 = xOf(m.t);
     const x0 = xOf(m.t - m.depth * frameSeconds);
     if (x1 < labelW) continue;

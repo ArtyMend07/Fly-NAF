@@ -22,7 +22,7 @@ class ConnectomeTelemetry:
         }
         self.door_holds = []
         self.verification_waits = []
-        self.saccade_reasons = {'drift': 0, 'evidence': 0, 'guard': 0}
+        self.saccade_reasons = {'drift': 0, 'evidence': 0, 'memory': 0, 'guard': 0}
         self.camera_causes = {'spike': 0, 'drive': 0}
         self.camera_watches = []
         self.camera_release_reasons = {'drive': 0, 'search': 0, 'cap': 0, 'escape': 0}
@@ -57,7 +57,7 @@ class ConnectomeTelemetry:
         t = clock.now() - self.start_time
         self.figures_remembered[camera] = self.figures_remembered.get(camera, 0) + 1
         self.events.append(
-            f"[{t:>6.1f}s] DNp09 fired on a figure in CAM {camera}, remembered on the {side} at {strength:.2f}."
+            f"[{t:>6.1f}s] DNp09 fired on a figure in CAM {camera}, defensive state on the {side} at {strength:.2f}."
         )
 
     def record_tablet_escape(self, side: str, camera: str):
@@ -151,6 +151,7 @@ class ConnectomeTelemetry:
     CAUSES = {
         'drift': 'Spontaneous hemispheric drift',
         'evidence': 'What the last look revealed',
+        'memory': 'Where a figure was last seen',
         'guard': 'Starvation guard (not the connectome)',
     }
 

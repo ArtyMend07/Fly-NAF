@@ -175,6 +175,7 @@ class SearchDynamics:
     habituation_leak_per_frame: float = 0.985
     habituation_gain: float = 3.0
     evidence_gain: float = 4.0
+    memory_gain: float = 3.0
     starvation_sec: float = 30.0
 
 
@@ -183,6 +184,16 @@ class DoorDynamics:
     hold_leak_per_frame: float = 0.972
     release_threshold: float = 0.25
     motion_settle_sec: float = 0.5
+
+
+@dataclass(frozen=True)
+class MemoryDynamics:
+    orientation_sec: float = 4.0
+    ring_resting_left: float = 0.069
+    ring_resting_right: float = 0.321
+    ring_sighting_left: float = 15.7
+    ring_sighting_right: float = 33.8
+    defence_sec: float = 10.0
 
 
 @dataclass(frozen=True)
@@ -217,12 +228,13 @@ class TabletVision:
     reference_frames: int = 24
     noise_margin: float = 1.5
     figure_span_mse: float = 1500.0
-    object_memory_sec: float = 10.0
     lower_settle_sec: float = 0.35
     first_camera: str = '1C'
     cameras: tuple = (
         CameraButton('1C', 925, 484, 'left'),
+        CameraButton('4B', 1087, 641, 'right'),
     )
+    watched: tuple = ('1C',)
 
 
 @dataclass(frozen=True)
@@ -231,6 +243,8 @@ class CellPopulations:
     figure: tuple = ('LC9', 'LC31a')
     loom_size: tuple = ('LPLC2',)
     loom_speed: tuple = ('LC4',)
+    wide_field: tuple = ('MeTu4a', 'MeTu4b', 'MeTu4c', 'MeTu4d')
+    orientation: tuple = ('ER3d', 'ER3p_a', 'ER3p_b')
     giant_fiber: tuple = ('DNp01',)
     looming_escape: tuple = ('DNp04',)
     explore: tuple = ('DNp09',)
@@ -282,6 +296,7 @@ GAME_LAUNCHER = GameLauncher()
 EXPLORE_DYNAMICS = ExploreDynamics()
 SEARCH_DYNAMICS = SearchDynamics()
 DOOR_DYNAMICS = DoorDynamics()
+MEMORY_DYNAMICS = MemoryDynamics()
 SENSORY_NEURONS = SensoryNeurons()
 CELL_POPULATIONS = CellPopulations()
 TABLET_VISION = TabletVision()

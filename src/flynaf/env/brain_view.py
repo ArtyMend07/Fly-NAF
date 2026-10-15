@@ -52,6 +52,8 @@ class PanelFrame:
     door_r: bool = False
     figure: float = 0.0
     loom: float = 0.0
+    recall_l: float = 0.0
+    recall_r: float = 0.0
     dnp09: bool = False
     dnp04_l: bool = False
     dnp04_r: bool = False

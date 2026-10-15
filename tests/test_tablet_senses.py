@@ -1,7 +1,6 @@
-import math
+import pytest
 
 from flynaf.night.state import SensoryState
-from flynaf.night.tablet.memory import ObjectMemory
 from flynaf.night.tablet.senses import TabletSenses
 
 
@@ -35,33 +34,11 @@ def test_nothing_reaches_the_brain_unless_a_known_camera_is_readable():
         assert senses.read(state, now=1.0) == {}, label
 
 
-def test_the_cove_drives_the_figure_population_on_its_side():
-    senses = TabletSenses(ScriptedFeed({'1C': 850.0}))
-    drive = senses.read(_watching('1C'), now=1.0)
-    assert drive == {'figure_left': 0.5}
+@pytest.mark.parametrize('camera, population', [
+    ('1C', 'figure_left'),
+    ('4B', 'figure_right'),
+])
+def test_a_camera_drives_the_figure_population_on_its_side(camera, population):
+    senses = TabletSenses(ScriptedFeed({camera: 850.0}))
+    assert senses.read(_watching(camera), now=1.0) == {population: 0.5}
 
-
-def _remembering(strength: float, now: float = 0.0) -> ObjectMemory:
-    memory = ObjectMemory(decay_sec=4.0)
-    memory.remember('left', strength, now)
-    return memory
-
-
-def test_a_remembered_figure_drives_the_looming_populations_on_its_side_with_the_tablet_down():
-    senses = TabletSenses(ScriptedFeed({'1C': 5000.0}), _remembering(0.6))
-    drive = senses.read(_watching('1C', camera_open=False), now=0.0)
-    assert drive == {'loom_size_left': 0.6, 'loom_speed_left': 0.6}
-
-
-def test_the_remembered_figure_and_the_cove_reach_the_brain_together():
-    senses = TabletSenses(ScriptedFeed({'1C': 850.0}), _remembering(0.6))
-    drive = senses.read(_watching('1C'), now=4.0)
-    assert drive['figure_left'] == 0.5
-    assert abs(drive['loom_size_left'] - 0.6 * math.exp(-1.0)) < 1e-9
-
-
-if __name__ == '__main__':
-    for name, fn in sorted(globals().items()):
-        if name.startswith('test_'):
-            fn()
-    print('ok')

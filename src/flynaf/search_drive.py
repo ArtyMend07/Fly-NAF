@@ -82,6 +82,7 @@ class SearchDrive:
         self._signal = AdaptiveSignal(self._p.baseline_tau_frames, self._p.scale_tau_frames)
         self._drift_sum = 0.0
         self._evidence_sum = 0.0
+        self._memory_sum = 0.0
         self._habituation_sum = 0.0
         self._habituation = {'left': 0.0, 'right': 0.0}
         self._last_look = {'left': None, 'right': None}
@@ -90,11 +91,15 @@ class SearchDrive:
 
     @property
     def drive(self) -> float:
-        return self._drift_sum + self._evidence_sum + self._habituation_sum
+        return self._drift_sum + self._evidence_sum + self._memory_sum + self._habituation_sum
 
     @property
     def tension(self) -> float:
         return min(1.0, abs(self.drive) / self._p.bound)
+
+    @property
+    def leaning(self) -> str:
+        return 'left' if self.drive >= 0.0 else 'right'
 
     def update(
         self,
@@ -104,6 +109,7 @@ class SearchDrive:
         elapsed_sec: float,
         now: float,
         can_act: bool,
+        recalled: float = 0.0,
     ) -> str | None:
         p = self._p
         frames = _frames(elapsed_sec, self._fps)
@@ -115,16 +121,19 @@ class SearchDrive:
 
         evidence = (left_count - right_count) / self._span
         evidence = max(-1.0, min(1.0, evidence)) * p.evidence_gain
+        memory = max(-1.0, min(1.0, recalled)) * p.memory_gain
 
         habituation_keep = p.habituation_leak_per_frame ** frames
         for side in self._habituation:
             self._habituation[side] *= habituation_keep
+        self._dishabituate(recalled, frames)
         imbalance = self._habituation['left'] - self._habituation['right']
 
         gain = p.gain_ratio * (1.0 - p.drive_leak_per_frame) * p.bound
         leak = p.drive_leak_per_frame
         self._drift_sum = _integrate(self._drift_sum, gain, drift, leak, frames)
         self._evidence_sum = _integrate(self._evidence_sum, gain, evidence, leak, frames)
+        self._memory_sum = _integrate(self._memory_sum, gain, memory, leak, frames)
         self._habituation_sum = _integrate(
             self._habituation_sum, gain, -p.habituation_gain * imbalance, leak, frames
         )
@@ -140,13 +149,21 @@ class SearchDrive:
         drive = self.drive
         if abs(drive) >= p.bound:
             side = 'left' if drive > 0 else 'right'
-            self.reason = (
-                'evidence'
-                if abs(self._evidence_sum) > abs(self._drift_sum)
-                else 'drift'
-            )
+            self.reason = self._strongest_term()
             return self._commit(side, now)
         return None
+
+    def _dishabituate(self, recalled: float, frames: float):
+        remembered = 'left' if recalled > 0.0 else 'right'
+        self._habituation[remembered] *= (1.0 - min(1.0, abs(recalled))) ** frames
+
+    def _strongest_term(self) -> str:
+        terms = {
+            'drift': abs(self._drift_sum),
+            'evidence': abs(self._evidence_sum),
+            'memory': abs(self._memory_sum),
+        }
+        return max(terms, key=terms.get)
 
     def _starved_side(self, now: float) -> str | None:
         waits = {side: now - t for side, t in self._last_look.items()}
@@ -163,5 +180,6 @@ class SearchDrive:
         self._habituation[side] += 1.0
         self._drift_sum = 0.0
         self._evidence_sum = 0.0
+        self._memory_sum = 0.0
         self._habituation_sum = 0.0
         return side

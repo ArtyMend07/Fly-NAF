@@ -19,6 +19,7 @@ def _neuron_map() -> NeuronMap:
             'figure_left': [6], 'figure_right': [],
             'loom_size_left': [0], 'loom_size_right': [],
             'loom_speed_left': [5], 'loom_speed_right': [],
+            'wide_field_left': [], 'wide_field_right': [],
         },
         outputs={
             'giant_fiber_left': [7], 'giant_fiber_right': [8],

@@ -9,6 +9,7 @@ from flynaf.night.calibration import calibrate
 from flynaf.night.doors import DoorControl
 from flynaf.night.engine import ConnectomeEngine
 from flynaf.night.lights import set_light
+from flynaf.night.memory import Memories, OrientationMemory
 from flynaf.night.monitor import MonitorControl
 from flynaf.night.motor import await_motor
 from flynaf.night.state import SaccadeRequest, SensoryState
@@ -23,10 +24,11 @@ _log = logging.getLogger(__name__)
 
 async def vision_task(
     vision: FNAFVision, controller: FNAFController, state: SensoryState, shutdown: asyncio.Event,
-    senses=None,
+    senses=None, memories: Memories | None = None,
 ):
     delay = config.VISION_DYNAMICS.capture_delay_sec
     senses = senses or BlindSenses()
+    memories = memories or Memories()
     while not shutdown.is_set():
         state.tablet_seen = vision.is_camera_up()
         now = clock.now()
@@ -37,6 +39,7 @@ async def vision_task(
         state.right_rate = vision.get_right_sensory_rate(closed['right']) if looking_right else 0.0
         state.cam_inhib = config.SIMULATION_PARAMS.base_sensory_rate_hz if state.tablet_seen else 0.0
         state.tablet_drive = senses.read(state, now)
+        state.memory_drive = memories.defence.drive(now)
         await asyncio.sleep(delay)
 
 
@@ -135,11 +138,13 @@ async def engine_task(
     saccade: SaccadeRequest,
     trace: SessionRecorder | None = None,
     tablet=None,
+    memories: Memories | None = None,
 ):
     await warm_up(engine, telemetry)
     await calibration_done.wait()
     trace = trace or SessionRecorder(enabled=False)
     tablet = tablet or IdleTablet()
+    memories = memories or Memories()
 
     search = SearchDrive(engine.sensory_span)
     explore = ExploreDrive()
@@ -155,6 +160,7 @@ async def engine_task(
         inputs = (state.left_rate > 0.0, state.right_rate > 0.0)
         spikes = await asyncio.to_thread(engine.step, state, now)
         read_spikes(engine, spikes, state)
+        recall_the_hallway(memories.orientation, state, now)
 
         explore.update(engine.explore_membrane, state.explore_spike, frame_elapsed)
         look_pending = saccade.side is not None or saccade.busy
@@ -207,6 +213,14 @@ def read_spikes(engine, spikes, state: SensoryState):
     state.explore_spike = bool(frame[engine.explore_idx].any())
     state.l_sensory_count = int(frame[engine.l_sensory_idx].sum().item())
     state.r_sensory_count = int(frame[engine.r_sensory_idx].sum().item())
+    state.l_ring_count = int(frame[engine.l_ring_idx].sum().item())
+    state.r_ring_count = int(frame[engine.r_ring_idx].sum().item())
+
+
+def recall_the_hallway(orientation: OrientationMemory, state: SensoryState, now: float):
+    orientation.imprint({'left': state.l_ring_count, 'right': state.r_ring_count}, now)
+    state.remembered = {side: orientation.level(now, side) for side in ('left', 'right')}
+    state.recalled = state.remembered['left'] - state.remembered['right']
 
 
 def watch_the_tablet(tablet, monitor: MonitorControl, doors: DoorControl, telemetry,
@@ -236,9 +250,10 @@ def request_saccade(search: SearchDrive, saccade: SaccadeRequest, monitor: Monit
                 and now >= saccade.ready_at)
     wants = search.update(
         engine.eye_membrane_diff, state.l_sensory_count, state.r_sensory_count,
-        frame_elapsed, now, can_look,
+        frame_elapsed, now, can_look, state.recalled,
     )
     state.forage_bias = search.tension
+    state.gaze_side = search.leaning
     if wants is None:
         return
     saccade.reason = search.reason
@@ -282,7 +297,9 @@ def panel_frame(state: SensoryState, vision: FNAFVision, doors: DoorControl,
         door_l=doors.closed['left'],
         door_r=doors.closed['right'],
         figure=_strongest(state.tablet_drive, 'figure'),
-        loom=_strongest(state.tablet_drive, 'loom'),
+        loom=_strongest(state.memory_drive, 'loom'),
+        recall_l=state.remembered['left'],
+        recall_r=state.remembered['right'],
         dnp09=state.explore_spike,
         dnp04_l=state.l_escape,
         dnp04_r=state.r_escape,
