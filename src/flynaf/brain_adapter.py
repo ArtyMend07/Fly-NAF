@@ -6,6 +6,7 @@ import torch
 from flynaf import config
 from flynaf.neural.data_loader import get_hash_tables, load_connectome_weights
 from flynaf.neural.models import FlyBrainModel
+from flynaf.neural.propagation import leave_idle_cores_to_the_game
 
 _log = logging.getLogger(__name__)
 
@@ -13,6 +14,7 @@ _log = logging.getLogger(__name__)
 class BrainAdapter:
     def __init__(self, comp_path: str, conn_path: str, wt_dir: str, device: str = 'cpu'):
         self.device = device
+        leave_idle_cores_to_the_game(device)
         _log.info('loading anatomical indices')
         self.flyid2i, self.i2flyid = get_hash_tables(comp_path)
         _log.info('loading sparse connectome weights')
