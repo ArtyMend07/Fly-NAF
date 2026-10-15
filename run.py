@@ -83,6 +83,12 @@ def _choose(session, mode: str | None):
     return window
 
 
+def cmd_page(port: int) -> int:
+    from flynaf import replay_page
+    replay_page.serve(port)
+    return 0
+
+
 def cmd_play(mode: str | None) -> int:
     from flynaf import main as main_module
     if not _data_in_place():
@@ -128,6 +134,8 @@ def main() -> int:
     parser.add_argument('--verify', action='store_true', help='check the connectome and exit')
     parser.add_argument('--replay', nargs='?', const='', metavar='TRACE',
                         help='replay a recorded night through the brain, no game needed')
+    parser.add_argument('--page', nargs='?', const=0, type=int, metavar='PORT',
+                        help='open the night 3 replay page in the browser, no data or game needed')
     parser.add_argument('--check-data', action='store_true', help='report which data files are present')
     start = parser.add_mutually_exclusive_group()
     start.add_argument('--new', dest='mode', action='store_const', const=launcher.NEW,
@@ -147,6 +155,8 @@ def main() -> int:
         return cmd_verify()
     if args.replay is not None:
         return cmd_replay(args.replay or None)
+    if args.page is not None:
+        return cmd_page(args.page)
     return cmd_play(args.mode)
 
 

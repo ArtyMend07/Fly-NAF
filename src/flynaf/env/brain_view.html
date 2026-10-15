@@ -165,6 +165,7 @@ const corner = Number(new URLSearchParams(location.search).get('corner')) || 0;
 document.documentElement.style.setProperty('--corner', corner / devicePixelRatio + 'px');
 let reportedHeight = 0;
 const reportViewport = () => {
+  if (window.flynafSource) return;
   const height = Math.round((window.visualViewport ? visualViewport.height : innerHeight) * devicePixelRatio);
   if (height === reportedHeight) return;
   reportedHeight = height;
@@ -247,6 +248,15 @@ const mini = new URLSearchParams(location.search).get('mini') === '1';
 if (mini) document.body.classList.add('mini');
 
 const clock = () => performance.now() / 1000;
+const source = window.flynafSource || {
+  geometry: () => fetch('/geometry').then(r => r.arrayBuffer()),
+  outline: () => fetch('/outline').then(r => r.arrayBuffer()),
+  connect: (onFrame, onLost) => {
+    const stream = new EventSource('/stream');
+    stream.onmessage = event => onFrame(JSON.parse(event.data));
+    stream.onerror = onLost;
+  },
+};
 let activity = 0;
 let densityScale = 1;
 
@@ -432,7 +442,7 @@ const shellMaterial = new THREE.ShaderMaterial({
 });
 
 function loadOutline() {
-  fetch('/outline').then(r => r.arrayBuffer()).then(buf => {
+  source.outline().then(buf => {
     const head = new Uint32Array(buf, 0, 2);
     const nv = head[0], nf = head[1];
     if (!nv) return;
@@ -474,7 +484,7 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-fetch('/geometry').then(r => r.arrayBuffer()).then(buf => {
+source.geometry().then(buf => {
   const view = new DataView(buf);
   count = view.getUint32(0, true);
   positions = new Float32Array(buf, 4, count * 3);
@@ -561,9 +571,9 @@ function drawCascade(c, msPerFrame, tabletUp) {
   const side = c.side.toUpperCase();
   const simulatedMs = (c.depth * msPerFrame).toFixed(0);
   const slower = Math.round(HOP_SECONDS / (msPerFrame / 1000));
-  const outcome = c.door_moved
+  const outcome = c.outcome || (c.door_moved
     ? `the ${c.side} door closed`
-    : (tabletUp ? 'the tablet is up, so no door moved' : 'the door was already shut');
+    : (tabletUp ? 'the tablet is up, so no door moved' : 'the door was already shut'));
   const source = c.reached_source != null
     ? `<div class="src">the trace starts in the ${c.side} eye cluster, ${c.reached_source} frames before</div>`
     : '<div>the trace does not reach the eye cluster within the frames kept</div>';
@@ -599,65 +609,69 @@ function showEye(side, frame) {
   el('pill-' + s).textContent = on ? 'input on, eye cluster driven' : 'input off';
 }
 
+function spikeIndices(frame) {
+  if (frame.indices) return frame.indices;
+  const raw = atob(frame.s);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return new Uint32Array(bytes.buffer);
+}
+
 function connect() {
-  const source = new EventSource('/stream');
-  source.onmessage = (event) => {
-    const frame = JSON.parse(event.data);
-    document.body.classList.remove('offline');
-    const now = clock();
-    if (lastArrival) frameSeconds = frameSeconds * 0.95 + Math.min(now - lastArrival, 0.5) * 0.05;
-    lastArrival = now;
-
-    let firing = 0;
-    if (lastSpike && frame.s) {
-      const raw = atob(frame.s);
-      const bytes = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-      const idx = new Uint32Array(bytes.buffer);
-      for (let i = 0; i < idx.length; i++) {
-        if (idx[i] < count) { lastSpike[idx[i]] = now; firing++; }
-      }
-      points.geometry.attributes.aLast.needsUpdate = true;
-    }
-    const share = count ? firing / count : 0;
-    activity = activity * 0.85 + Math.min(1, share / ACTIVITY_FULL) * 0.15;
-    applyBrightness();
-
-    if (frame.p) {
-      if (frame.p.left) el('img-l').src = 'data:image/jpeg;base64,' + frame.p.left;
-      if (frame.p.right) el('img-r').src = 'data:image/jpeg;base64,' + frame.p.right;
-    }
-    showEye('left', frame);
-    showEye('right', frame);
-    if (frame.c) drawCascade(frame.c, frame.ms || 2, frame.camera);
-
-    history.push({
-      t: now, share,
-      in_l: frame.in_l, in_r: frame.in_r, look_l: frame.look_l, look_r: frame.look_r,
-      eye_l: frame.eye_l || 0, eye_r: frame.eye_r || 0,
-      gf_l: frame.gf_l, gf_r: frame.gf_r, door_l: frame.door_l, door_r: frame.door_r,
-      camera: frame.camera, cam: frame.cam,
-      figure: frame.figure || 0, loom: frame.loom || 0,
-      recall_l: frame.recall_l || 0, recall_r: frame.recall_r || 0,
-      dnp09: frame.dnp09, dnp04_l: frame.dnp04_l, dnp04_r: frame.dnp04_r,
-    });
-    while (history.length && history[0].t < now - WINDOW_SECONDS - 1) history.shift();
-    while (timelineMarks.length && timelineMarks[0].t < now - WINDOW_SECONDS - 1) timelineMarks.shift();
-
-    el('now').textContent = (share * 100).toFixed(2) + '%';
-    el('fired').textContent = (frame.fired || 0).toLocaleString();
-    el('spikes').textContent = (frame.spikes || 0).toLocaleString();
-    el('state').textContent = frame.camera
-      ? 'TABLET UP' + (frame.cam ? ' CAM ' + frame.cam : '')
-      : ('GAZE ' + (frame.gaze || '--'));
-    el('mlamp-l').classList.toggle('on', !!frame.gf_l);
-    el('mlamp-r').classList.toggle('on', !!frame.gf_r);
-    el('mlamp-cam').classList.toggle('on', !!frame.camera);
-  };
-  source.onerror = () => {
+  source.connect(showFrame, () => {
     el('state').textContent = 'OFFLINE';
     document.body.classList.add('offline');
-  };
+  });
+}
+
+function showFrame(frame) {
+  document.body.classList.remove('offline');
+  const now = clock();
+  if (lastArrival) frameSeconds = frameSeconds * 0.95 + Math.min(now - lastArrival, 0.5) * 0.05;
+  lastArrival = now;
+
+  let firing = 0;
+  if (lastSpike && (frame.s || frame.indices)) {
+    const idx = spikeIndices(frame);
+    for (let i = 0; i < idx.length; i++) {
+      if (idx[i] < count) { lastSpike[idx[i]] = now; firing++; }
+    }
+    points.geometry.attributes.aLast.needsUpdate = true;
+  }
+  const share = count ? firing / count : 0;
+  activity = activity * 0.85 + Math.min(1, share / ACTIVITY_FULL) * 0.15;
+  applyBrightness();
+
+  if (frame.p) {
+    if (frame.p.left) el('img-l').src = 'data:image/jpeg;base64,' + frame.p.left;
+    if (frame.p.right) el('img-r').src = 'data:image/jpeg;base64,' + frame.p.right;
+  }
+  showEye('left', frame);
+  showEye('right', frame);
+  if (frame.c) drawCascade(frame.c, frame.ms || 2, frame.camera);
+
+  history.push({
+    t: now, share,
+    in_l: frame.in_l, in_r: frame.in_r, look_l: frame.look_l, look_r: frame.look_r,
+    eye_l: frame.eye_l || 0, eye_r: frame.eye_r || 0,
+    gf_l: frame.gf_l, gf_r: frame.gf_r, door_l: frame.door_l, door_r: frame.door_r,
+    camera: frame.camera, cam: frame.cam,
+    figure: frame.figure || 0, loom: frame.loom || 0,
+    recall_l: frame.recall_l || 0, recall_r: frame.recall_r || 0,
+    dnp09: frame.dnp09, dnp04_l: frame.dnp04_l, dnp04_r: frame.dnp04_r,
+  });
+  while (history.length && history[0].t < now - WINDOW_SECONDS - 1) history.shift();
+  while (timelineMarks.length && timelineMarks[0].t < now - WINDOW_SECONDS - 1) timelineMarks.shift();
+
+  el('now').textContent = (share * 100).toFixed(2) + '%';
+  el('fired').textContent = (frame.fired || 0).toLocaleString();
+  el('spikes').textContent = (frame.spikes || 0).toLocaleString();
+  el('state').textContent = frame.camera
+    ? 'TABLET UP' + (frame.cam ? ' CAM ' + frame.cam : '')
+    : ('GAZE ' + (frame.gaze || '--'));
+  el('mlamp-l').classList.toggle('on', !!frame.gf_l);
+  el('mlamp-r').classList.toggle('on', !!frame.gf_r);
+  el('mlamp-cam').classList.toggle('on', !!frame.camera);
 }
 
 const tl = el('timeline');
