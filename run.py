@@ -18,10 +18,18 @@ watch a recorded night instead.
 """
 
 
+EXAMPLE_TRACE = os.path.join(config.PROJECT_ROOT, 'examples', 'night-3.jsonl')
+
+
 def _latest_trace() -> str | None:
     folder = os.path.join(config.PROJECT_ROOT, 'logs', 'traces')
     traces = sorted(glob.glob(os.path.join(folder, 'trace_*.jsonl')))
-    return traces[-1] if traces else None
+    if traces:
+        return traces[-1]
+    if os.path.isfile(EXAMPLE_TRACE):
+        _log.info('no night of your own under logs/traces, replaying the night 3 that ships in examples/')
+        return EXAMPLE_TRACE
+    return None
 
 
 def _report_platform():
@@ -38,8 +46,20 @@ def cmd_verify() -> int:
     return 0
 
 
+def _data_in_place() -> bool:
+    if fetch_data.ready():
+        return True
+    fetch_data.print_status()
+    if fetch_data.fetch():
+        return True
+    _log.error('the connectome data is incomplete, the fly cannot start without it')
+    return False
+
+
 def cmd_replay(trace: str | None) -> int:
     from flynaf import replay as replay_module
+    if not _data_in_place():
+        return 1
     path = trace or _latest_trace()
     if path is None:
         _log.error(
@@ -65,11 +85,8 @@ def _choose(session, mode: str | None):
 
 def cmd_play(mode: str | None) -> int:
     from flynaf import main as main_module
-    if not fetch_data.ready():
-        fetch_data.print_status()
-        if not fetch_data.fetch():
-            _log.error('the connectome data is incomplete, the fly cannot start without it')
-            return 1
+    if not _data_in_place():
+        return 1
 
     if desktop.name == 'headless':
         _log.error('playing needs a desktop session, there is no display here')
