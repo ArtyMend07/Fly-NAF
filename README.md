@@ -26,13 +26,13 @@ Four behaviours come out of the network, and each one is a different pathway.
 
 Chica is at the right window. The panel reports DNp01 on the right firing, traces the spike back to the eye cluster, and the door comes down.
 
-**Checking a hallway.** The difference in membrane potential between the left and right eye populations is a slow spontaneous signal the network produces on its own, with a lag-1 autocorrelation of 0.97. It is accumulated to a bound together with what the last look revealed and a per-side habituation term, and whichever side wins gets looked at. There is one starvation guard, a clock that forces a look at a hallway left unwatched for thirty seconds, and every look it causes is counted separately in the session report so its share stays visible.
+**Checking a hallway.** The difference in membrane potential between the left and right eye populations is a slow spontaneous signal the network produces on its own, with a lag-1 autocorrelation of 0.97. It is accumulated to a bound together with what the last look revealed and a per-side habituation term, and whichever side wins gets looked at. A fourth term is a memory of where a figure was last seen. A lit figure in a hallway also drives MeTu4 on that side, which reaches the ER3d and ER3p ring neurons of the ellipsoid body through the bulb (MeTu4 to TuBu03, TuBu04 and TuBu05 to ER3, all on the same side). Flies keep the position of a vanished object for a few seconds and need these ring neurons to do it (Neuser et al. 2008, Kuntz et al. 2012), and the trace is a cGMP signal in their output branches (Kuntz et al. 2017). Here the ring spikes of each side, above their resting rate, write a trace that fades over four seconds, and the left trace minus the right one pulls the next look toward the side where the figure was. The resting rate and the burst a sighting produces were measured on the engine with `measure_orientation_pathway.py`. There is one starvation guard, a clock that forces a look at a hallway left unwatched for thirty seconds, and every look it causes is counted separately in the session report so its share stays visible.
 
 **Raising the monitor.** DNp09's own subthreshold membrane potential is accumulated the same way. A real spike raises the tablet outright, and the tablet comes down when that drive fades rather than when a timer expires.
 
 Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences the Giant Fiber, so no door reflex can fire through the tablet, exactly as no door button can be pressed in the game. Whether the tablet is up is read off the screen, by counting the eleven camera buttons of the map, and the fly believes a raise or a lowering only once the map has appeared or gone (ADR 0015).
 
-**Watching for Foxy.** The tablet always comes up on Pirate Cove, CAM 1C. What differs from the cove as it looked at the start of the night drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object. When DNp09 fires on the cove, the fly keeps a memory of the object on its left that fades over about ten seconds, the way a fly keeps heading for a landmark that has vanished (Neuser et al. 2008). That memory drives LPLC2 and LC4 on the left, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. The fly then drops the tablet and closes the left door, and with the tablet down the same memory keeps the Giant Fiber firing, which holds the door for about twenty seconds. The west hall is never looked at, because Foxy reaches the door 1.7 seconds after CAM 2A shows him and the escape takes longer than that. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent while the tablet is up (ADR 0026, experiment 13).
+**Watching for Foxy.** The tablet always comes up on Pirate Cove, CAM 1C. What differs from the cove as it looked at the start of the night drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object. When DNp09 fires on the cove, a defensive state builds on the left and fades over about ten seconds, the leaky build-up flies show to repeated looming shadows (Gibson et al. 2015). That state drives LPLC2 and LC4 on the left, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. The fly then drops the tablet and closes the left door, and with the tablet down the same state keeps the Giant Fiber firing, which holds the door for about twenty seconds. The west hall is never looked at, because Foxy reaches the door 1.7 seconds after CAM 2A shows him and the escape takes longer than that. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent while the tablet is up (ADR 0026, experiment 13).
 
 ![Foxy peeking out of Pirate Cove, the tablet drops and the left door closes](docs/media/foxy-from-the-cove.gif)
 
@@ -107,9 +107,18 @@ uv run python -m flynaf.scripts.fetch_data
 downloads `soma_coordinates_783.csv` and `brain_mesh_flywire.ply` into place. It fetches, it never
 redistributes. `--check` reports what is present without downloading anything, and `--yes` skips the licence prompt.
 
-## Three ways in
+## Four ways in
 
-Not everything here needs the game, and two of the three need no purchase at all.
+Not everything here needs the game, and three of the four need no purchase at all.
+
+**Watch night 3 in the browser.** Nothing to install. The page plays back the
+night in the clip above as the brain replayed it, every spike of the 138,639
+neurons, at https://artymend07.github.io/Fly-NAF/. The same page runs on your
+machine without the data:
+
+```bash
+uv run python run.py --page
+```
 
 **Check what is in the loop.** Needs the data and nothing else, on any operating
 system.
@@ -118,9 +127,10 @@ system.
 uv run python run.py --verify
 ```
 
-**Replay a recorded night through the brain.** Needs the data and a trace. No
-game, no Windows, no screen. This is the honest way to confirm that a hallway
-reading reaches DNp01 and closes a door.
+**Replay a recorded night through the brain.** Needs the data. The night 3 from
+the clip ships as `examples/night-3.jsonl`, and the replay uses it until you
+record a night of your own. No game, no Windows, no screen. This is the honest
+way to confirm that a hallway reading reaches DNp01 and closes a door.
 
 ```bash
 uv run python run.py --replay
@@ -250,6 +260,13 @@ fly behaves stochastically. What holds across runs is the shape, and the report
 says which parts of it count as a failure. Set `FLYNAF_RECORD=0` to turn
 recording off.
 
+The browser page is built from the same replay. `uv run python -m flynaf.replay_page record`
+runs the bundled night through the engine and keeps every spike in
+`examples/night-3-page/`, and the `pages` workflow publishes the panel with a player
+on top. The page holds numbers only, no frame of the game, and the neuron positions
+load in the visitor's browser straight from `flywire_annotations` and navis-flybrains,
+so no FlyWire data is redistributed here.
+
 ## Tests
 
 The tests run under pytest, which `uv sync` installs with ruff as development
@@ -327,3 +344,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.18 | Described the door that reopens after a clearing look, the closed-door calibration, the tablet read from the camera map, the warm-up and the bank of hallway views | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.19 | Described the window read behind a closed door, the lit look a door needs to reopen and the game moved aside for the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.20 | Added three clips of a night 3, the new best run, and the memory of Foxy that replaced the look at CAM 2A | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 |
+| 1.21 | Added the night 3 page and the bundled trace, described the ring neuron memory and renamed the cove memory a defensive state | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 |
