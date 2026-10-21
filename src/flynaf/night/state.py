@@ -14,9 +14,12 @@ class SensoryState:
     l_escape: bool = False
     r_escape: bool = False
     explore_spike: bool = False
+    l_explore: bool = False
+    r_explore: bool = False
     l_sensory_count: int = 0
     r_sensory_count: int = 0
     forage_bias: float = 0.0
+    arousal: float = 0.0
     gaze_side: str = 'left'
     l_ring_count: int = 0
     r_ring_count: int = 0

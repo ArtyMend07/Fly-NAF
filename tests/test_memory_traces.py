@@ -3,7 +3,13 @@ from dataclasses import dataclass
 
 import pytest
 
-from flynaf.night.memory import DefensiveState, FadingTrace, OrientationMemory
+from flynaf.night.memory import (
+    DefensiveState,
+    FadingTrace,
+    OrientationMemory,
+    Vigilance,
+    quickened,
+)
 
 DECAY = 4.0
 BASE_RATE = 1000.0
@@ -114,3 +120,35 @@ def test_the_defensive_state_drives_the_looming_populations_on_its_side():
     assert state.drive(0.0) == {}
     state.threat('right', 0.5, now=0.0)
     assert state.drive(0.0) == {'loom_size_right': 0.5, 'loom_speed_right': 0.5}
+
+
+@pytest.mark.parametrize('sightings, arousal, pull', [
+    ((), 0.0, 0.0),
+    ((('right', 0.6),), 0.6, -0.6),
+    ((('left', 0.3), ('right', 0.8)), 0.8, -0.5),
+])
+def test_vigilance_reports_how_alert_the_fly_is_and_which_side_draws_it(sightings, arousal, pull):
+    vigilance = Vigilance(30.0)
+    for side, strength in sightings:
+        vigilance.sighted(side, strength, now=0.0)
+    assert vigilance.arousal(0.0) == pytest.approx(arousal)
+    assert vigilance.pull(0.0) == pytest.approx(pull)
+
+
+def test_vigilance_outlasts_the_defensive_state():
+    vigilance, defence = Vigilance(), DefensiveState()
+    vigilance.sighted('right', 1.0, now=0.0)
+    defence.threat('right', 1.0, now=0.0)
+    assert vigilance.level(25.0, 'right') > 2 * defence.level(25.0, 'right')
+
+
+@pytest.mark.parametrize('arousal, quickening, seconds', [
+    (0.0, 2.0, 15.0),
+    (0.5, 2.0, 7.5),
+    (1.0, 2.0, 5.0),
+    (3.0, 2.0, 5.0),
+    (-1.0, 2.0, 15.0),
+    (1.0, 0.0, 15.0),
+])
+def test_arousal_shortens_the_pause_between_actions(arousal, quickening, seconds):
+    assert quickened(15.0, arousal, quickening) == pytest.approx(seconds)

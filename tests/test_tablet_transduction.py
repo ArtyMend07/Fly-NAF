@@ -1,10 +1,14 @@
+import dataclasses
+
 import cv2
 import numpy as np
+import pytest
 
 from flynaf import config
 from flynaf.env.tablet_feed import (
     bank_distance,
     bank_noise,
+    bank_reading,
     feed_size,
     prepare,
     spread_sample,
@@ -67,6 +71,17 @@ def test_changes_under_the_hud_mask_are_ignored():
     mask[:10, 60:] = False
     assert bank_distance(clock_changed, [scene], mask) < 1.0
     assert bank_distance(clock_changed, [scene]) > 100.0
+
+
+@pytest.mark.parametrize('rows, share', [(0, 0.0), (5, 0.25), (10, 0.5), (20, 1.0)])
+def test_the_reading_reports_the_share_of_the_view_that_changed(rows, share):
+    scene = np.zeros((20, 20), np.float32)
+    changed = scene.copy()
+    changed[:rows] = 100.0
+    params = dataclasses.replace(config.TABLET_VISION, cell_pixels=5, pan_reach=0)
+    reading = bank_reading(changed, [scene], np.ones(scene.shape, bool), noise=10.0, params=params)
+    assert reading.share == pytest.approx(share)
+    assert reading.contrast == (10000.0 if rows else 0.0)
 
 
 def test_bank_noise_is_the_worst_leave_one_out_distance():

@@ -5,7 +5,7 @@ from flynaf import config
 SIDES = ('left', 'right')
 STIMULUS_ROLES = ('eye', 'wide_field', 'figure', 'loom_size', 'loom_speed')
 HALLWAY_ROLES = ('eye', 'wide_field')
-READOUT_ROLES = ('giant_fiber', 'looming_escape', 'orientation')
+READOUT_ROLES = ('giant_fiber', 'looming_escape', 'orientation', 'explore')
 
 
 @dataclass(frozen=True)

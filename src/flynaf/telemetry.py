@@ -57,7 +57,7 @@ class ConnectomeTelemetry:
         t = clock.now() - self.start_time
         self.figures_remembered[camera] = self.figures_remembered.get(camera, 0) + 1
         self.events.append(
-            f"[{t:>6.1f}s] DNp09 fired on a figure in CAM {camera}, defensive state on the {side} at {strength:.2f}."
+            f"[{t:>6.1f}s] DNp09 fired on a figure in CAM {camera}, the fly is alert on the {side} at {strength:.2f}."
         )
 
     def record_tablet_escape(self, side: str, camera: str):

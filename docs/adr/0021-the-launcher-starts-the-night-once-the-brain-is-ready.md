@@ -81,9 +81,8 @@ A 1280x720 window centred on a 1920x1080 display leaves 320 pixels on each
 side, under the 420 the full panel needs, so every night on such a display fell
 back to the 280x150 overlay inside the game. When the game is windowed and
 narrow enough, the panel now moves it to the left edge first and opens the full
-panel in the space on its right, which `BrainView.dock_game` turns off. A fixed
-position also keeps the eye references valid from one night to the next, since
-the cached layout includes where the game sits.
+panel in the space on its right, which `BrainView.dock_game` turns off. The eye
+references no longer depend on where the game sits (ADR 0018, version 1.1).
 
 The panel window is Edge in app mode, and Edge draws its own title bar inside
 the window, so removing the Windows caption left the bar in place. The page
@@ -143,3 +142,4 @@ The window has to be measured in physical pixels too. Windows reports window rec
 | 1.5 | Required the whole window title to match the game | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.6 | Warmed the network up before the night and declared DPI awareness before the first window measurement | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.7 | Moved a narrow game window to the left edge for the full panel and cut the browser title bar off the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.8 | Pointed the note on cached eye references to ADR 0018, which no longer ties them to the window position | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 |

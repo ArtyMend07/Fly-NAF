@@ -112,6 +112,14 @@ class ConnectomeEngine:
         return self.neurons.outputs['explore']
 
     @property
+    def l_explore_idx(self):
+        return self.neurons.outputs['explore_left']
+
+    @property
+    def r_explore_idx(self):
+        return self.neurons.outputs['explore_right']
+
+    @property
     def l_sensory_idx(self):
         return self.neurons.inputs['eye_left']
 

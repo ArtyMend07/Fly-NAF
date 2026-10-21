@@ -32,11 +32,11 @@ Chica is at the right window. The panel reports DNp01 on the right firing, trace
 
 Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences the Giant Fiber, so no door reflex can fire through the tablet, exactly as no door button can be pressed in the game. Whether the tablet is up is read off the screen, by counting the eleven camera buttons of the map, and the fly believes a raise or a lowering only once the map has appeared or gone (ADR 0015).
 
-**Watching for Foxy.** The tablet always comes up on Pirate Cove, CAM 1C. What differs from the cove as it looked at the start of the night drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object. When DNp09 fires on the cove, a defensive state builds on the left and fades over about ten seconds, the leaky build-up flies show to repeated looming shadows (Gibson et al. 2015). That state drives LPLC2 and LC4 on the left, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. The fly then drops the tablet and closes the left door, and with the tablet down the same state keeps the Giant Fiber firing, which holds the door for about twenty seconds. The west hall is never looked at, because Foxy reaches the door 1.7 seconds after CAM 2A shows him and the escape takes longer than that. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent while the tablet is up (ADR 0026, experiment 13).
+**Watching the cameras.** The tablet opens on Pirate Cove, CAM 1C, or on the corner of the east hall, CAM 4B, whichever side the search drive leans to. What differs from that camera as it looked at the start of the night is routed by how much of the view changed, the size tuning the lobula already has. A small change, Foxy peeking or Freddy in the corner, drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object, and leaves the fly vigilant for about half a minute, raising the tablet sooner and coming back to that camera more often. A large change on CAM 1C, Foxy out of the curtain or the cove empty, also drives LPLC2 and LC4, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. The fly drops the tablet and closes the left door, and the escape leaves a defensive state that holds that door for about twenty seconds, close to the time flies take to settle after a looming shadow (Gibson et al. 2015). A camera knocked out by an animatronic on the move drives the MeTu4 wide-field neurons instead and turns the next look towards that side's door. The west hall is never looked at, because Foxy reaches the door 1.7 seconds after CAM 2A shows him and the escape takes longer than that. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent while the tablet is up (ADR 0026, experiments 13 and 16).
 
 ![Foxy peeking out of Pirate Cove, the tablet drops and the left door closes](docs/media/foxy-from-the-cove.gif)
 
-Foxy is peeking out of the curtain on CAM 1C. The fly drops the tablet and the left door is shut before he runs.
+Foxy is peeking out of the curtain on CAM 1C. The fly drops the tablet and the left door is shut before he runs. The clip predates the routing by size, and a peek like this one now leaves the fly vigilant without closing the door.
 
 ## What this is not
 
@@ -305,7 +305,8 @@ experiment 13 cover the tablet, Foxy and why DNp04 rather than the Giant Fiber
 answers through it. ADR 0027 covers the `flynaf` package and the test pipeline,
 and ADR 0028 covers the single clock every time step of a night is read from.
 ADR 0011 and experiment 14 cover why the fly once reopened the door into Bonnie
-and how the window behind a closed door is read now.
+and how the window behind a closed door is read now. Experiment 16 covers Freddy
+and CAM 4B.
 
 ## Licensing and credits
 
@@ -345,3 +346,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.19 | Described the window read behind a closed door, the lit look a door needs to reopen and the game moved aside for the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.20 | Added three clips of a night 3, the new best run, and the memory of Foxy that replaced the look at CAM 2A | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 |
 | 1.21 | Added the night 3 page and the bundled trace, described the ring neuron memory and renamed the cove memory a defensive state | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 |
+| 1.22 | Described the cameras routed by size, the watched CAM 4B and the knocked-out feed | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 |

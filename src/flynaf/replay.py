@@ -19,6 +19,7 @@ class FrameInput:
         self.left_mse = float(payload.get('left_mse') or 0.0)
         self.right_mse = float(payload.get('right_mse') or 0.0)
         self.camera_open = bool(payload.get('camera_open', False))
+        self.arousal = float(payload.get('arousal', 0.0))
         self.tablet_camera = payload.get('tablet_camera')
         self.doors = (payload.get('door_left'), payload.get('door_right'))
         self.recorded_gf_left = bool(payload.get('gf_left', False))

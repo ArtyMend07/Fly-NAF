@@ -108,9 +108,17 @@ def test_a_look_spends_the_memory_term_with_the_others():
 class _RingEngine:
     l_motor_idx, r_motor_idx = [0], [1]
     l_escape_idx, r_escape_idx = [2], [3]
-    explore_idx = [4]
+    l_explore_idx, r_explore_idx = [4], [11]
     l_sensory_idx, r_sensory_idx = [5], [6]
     l_ring_idx, r_ring_idx = [7, 8], [9, 10]
+
+
+def _read(firing) -> SensoryState:
+    spikes = torch.zeros(1, 12)
+    spikes[0, list(firing)] = 1.0
+    state = SensoryState()
+    tasks.read_spikes(_RingEngine(), spikes, state)
+    return state
 
 
 @pytest.mark.parametrize('firing, counts', [
@@ -120,11 +128,20 @@ class _RingEngine:
     ((7, 9, 10), (1, 2)),
 ])
 def test_the_ring_neurons_of_each_side_are_counted_apart(firing, counts):
-    spikes = torch.zeros(1, 11)
-    spikes[0, list(firing)] = 1.0
-    state = SensoryState()
-    tasks.read_spikes(_RingEngine(), spikes, state)
+    state = _read(firing)
     assert (state.l_ring_count, state.r_ring_count) == counts
+
+
+@pytest.mark.parametrize('firing, left, right', [
+    ((), False, False),
+    ((4,), True, False),
+    ((11,), False, True),
+    ((4, 11), True, True),
+])
+def test_each_dnp09_is_read_on_its_own_side_and_either_one_counts_as_a_spike(firing, left, right):
+    state = _read(firing)
+    assert (state.l_explore, state.r_explore) == (left, right)
+    assert state.explore_spike is (left or right)
 
 
 @pytest.mark.parametrize('side, recalled', [('left', 1.0), ('right', -1.0)])

@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from flynaf import clock, config
+from flynaf.night.memory import quickened
 from flynaf.night.motor import await_motor
 from flynaf.night.state import SensoryState
 from flynaf.night.tablet.watch import IdleTablet
@@ -98,7 +99,7 @@ class MonitorControl:
         if not self._releasing:
             self._telemetry.record_camera_release(now - self._opened_at, 'escape')
         self._releasing = True
-        self._tablet.on_lower()
+        self._tablet.on_lower(now)
         self._start('lower', escape_from_tablet(
             self._vision, self._controller, self._confirm_sec, reflex,
         ))
@@ -130,7 +131,7 @@ class MonitorControl:
             if now < self._cap_at and not bored:
                 return
             self._releasing = True
-            self._tablet.on_lower()
+            self._tablet.on_lower(now)
             self._telemetry.record_camera_release(watched_for, release_reason(explore, bored))
         if now < self._retry_at:
             return
@@ -176,7 +177,7 @@ class MonitorControl:
         self._releasing = False
         self._attempts = 0
         self._state.camera_open = False
-        self.ready_at = now + self._refractory_sec
+        self.ready_at = now + quickened(self._refractory_sec, self._state.arousal)
 
     def _after_tidy(self, now: float, lowered: bool):
         if not lowered:

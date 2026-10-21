@@ -66,6 +66,7 @@ class ForagingParams:
     saccade_refractory_sec: float = 2.5
     camera_watch_max_sec: float = 6.0
     camera_watch_min_sec: float = 2.0
+    arousal_quickening: float = 2.0
     camera_release_forage_bias: float = 0.5
     closed_door_mse_threshold: float = 30.0
 
@@ -158,8 +159,8 @@ class GameLauncher:
 @dataclass(frozen=True)
 class ExploreDynamics:
     bound: float = 1.0
-    drive_leak_per_frame: float = 0.95
     gain_ratio: float = 1.00
+    arousal_gain: float = 1.0
     baseline_tau_frames: float = 500.0
     scale_tau_frames: float = 300.0
     release_ratio: float = 0.40
@@ -174,6 +175,7 @@ class SearchDynamics:
     scale_tau_frames: float = 300.0
     habituation_leak_per_frame: float = 0.985
     habituation_gain: float = 3.0
+    view_habituation_leak_per_frame: float = 0.995
     evidence_gain: float = 4.0
     memory_gain: float = 3.0
     starvation_sec: float = 30.0
@@ -194,6 +196,7 @@ class MemoryDynamics:
     ring_sighting_left: float = 15.7
     ring_sighting_right: float = 33.8
     defence_sec: float = 10.0
+    vigilance_sec: float = 30.0
 
 
 @dataclass(frozen=True)
@@ -202,6 +205,11 @@ class CameraButton:
     x: int
     y: int
     side: str
+    figure_span_mse: float = 1500.0
+    defensive: bool = True
+    loom_share_floor: float = 0.10
+    loom_share_span: float = 0.30
+    wide_field_share: float = 0.80
 
 
 @dataclass(frozen=True)
@@ -220,6 +228,7 @@ class TabletVision:
     cell_pixels: int = 5
     strongest_cells: int = 3
     start_raise_patience_sec: float = 6.0
+    start_raise_attempts: int = 3
     capture_delay_sec: float = 0.03
     map_ready_sec: float = 0.4
     raise_settle_sec: float = 1.2
@@ -227,14 +236,13 @@ class TabletVision:
     reference_sweep_sec: float = 3.0
     reference_frames: int = 24
     noise_margin: float = 1.5
-    figure_span_mse: float = 1500.0
     lower_settle_sec: float = 0.35
     first_camera: str = '1C'
     cameras: tuple = (
         CameraButton('1C', 925, 484, 'left'),
-        CameraButton('4B', 1087, 641, 'right'),
+        CameraButton('4B', 1087, 641, 'right', defensive=False),
     )
-    watched: tuple = ('1C',)
+    watched: tuple = ('1C', '4B')
 
 
 @dataclass(frozen=True)

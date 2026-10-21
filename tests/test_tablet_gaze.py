@@ -4,16 +4,20 @@ import math
 import pytest
 
 from flynaf import config
-from flynaf.night.memory import DefensiveState, Memories, OrientationMemory
+from flynaf.night.memory import DefensiveState, Memories, OrientationMemory, Vigilance
 from flynaf.night.state import SensoryState
 from flynaf.night.tablet.gaze import TabletGaze, watched_cameras
-from flynaf.night.tablet.watch import TabletWatch, build_gaze
+from flynaf.night.tablet.watch import FinishedView, TabletWatch, build_gaze
 from flynaf.telemetry import ConnectomeTelemetry
 
 RAISE = 1.2
+NOBODY = {'left': False, 'right': False}
+
+COVE_ONLY = dataclasses.replace(config.TABLET_VISION, watched=('1C',))
 
 
-BOTH_HALLS = dataclasses.replace(config.TABLET_VISION, watched=('1C', '4B'))
+def _fired(side: str | None) -> dict:
+    return {**NOBODY, side: True} if side else dict(NOBODY)
 
 
 def _gaze(params=None) -> TabletGaze:
@@ -45,7 +49,7 @@ class RecordingFeed:
         self.active = False
 
 
-def test_raising_the_tablet_always_opens_on_the_cove():
+def test_a_raise_with_no_leaning_opens_on_the_cove():
     gaze = _gaze()
     assert gaze.on_raised(now=10.0) == '1C'
     assert gaze.readable_at == 10.0 + RAISE
@@ -68,7 +72,7 @@ def test_pursuit_needs_a_dnp09_spike_on_a_readable_cove():
         assert (pursued.name if pursued else None) == expected, label
 
 
-def test_the_gaze_never_leaves_the_cove_on_its_own():
+def test_the_gaze_never_leaves_its_camera_on_its_own():
     gaze = _gaze()
     gaze.on_raised(now=0.0)
     gaze.pursued(5.0, True)
@@ -76,26 +80,27 @@ def test_the_gaze_never_leaves_the_cove_on_its_own():
 
 
 @pytest.mark.parametrize('params, leaning, camera', [
+    (COVE_ONLY, 'left', '1C'),
+    (COVE_ONLY, 'right', '1C'),
     (config.TABLET_VISION, 'left', '1C'),
-    (config.TABLET_VISION, 'right', '1C'),
-    (BOTH_HALLS, 'left', '1C'),
-    (BOTH_HALLS, 'right', '4B'),
-    (BOTH_HALLS, None, '1C'),
+    (config.TABLET_VISION, 'right', '4B'),
+    (config.TABLET_VISION, None, '1C'),
 ])
 def test_the_tablet_opens_on_the_watched_camera_of_the_side_the_fly_leans_to(params, leaning, camera):
     assert _gaze(params).on_raised(now=0.0, side=leaning) == camera
 
 
-def test_only_watched_cameras_are_built_into_the_gaze():
-    assert [camera.name for camera in watched_cameras(config.TABLET_VISION)] == ['1C']
-    assert build_gaze(BOTH_HALLS).on_raised(now=0.0, side='right') == '4B'
+def test_the_fly_watches_the_cove_and_the_east_hall_corner():
+    assert [camera.name for camera in watched_cameras(config.TABLET_VISION)] == ['1C', '4B']
+    assert build_gaze().on_raised(now=0.0, side='right') == '4B'
+    assert build_gaze(COVE_ONLY).on_raised(now=0.0, side='right') == '1C'
 
 
 def _watching(figure: float, camera: str = '1C', side: str = 'left'):
     state = SensoryState(camera_open=True, gaze_side=side)
     controller, telemetry = RecordingController(), ConnectomeTelemetry()
-    memories = Memories(OrientationMemory(), DefensiveState(4.0))
-    watch = TabletWatch(_gaze(BOTH_HALLS), RecordingFeed(), controller, telemetry, state, memories)
+    memories = Memories(OrientationMemory(), DefensiveState(4.0), Vigilance(4.0))
+    watch = TabletWatch(_gaze(), RecordingFeed(), controller, telemetry, state, memories)
     watch.on_raise(now=0.0)
     state.tablet_drive = {f'figure_{side}': figure}
     assert watch.camera == camera
@@ -103,55 +108,92 @@ def _watching(figure: float, camera: str = '1C', side: str = 'left'):
 
 
 @pytest.mark.parametrize('camera, side', [('1C', 'left'), ('4B', 'right')])
-def test_a_dnp09_spike_on_a_figure_adds_it_to_the_defensive_state_on_its_side(camera, side):
+def test_a_figure_dnp09_answered_alerts_its_side_without_reaching_the_door(camera, side):
     watch, memories, controller, telemetry, _state = _watching(0.6, camera, side)
-    watch.update(5.0, explore_fired=True, escape_fired={})
-    assert memories.defence.level(5.0, side) == pytest.approx(0.6)
+    watch.update(5.0, explore_fired=_fired(side), escape_fired={})
+    assert memories.vigilance.level(5.0, side) == pytest.approx(0.6)
+    assert memories.defence.drive(5.0) == {}
     assert memories.orientation.level(5.0, side) == 0.0
     assert controller.selected == [(camera, config.TABLET_VISION.map_ready_sec)]
     assert telemetry.figures_remembered == {camera: 1}
 
 
+@pytest.mark.parametrize('camera, side, other', [('1C', 'left', 'right'), ('4B', 'right', 'left')])
+def test_the_dnp09_across_the_midline_does_not_count_a_figure_on_the_other_side(camera, side, other):
+    watch, memories, _controller, telemetry, _state = _watching(0.6, camera, side)
+    watch.update(5.0, explore_fired=_fired(other), escape_fired={})
+    assert memories.defence.drive(5.0) == {}
+    assert memories.vigilance.arousal(5.0) == 0.0
+    assert telemetry.figures_remembered == {}
+
+
 def test_a_spontaneous_dnp09_spike_on_an_empty_view_remembers_nothing():
     watch, memories, _controller, telemetry, _state = _watching(0.0)
-    watch.update(5.0, explore_fired=True, escape_fired={})
-    assert memories.defence.drive(5.0) == {}
+    watch.update(5.0, explore_fired=_fired('left'), escape_fired={})
+    assert memories.vigilance.arousal(5.0) == 0.0
     assert telemetry.figures_remembered == {}
 
 
 def test_a_figure_dnp09_never_answered_is_not_remembered():
     watch, memories, _controller, telemetry, _state = _watching(0.6)
-    watch.update(5.0, explore_fired=False, escape_fired={})
-    assert memories.defence.drive(5.0) == {}
+    watch.update(5.0, explore_fired=_fired(None), escape_fired={})
+    assert memories.vigilance.arousal(5.0) == 0.0
     assert telemetry.figures_remembered == {}
 
 
 def test_nothing_is_remembered_from_the_static_of_a_camera_that_just_came_up():
     watch, memories, _controller, _telemetry, _state = _watching(0.6)
-    watch.update(RAISE - 0.1, explore_fired=True, escape_fired={})
-    assert memories.defence.drive(RAISE - 0.1) == {}
+    watch.update(RAISE - 0.1, explore_fired=_fired('left'), escape_fired={})
+    assert memories.vigilance.arousal(RAISE - 0.1) == 0.0
 
 
-def test_one_view_counts_as_one_threat_at_the_strongest_level_dnp09_answered():
+def test_one_view_counts_as_one_sighting_at_the_strongest_level_dnp09_answered():
     watch, memories, _controller, telemetry, state = _watching(0.2)
-    watch.update(5.0, explore_fired=True, escape_fired={})
+    watch.update(5.0, explore_fired=_fired('left'), escape_fired={})
     state.tablet_drive = {'figure_left': 0.7}
-    watch.update(5.1, explore_fired=True, escape_fired={})
-    watch.update(5.2, explore_fired=True, escape_fired={})
+    watch.update(5.1, explore_fired=_fired('left'), escape_fired={})
+    watch.update(5.2, explore_fired=_fired('left'), escape_fired={})
     fade = math.exp(-0.1 / 4.0)
-    assert memories.defence.level(5.2, 'left') == pytest.approx((0.2 * fade + 0.5) * fade)
+    assert memories.vigilance.level(5.2, 'left') == pytest.approx((0.2 * fade + 0.5) * fade)
     assert telemetry.figures_remembered == {'1C': 1}
 
 
 def test_a_second_view_adds_to_what_the_first_one_left():
     watch, memories, _controller, _telemetry, state = _watching(0.4)
-    watch.update(5.0, explore_fired=True, escape_fired={})
-    left_over = memories.defence.level(9.0, 'left')
-    watch.on_lower()
+    watch.update(5.0, explore_fired=_fired('left'), escape_fired={})
+    left_over = memories.vigilance.level(9.0, 'left')
+    watch.on_lower(now=6.0)
     watch.on_raise(now=7.0)
     state.tablet_drive = {'figure_left': 0.4}
-    watch.update(9.0, explore_fired=True, escape_fired={})
-    assert memories.defence.level(9.0, 'left') == pytest.approx(left_over + 0.4)
+    watch.update(9.0, explore_fired=_fired('left'), escape_fired={})
+    assert memories.vigilance.level(9.0, 'left') == pytest.approx(left_over + 0.4)
+
+
+@pytest.mark.parametrize('drive, defended', [
+    ({'loom_size_left': 0.6, 'loom_speed_left': 0.6, 'figure_left': 0.5}, 0.6),
+    ({'figure_left': 0.5}, 0.0),
+])
+def test_a_dnp04_escape_from_something_large_on_the_tablet_leaves_the_fly_defensive(drive, defended):
+    watch, memories, _controller, _telemetry, state = _watching(0.0)
+    state.tablet_drive = drive
+    assert watch.update(5.0, explore_fired=NOBODY, escape_fired={'left': True, 'right': False}) == 'left'
+    assert memories.defence.level(5.0, 'left') == pytest.approx(defended)
+
+
+@pytest.mark.parametrize('camera, side', [('1C', 'left'), ('4B', 'right')])
+@pytest.mark.parametrize('figure, dnp09, lowered_at, found', [
+    (0.0, False, RAISE + 1.0, False),
+    (0.6, False, RAISE + 1.0, False),
+    (0.6, True, RAISE + 1.0, True),
+    (0.6, True, RAISE - 0.1, None),
+])
+def test_a_view_that_became_readable_is_remembered_with_whether_dnp09_found_something(
+        camera, side, figure, dnp09, lowered_at, found):
+    watch, _memories, _controller, _telemetry, _state = _watching(figure, camera, side)
+    watch.update(RAISE + 0.5, explore_fired=_fired(side if dnp09 else None), escape_fired={})
+    watch.on_lower(now=lowered_at)
+    assert watch.last_view == (None if found is None else FinishedView(side, found))
+    assert watch.finished_views == (0 if found is None else 1)
 
 
 def test_the_watch_taps_the_map_and_tells_the_senses_where_it_looks():
@@ -165,7 +207,7 @@ def test_the_watch_taps_the_map_and_tells_the_senses_where_it_looks():
     assert state.tablet_readable_at == RAISE
     assert telemetry.camera_views == {'1C': 1}
 
-    watch.on_lower()
+    watch.on_lower(now=0.5)
     assert not feed.active
     assert state.tablet_camera is None
     assert state.tablet_drive == {}
@@ -183,11 +225,10 @@ def test_a_dnp04_spike_while_watching_names_the_door():
         watch = TabletWatch(_gaze(), RecordingFeed(), RecordingController(), ConnectomeTelemetry(),
                             SensoryState(camera_open=True))
         watch.on_raise(now=0.0)
-        assert watch.update(0.1, explore_fired=False, escape_fired=fired) == expected, fired
+        assert watch.update(0.1, explore_fired=NOBODY, escape_fired=fired) == expected, fired
 
 
 def test_nothing_is_read_from_the_watch_while_the_tablet_is_down():
     watch = TabletWatch(_gaze(), RecordingFeed(), RecordingController(), ConnectomeTelemetry(),
                         SensoryState())
-    assert watch.update(1.0, explore_fired=True, escape_fired={'left': True}) is None
-
+    assert watch.update(1.0, explore_fired=_fired('left'), escape_fired={'left': True}) is None

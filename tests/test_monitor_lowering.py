@@ -211,3 +211,18 @@ def test_the_fly_only_tires_of_a_camera_after_it_could_read_it(watched, still_op
     asyncio.run(scenario())
 
     assert control_.is_open is still_open
+
+
+@pytest.mark.parametrize('arousal, wait', [(0.0, 15.0), (0.5, 7.5), (1.0, 5.0)])
+def test_an_alert_fly_is_ready_for_the_next_raise_sooner(arousal, wait):
+    control_, state, _, _ = control(Screen())
+    state.arousal = arousal
+
+    async def scenario():
+        await settle(control_, 1000.0, StubExplore(wants=True, spent=False))
+        await settle(control_, 1010.0, StubExplore(wants=False, spent=True))
+
+    asyncio.run(scenario())
+
+    assert control_.is_open is False
+    assert control_.ready_at == pytest.approx(1010.0 + wait)

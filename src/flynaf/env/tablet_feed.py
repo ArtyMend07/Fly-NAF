@@ -1,7 +1,10 @@
 import collections
+import glob
 import logging
+import os
 import threading
 import time
+from dataclasses import dataclass
 
 import cv2
 import mss
@@ -102,6 +105,27 @@ def bank_distance(frame: np.ndarray, bank: list, mask: np.ndarray | None = None,
     return min(distances)
 
 
+@dataclass(frozen=True)
+class Reading:
+    contrast: float
+    share: float
+
+
+def bank_reading(frame: np.ndarray, bank: list, mask: np.ndarray, noise: float, params=None) -> Reading:
+    params = params or config.TABLET_VISION
+    best = None
+    for reference, shift in _nearest_alignments(frame, np.stack(bank), mask, params):
+        seen, recorded, shared = _overlap(frame, reference, mask, shift)
+        squared = (recorded - seen) ** 2
+        contrast = strongest_cells(squared, shared, params.cell_pixels, params.strongest_cells)
+        if best is None or contrast < best[0]:
+            best = (contrast, squared, shared)
+    contrast, squared, shared = best
+    means, covered = _cell_means(squared, shared, params.cell_pixels)
+    changed = means[covered] > noise if covered.any() else np.zeros(1, bool)
+    return Reading(contrast, float(changed.mean()))
+
+
 def bank_noise(bank: list, mask: np.ndarray | None = None, params=None) -> float:
     if len(bank) < 2:
         return 0.0
@@ -147,11 +171,15 @@ class TabletFeed:
     def noise(self, camera: str) -> float:
         return self._noise.get(camera, 0.0)
 
-    def contrast(self, camera: str) -> float | None:
+    def reading(self, camera: str) -> Reading | None:
         with self._lock:
             self._watching = camera
-            read_camera, read_contrast = self._reading
-        return read_contrast if read_camera == camera else None
+            read_camera, reading = self._reading
+        return reading if read_camera == camera else None
+
+    def contrast(self, camera: str) -> float | None:
+        reading = self.reading(camera)
+        return None if reading is None else reading.contrast
 
     def capture_reference(self, camera: str) -> bool:
         frames = self._collect(self._p.reference_sweep_sec)
@@ -159,11 +187,29 @@ class TabletFeed:
         if not bank:
             _log.warning('no frames arrived from the tablet while recording camera %s', camera)
             return False
-        self._banks[camera] = bank
-        self._noise[camera] = bank_noise(bank, self._mask, self._p) * self._p.noise_margin
+        self._keep(camera, bank)
         _log.info('camera %s reference: %d frames, noise floor %.0f',
                   camera, len(bank), self._noise[camera])
         return True
+
+    def save_reference(self, camera: str, folder: str):
+        for i, frame in enumerate(self._banks[camera]):
+            cv2.imwrite(os.path.join(folder, f'{camera}_{i:02d}.png'), np.clip(frame, 0, 255).astype(np.uint8))
+
+    def load_reference(self, camera: str, folder: str) -> bool:
+        paths = sorted(glob.glob(os.path.join(folder, f'{camera}_[0-9][0-9].png')))
+        bank = [cv2.imread(path, cv2.IMREAD_GRAYSCALE) for path in paths]
+        width, height = self._size
+        if not bank or any(frame is None or frame.shape != (height, width) for frame in bank):
+            return False
+        self._keep(camera, [frame.astype(np.float32) for frame in bank])
+        _log.info('camera %s reference loaded from disk: %d frames, noise floor %.0f',
+                  camera, len(bank), self._noise[camera])
+        return True
+
+    def _keep(self, camera: str, bank: list):
+        self._banks[camera] = bank
+        self._noise[camera] = bank_noise(bank, self._mask, self._p) * self._p.noise_margin
 
     def _collect(self, seconds: float) -> list:
         frames, deadline, last = [], clock.now() + seconds, None
@@ -192,10 +238,10 @@ class TabletFeed:
         bank = self._banks.get(camera)
         if not bank:
             return
-        contrast = bank_distance(frame, bank, self._mask, self._p)
+        reading = bank_reading(frame, bank, self._mask, self._noise.get(camera, 0.0), self._p)
         with self._lock:
             if self._watching == camera:
-                self._reading = (camera, contrast)
+                self._reading = (camera, reading)
 
     def _grab(self, screen) -> np.ndarray:
         left, top, right, bottom = self._p.view

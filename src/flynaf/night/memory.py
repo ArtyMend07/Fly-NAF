@@ -68,7 +68,31 @@ class DefensiveState:
         return drive
 
 
+def quickened(seconds: float, arousal: float, quickening: float | None = None) -> float:
+    factor = config.FORAGING_PARAMS.arousal_quickening if quickening is None else quickening
+    return seconds / (1.0 + factor * min(1.0, max(0.0, arousal)))
+
+
+class Vigilance:
+    def __init__(self, decay_sec: float | None = None, base_rate_hz: float | None = None):
+        decay = config.MEMORY_DYNAMICS.vigilance_sec if decay_sec is None else decay_sec
+        self._trace = FadingTrace(decay, base_rate_hz)
+
+    def sighted(self, side: str, strength: float, now: float) -> float:
+        return self._trace.add(side, strength, now)
+
+    def level(self, now: float, side: str) -> float:
+        return self._trace.level(now, side)
+
+    def arousal(self, now: float) -> float:
+        return max(self._trace.present(now).values(), default=0.0)
+
+    def pull(self, now: float) -> float:
+        return self.level(now, 'left') - self.level(now, 'right')
+
+
 @dataclass
 class Memories:
     orientation: OrientationMemory = field(default_factory=OrientationMemory)
     defence: DefensiveState = field(default_factory=DefensiveState)
+    vigilance: Vigilance = field(default_factory=Vigilance)

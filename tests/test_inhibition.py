@@ -10,6 +10,7 @@ pytestmark = pytest.mark.connectome
 FRAMES = 2500
 TABLET_FRAMES = 40
 TABLET_UP_HZ = config.SIMULATION_PARAMS.base_sensory_rate_hz
+OTHER_SIDE = {'left': 'right', 'right': 'left'}
 
 _ENGINE = {}
 
@@ -23,10 +24,12 @@ def _engine() -> ConnectomeEngine:
 def _spike_frames(state: SensoryState, frames: int, side: str = 'left') -> dict:
     engine = _engine()
     engine.reset()
+    across = OTHER_SIDE[side]
     readouts = {
         'giant_fiber': engine.neurons.outputs[f'giant_fiber_{side}'],
         'looming_escape': engine.neurons.outputs[f'looming_escape_{side}'],
-        'explore': engine.explore_idx,
+        'explore': engine.neurons.outputs[f'explore_{side}'],
+        'explore_across': engine.neurons.outputs[f'explore_{across}'],
     }
     counts = dict.fromkeys(readouts, 0)
     for frame in range(frames):
@@ -68,6 +71,15 @@ def test_a_defensive_state_keeps_the_giant_fiber_answering_once_the_tablet_is_do
     faint = {f'loom_size_{side}': 0.05, f'loom_speed_{side}': 0.05}
     counts = _spike_frames(SensoryState(memory_drive=faint), TABLET_FRAMES, side)
     assert counts['giant_fiber'] > 0, f'the {side} giant fiber ignored the defensive state, {counts}'
+
+
+@pytest.mark.parametrize('side', SIDES)
+@pytest.mark.parametrize('level', [0.25, 1.0])
+def test_a_figure_on_the_tablet_wakes_only_the_dnp09_on_its_own_side(side, level):
+    drive = {f'figure_{side}': level}
+    counts = _spike_frames(SensoryState(cam_inhib=TABLET_UP_HZ, tablet_drive=drive), TABLET_FRAMES, side)
+    assert counts['explore'] > 0, f'a figure of {level} on the {side} went unanswered, {counts}'
+    assert counts['explore_across'] == 0, f'a figure of {level} on the {side} crossed the midline, {counts}'
 
 
 SIGHTING_FRAMES = 4

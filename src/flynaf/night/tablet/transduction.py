@@ -4,3 +4,7 @@ def clamp_unit(value: float) -> float:
 
 def figure_level(contrast: float, noise: float, span: float) -> float:
     return clamp_unit((contrast - noise) / span)
+
+
+def loom_level(share: float, floor: float, span: float) -> float:
+    return clamp_unit((share - floor) / span)

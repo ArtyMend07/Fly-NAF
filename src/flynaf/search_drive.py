@@ -1,3 +1,5 @@
+import math
+
 from flynaf import config
 
 
@@ -39,10 +41,15 @@ def _integrate(sum_so_far: float, gain: float, signal: float, leak: float, frame
     return sum_so_far * decay + gain * signal * span
 
 
+def membrane_leak_per_step() -> float:
+    neurons, simulation = config.NEURAL_PARAMS, config.SIMULATION_PARAMS
+    return math.exp(-simulation.steps_per_frame * neurons.dt / neurons.tau_mem)
+
+
 class ExploreDrive:
-    def __init__(self, params=None, nominal_fps: float | None = None):
+    def __init__(self, params=None, leak_per_step: float | None = None):
         self._p = params or config.EXPLORE_DYNAMICS
-        self._fps = nominal_fps or config.SIMULATION_PARAMS.target_fps
+        self._leak = leak_per_step or membrane_leak_per_step()
         self._signal = AdaptiveSignal(self._p.baseline_tau_frames, self._p.scale_tau_frames)
         self.drive = 0.0
         self.commanded = False
@@ -59,13 +66,13 @@ class ExploreDrive:
     def spent(self) -> bool:
         return self.drive <= self._p.bound * self._p.release_ratio
 
-    def update(self, membrane: float, fired: bool, elapsed_sec: float) -> float:
+    def update(self, membrane: float, fired: bool, arousal: float = 0.0) -> float:
         p = self._p
-        frames = _frames(elapsed_sec, self._fps)
-        deviation = self._signal.update(membrane, frames)
-        gain = p.gain_ratio * (1.0 - p.drive_leak_per_frame) * p.bound
+        deviation = self._signal.update(membrane, 1.0)
+        aroused = 1.0 + p.arousal_gain * max(0.0, arousal)
+        gain = p.gain_ratio * aroused * (1.0 - self._leak) * p.bound
 
-        self.drive = _integrate(self.drive, gain, deviation, p.drive_leak_per_frame, frames)
+        self.drive = _integrate(self.drive, gain, deviation, self._leak, 1.0)
         self.commanded = bool(fired)
         if fired:
             self.drive = max(self.drive, p.bound)
@@ -85,6 +92,8 @@ class SearchDrive:
         self._memory_sum = 0.0
         self._habituation_sum = 0.0
         self._habituation = {'left': 0.0, 'right': 0.0}
+        self._viewed = {'left': 0.0, 'right': 0.0}
+        self._alert = 0.0
         self._last_look = {'left': None, 'right': None}
         self.reason = None
         self.last_drive = 0.0
@@ -101,6 +110,12 @@ class SearchDrive:
     def leaning(self) -> str:
         return 'left' if self.drive >= 0.0 else 'right'
 
+    @property
+    def camera_leaning(self) -> str:
+        returning = self._p.habituation_gain * (self._viewed['left'] - self._viewed['right'])
+        drawn = self._p.memory_gain * self._alert
+        return 'left' if self.drive - returning + drawn >= 0.0 else 'right'
+
     def update(
         self,
         membrane_diff: float,
@@ -110,9 +125,11 @@ class SearchDrive:
         now: float,
         can_act: bool,
         recalled: float = 0.0,
+        alert: float = 0.0,
     ) -> str | None:
         p = self._p
         frames = _frames(elapsed_sec, self._fps)
+        self._alert = max(-1.0, min(1.0, alert))
 
         if self._last_look['left'] is None:
             self._last_look = {'left': now, 'right': now}
@@ -124,8 +141,10 @@ class SearchDrive:
         memory = max(-1.0, min(1.0, recalled)) * p.memory_gain
 
         habituation_keep = p.habituation_leak_per_frame ** frames
+        viewed_keep = p.view_habituation_leak_per_frame ** frames
         for side in self._habituation:
             self._habituation[side] *= habituation_keep
+            self._viewed[side] *= viewed_keep
         self._dishabituate(recalled, frames)
         imbalance = self._habituation['left'] - self._habituation['right']
 
@@ -152,6 +171,9 @@ class SearchDrive:
             self.reason = self._strongest_term()
             return self._commit(side, now)
         return None
+
+    def viewed(self, side: str):
+        self._viewed[side] += 1.0
 
     def _dishabituate(self, recalled: float, frames: float):
         remembered = 'left' if recalled > 0.0 else 'right'

@@ -59,7 +59,7 @@ class StubTablet:
     def on_raise(self, now):
         pass
 
-    def on_lower(self):
+    def on_lower(self, now):
         self.lowered += 1
 
     def update(self, now, explore_fired, escape_fired):

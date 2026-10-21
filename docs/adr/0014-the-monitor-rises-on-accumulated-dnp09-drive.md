@@ -30,6 +30,52 @@ ratio  leak  | pulls  /min  gap med  gap min  gap max  watch  blind%
 
 One pull roughly every 40 seconds, which is close to what the seizing network produced by accident (37s), with watches averaging 3.5 seconds.
 
+### Amendment, 2026-10-16: the accumulator leaks in the brain's time
+
+The fit above converted wall-clock seconds into frames at the nominal 10 per second, so the drive leaked by the clock rather than by the brain. That held while the engine managed about 5.5 frames a second, where each engine step counted as 1.8 frames and the accumulator spanned about 11 steps. Once spike propagation became event driven the engine reached 9.7 frames a second, each step counted as about one frame, and the same leak spanned about 20 steps of brain time. DNp09's potential has a lag-1 autocorrelation of 0.963 per step, so a window twice as long averages its excursions away and the drive reaches the bound less often. Replaying recorded nights through the class gives the crossings per minute below.
+
+```
+night                     frames/s   crossings/min, clock leak   crossings/min, step leak
+night 3 that reached 5AM  5.5        3.42                        2.93
+2026-10-05                4.5        3.39                        3.06
+2026-10-01                8.6        2.56                        3.72
+2026-10-16                9.6        1.34                        2.68
+```
+
+On 2026-10-16 the tablet came up twice in three minutes and Foxy reached the left door during a gap of 107 seconds.
+
+The accumulator now counts engine steps and leaks with DNp09's own membrane time constant, `exp(-steps_per_frame * dt / tau_mem)`, 0.905 a step, which is within a percent of the 0.912 a step the fitted constants worked out to on the night that reached 5AM. The integration window is about 20 ms of brain time, the same as the membrane it reads, and `drive_leak_per_frame` is gone from `ExploreDynamics`. On 12,000 quiet frames replayed with the monitor's refractory, minimum watch and cap, the tablet comes up 2.13 times a minute at 9.7 frames a second with a median gap of 27 seconds and a longest gap of 55, against 1.5 and 96 with the clock leak. Live, about half the crossings fall while a light check is pending and are lost, as on the night that reached 5AM, where 14 raises came from about 26 crossings.
+
+The rate in wall-clock time now follows the engine. An engine that falls well short of `target_fps` raises the tablet less often in game time, and the session report's engine rate is where that shows.
+
+### Amendment, 2026-10-16: an alert fly keeps a faster tempo
+
+Past a point the brain was no longer what set how often the tablet came up. The 15 second refractory after each watch was, and it was the same for a calm fly and for one that had just seen Foxy leave the cove. A simulation of Foxy's movement opportunities, with the 0.83 to 17.48 second lock that follows each lowering, gives the runs he makes in a night against the gap between raises.
+
+```
+night (Foxy's AI)   40 s   27 s   22 s   15 s   10 s
+3      (2)           2.0    1.5    1.1    0.4    0.1
+4      (6)           6.8    5.1    3.9    1.9    0.7
+5      (5)           5.6    4.2    3.2    1.6    0.5
+tablet up            11%    16%    20%    29%    44%
+```
+
+At the 27 seconds of a calm fly a night 4 has about five runs to answer, and each knock on the closed door costs more power than the last.
+
+The vigilance of ADR 0026 is now the fly's arousal, and it sets the tempo as well as the gain. The refractory before the next raise and the pause before the next light check are divided by `1 + arousal_quickening * arousal`, so at full vigilance they are a third as long. The minimum watch is left alone, because it is what DNp09 needs to answer a weak figure (ADR 0026, version 1.5). A fixed refractory was a number chosen by hand that stopped the brain's own urgency from showing. One that shortens with arousal keeps a pause after each act, as any motor program has, and lets what the fly has seen set how often it acts. On the 12,000 quiet frames, with `arousal_quickening` at 2.0:
+
+```
+arousal   raises/min   median gap   longest gap   tablet up
+0         2.13         26.8 s       55.2 s        15%
+0.5       3.83         13.6 s       32.2 s        27%
+1.0       4.75         11.3 s       24.8 s        34%
+```
+
+The cost is blindness. While the tablet is up the Giant Fiber is gated and no light is checked, and from night 4 Bonnie and Chica reach the doors often enough for that to matter. Vigilance fades over 30 seconds, so the tempo stays fast only while the fly keeps seeing things.
+
+## Consequences
+- The tablet comes up again, and for a reason:
+
 ## Consequences
 - The tablet comes up again, and for a reason: the report now says whether each pull came from a DNp09 spike or from accumulated drive, and whether each release came from the drive fading or from the power cap.
 - The fly is blind for about 7% of the night, against roughly 4% before. A raised tablet holds the GABAergic inhibitors at full drive and the Giant Fiber cannot answer a door while it is up, so this is a real cost paid for a visible behaviour. `camera_watch_max_sec` is the knob if a night shows it costing too much power.
@@ -42,3 +88,4 @@ One pull roughly every 40 seconds, which is close to what the seizing network pr
 |---|---|---|---|---|---|
 | 1.0 | Monitor raised on accumulated DNp09 membrane potential instead of waiting for a spike | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-17 |
 | 1.1 | Editorial pass for consistency with the rest of the documentation | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 |
+| 1.2 | The accumulator leaks per engine step with DNp09's membrane time constant, after the faster engine halved how often the drive reached the bound, and arousal shortens the refractory between raises and between light checks | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 |

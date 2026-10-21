@@ -63,6 +63,8 @@ def test_the_neuron_map_resolves_every_role_from_cell_types():
     assert neurons.outputs['giant_fiber_right'] == [8]
     assert neurons.outputs['looming_escape_left'] == [9]
     assert neurons.outputs['explore'] == [11, 12]
+    assert neurons.outputs['explore_left'] == [11]
+    assert neurons.outputs['explore_right'] == [12]
     assert neurons.inputs['inhibitors_left'] == list(config.SENSORY_NEURONS.camera_inhibitor_left)
 
 

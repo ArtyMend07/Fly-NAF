@@ -10,7 +10,7 @@ import mss
 import numpy as np
 
 from flynaf import config
-from flynaf.env import anchor, desktop, hallway_bank, tablet_map
+from flynaf.env import anchor, desktop, hallway_bank, reference_store, tablet_map
 
 _log = logging.getLogger(__name__)
 
@@ -48,8 +48,7 @@ class FNAFVision:
         self.debug_dir = os.path.join(config.PROJECT_ROOT, 'logs', 'vision_debug')
         os.makedirs(self.debug_dir, exist_ok=True)
 
-        self.reference_dir = os.path.join(config.PROJECT_ROOT, 'logs', 'vision_reference')
-        os.makedirs(self.reference_dir, exist_ok=True)
+        self.reference_dir = None
 
         self._left_buf: collections.deque = collections.deque(maxlen=self._buf_size)
         self._right_buf: collections.deque = collections.deque(maxlen=self._buf_size)
@@ -65,9 +64,12 @@ class FNAFVision:
         self._capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._capture_thread.start()
 
+    def _folder(self) -> str:
+        return self.reference_dir or reference_store.layout_folder('eye')
+
     @property
     def _layout_path(self) -> str:
-        return os.path.join(self.reference_dir, 'layout.txt')
+        return os.path.join(self._folder(), 'layout.txt')
 
     def _screen_size(self) -> tuple:
         cached = getattr(self, '_screen', None)
@@ -149,7 +151,7 @@ class FNAFVision:
     def _layout_fingerprint(self) -> str:
         return '|'.join(str(getattr(self, name, None)) for name in (
             'l_x', 'l_y', 'l_bbox', 'r_x', 'r_y', 'r_bbox', 'windows',
-        )) + '|' + str(anchor.game_rect())
+        ))
 
     def _cached_layout_matches(self) -> bool:
         if not os.path.isfile(self._layout_path):
@@ -163,7 +165,7 @@ class FNAFVision:
 
     @property
     def _bank_index_path(self) -> str:
-        return os.path.join(self.reference_dir, 'banks.json')
+        return os.path.join(self._folder(), 'banks.json')
 
     def load_reference_from_disk(self) -> bool:
         if not self._cached_layout_matches() or not os.path.isfile(self._bank_index_path):
@@ -191,7 +193,7 @@ class FNAFVision:
         return (size, size)
 
     def _load_reference_image(self, filename: str, expected_shape: tuple):
-        path = os.path.join(self.reference_dir, filename)
+        path = os.path.join(self._folder(), filename)
         if not os.path.isfile(path):
             return None
         frame = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -200,12 +202,14 @@ class FNAFVision:
         return frame.astype(np.float32)
 
     def save_reference_to_disk(self):
+        folder = self._folder()
+        reference_store.keep_aside(folder)
         counts = {}
         for (side, closed), frames in self.banks.items():
             name = _bank_name(side, closed)
             counts[name] = len(frames)
             for i, frame in enumerate(frames):
-                cv2.imwrite(os.path.join(self.reference_dir, f'{name}_{i:02d}.png'), frame.astype(np.uint8))
+                cv2.imwrite(os.path.join(folder, f'{name}_{i:02d}.png'), frame.astype(np.uint8))
         with open(self._bank_index_path, 'w', encoding='utf-8') as handle:
             json.dump(counts, handle)
         with open(self._layout_path, 'w', encoding='utf-8') as handle:
