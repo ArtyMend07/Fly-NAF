@@ -1,7 +1,7 @@
 # ADR 0011: Doors Reopen When the Escape Drive Decays
 
 ## Status
-Accepted. Amended on 2026-10-01, when the eye stopped being blind behind a closed door and reopening started to wait for a look.
+Accepted. Amended on 2026-10-01, when the eye stopped being blind behind a closed door and reopening started to wait for a look, and on 2026-10-17, when the defensive state of ADR 0026 started holding the door itself.
 
 ## Context
 Until now a door only ever closed. `close_left_door` set `door_state['left'] = True` and nothing ever set it back, so the first Giant Fiber spike of the night shut that door permanently. In FNAF a closed door draws power continuously, so a fly that slams both doors early has already lost the night at around 3 AM regardless of what the connectome does afterwards. The reflex was complete and the recovery was missing.
@@ -27,7 +27,7 @@ A Giant Fiber spike on a side whose door is already shut renews the hold to 1.0 
 
 Behind a shut door the eye reads the window and not the doorway. `VisionCalibration.left_window` and `right_window` are rectangles of their own, captured alongside the hallway boxes, and the closed-door bank holds views of that rectangle only. The bank keeps a single view per side, the brightest frame of the lit sweep, which is the empty window with the light falling through it. Dark frames do not enter it, whether they come from the light being off, from the moment before it comes on or from a flicker.
 
-The door reopens when two things are true at once. The hold has decayed under `release_threshold`, which is the defensive state running out, and the most recent look at that side since the last renewal came back clear. A look is clear when the light was confirmed on screen, the Giant Fiber stayed silent, the eye never drove the cluster, and the eye was not blind when the look began. Nothing is pressed while the tablet is up or the camera map is on screen, since the door buttons are not there to be clicked, and pressing anyway would leave the controller believing in a door the game never moved.
+The door reopens when two things are true at once. The hold and the defensive state of that side (ADR 0026) have both decayed under `release_threshold`, and the most recent look at that side since the last renewal came back clear. A look is clear when the light was confirmed on screen, the Giant Fiber stayed silent, the eye never drove the cluster, and the eye was not blind when the look began. Nothing is pressed while the tablet is up or the camera map is on screen, since the door buttons are not there to be clicked, and pressing anyway would leave the controller believing in a door the game never moved.
 
 ## Consequences
 - The door opens because the fly saw the hallway empty, not because a trace ran out. A threat that waits keeps the door shut for as long as it is seen, and the session report counts each renewal.
@@ -39,6 +39,7 @@ The door reopens when two things are true at once. The hold has decayed under `r
 - A flicker behind a shut door now reads as a deviation, since no dark view is in the bank. The cost is a hold renewed for a moment longer, the direction the door can afford to be wrong in.
 - A look taken while the light would not come on no longer counts as clear. It used to, because a dark window matched the dark views of the bank.
 - The release still depends on a trace that is not part of the connectome. What changed is that the trace no longer decides on its own.
+- The Giant Fiber renews a hold only on what the eye reads. Until 2026-10-17 the defensive state left by a DNp04 escape drove LPLC2 and LC4, and the Giant Fiber kept answering it behind the shut door. On the night 3 recorded on 2026-10-16, 128 of the 141 frames with a Giant Fiber spike came with the door already shut, that drive on, and the eye not driven at all, and the looks that should have cleared the door ended on those spikes instead. The state now holds the door directly, the way Gibson et al. (2015) model it, as a leaky integrator inside the fly rather than a shadow coming back.
 
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
@@ -47,3 +48,4 @@ The door reopens when two things are true at once. The hold has decayed under `r
 | 1.2 | Kept the eye open behind a closed door against a closed-door reference and made reopening wait for a clear look | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.3 | Described the closed-door views as a bank and recorded the first live hold | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.4 | Read the window rectangle behind a shut door against its lit view only, fitted the threshold on Bonnie's shadow and required a lit look to clear | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.5 | Held the door with the defensive state itself and left hold renewals to what the eye reads | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 |

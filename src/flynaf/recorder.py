@@ -8,7 +8,7 @@ from flynaf import config
 
 _log = logging.getLogger(__name__)
 
-TRACE_VERSION = 3
+TRACE_VERSION = 4
 
 
 def default_path() -> str:
@@ -84,7 +84,6 @@ class SessionRecorder:
                 'door_right': bool(state.door_closed['right']),
                 'tablet_camera': state.tablet_camera,
                 'tablet_drive': _rounded(state.tablet_drive),
-                'memory_drive': _rounded(state.memory_drive),
                 'arousal': round(float(state.arousal), 3),
                 'eye_membrane_diff': round(float(engine.eye_membrane_diff), 4),
                 'explore_membrane': round(float(engine.explore_membrane), 4),

@@ -33,7 +33,6 @@ class SensoryState:
     tablet_camera: str | None = None
     tablet_readable_at: float = 0.0
     tablet_drive: dict = field(default_factory=dict)
-    memory_drive: dict = field(default_factory=dict)
 
 
 @dataclass

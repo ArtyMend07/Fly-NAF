@@ -59,6 +59,7 @@ class ForagingParams:
     subliminal_noise_hz: float = 1.0
     mse_threshold: float = 40.0
     light_inspection_frames: int = 12
+    light_quiet_frames: int = 4
     light_inspection_max_sec: float = 8.0
     light_activation_settle_sec: float = 0.4
     motor_refractory_sec: float = 2.0
@@ -195,7 +196,7 @@ class MemoryDynamics:
     ring_resting_right: float = 0.321
     ring_sighting_left: float = 15.7
     ring_sighting_right: float = 33.8
-    defence_sec: float = 10.0
+    defence_sec: float = 15.0
     vigilance_sec: float = 30.0
 
 

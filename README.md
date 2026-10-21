@@ -20,7 +20,7 @@ https://www.youtube.com/watch?v=R4Ogbf33Gfo.
 
 Four behaviours come out of the network, and each one is a different pathway.
 
-**Slamming a door.** The hallway is captured while the light is on, which the fly confirms by reading the light button on screen, and compared against the views of that hallway recorded empty at midnight, lit, flickering and dark. A frame that is far from all of them drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why the light is held for twelve. The door stays shut while the fly can still see the threat. With the door closed the light still reaches the window, where Bonnie casts a shadow and Chica stands, and the eye reads that window on its own against the lit view of the empty window behind a closed door, so a dark window never passes for an empty one. A threat still there fires DNp01 again and renews the hold, and the door only reopens once the defensive state has decayed and the latest look at that side, taken with the light confirmed on, came back empty (ADR 0011, experiment 14).
+**Slamming a door.** The hallway is captured while the light is on, which the fly confirms by reading the light button on screen, and compared against the views of that hallway recorded empty at midnight, lit, flickering and dark. A frame that is far from all of them drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why a driven eye gets twelve frames of light. An eye that stays quiet for four frames ends the look, since no recorded threat ever left it quiet that long before DNp01 answered (ADR 0012). The door stays shut while the fly can still see the threat. With the door closed the light still reaches the window, where Bonnie casts a shadow and Chica stands, and the eye reads that window on its own against the lit view of the empty window behind a closed door, so a dark window never passes for an empty one. A threat still there fires DNp01 again and renews the hold, and the door only reopens once the hold and any defensive state on that side have decayed and the latest look at that side, taken with the light confirmed on, came back empty (ADR 0011, experiment 14).
 
 ![Chica at the right window, DNp01 fires and the right door closes](docs/media/door-on-chica.gif)
 
@@ -312,7 +312,8 @@ answers through it. ADR 0027 covers the `flynaf` package and the test pipeline,
 and ADR 0028 covers the single clock every time step of a night is read from.
 ADR 0011 and experiment 14 cover why the fly once reopened the door into Bonnie
 and how the window behind a closed door is read now. Experiment 16 covers Freddy
-and CAM 4B, and experiment 17 covers the wiring controls.
+and CAM 4B, and experiment 17 covers the controls and why the defensive state
+now holds the door instead of driving the eye.
 
 ## Licensing and credits
 
@@ -352,4 +353,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.19 | Described the window read behind a closed door, the lit look a door needs to reopen and the game moved aside for the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.20 | Added three clips of a night 3, the new best run, and the memory of Foxy that replaced the look at CAM 2A | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 |
 | 1.21 | Added the night 3 page and the bundled trace, described the ring neuron memory and renamed the cove memory a defensive state | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 |
-| 1.22 | Described the cameras routed by size and the wiring controls | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 |
+| 1.22 | Described the cameras routed by size, the defensive state that holds the door, the shorter empty look and the wiring controls | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 |

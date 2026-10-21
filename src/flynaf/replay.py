@@ -64,14 +64,13 @@ def replay(trace_path: str, device: str = 'cpu', watch=None, engine=None) -> dic
         state.right_rate = recorded.right_rate
         state.cam_inhib = recorded.cam_inhib
         state.tablet_drive = recorded.tablet_drive
-        state.memory_drive = recorded.memory_drive
 
         spikes = engine.step(state, recorded.t)
         if watch is not None:
             watch(engine, recorded, spikes)
         fired_left = bool(spikes[0, engine.l_motor_idx].any())
         fired_right = bool(spikes[0, engine.r_motor_idx].any())
-        if recorded.tablet_drive or recorded.memory_drive:
+        if recorded.tablet_drive:
             tablet_frames += 1
             tablet_escapes += int(bool(spikes[0, engine.l_escape_idx].any() or spikes[0, engine.r_escape_idx].any()))
             tablet_pursuits += int(bool(spikes[0, engine.explore_idx].any()))

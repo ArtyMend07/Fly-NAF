@@ -115,11 +115,11 @@ def test_the_defensive_state_saturates_and_ignores_a_threat_of_nothing():
     assert state.threat('right', -0.5, now=0.0) == 0.0
 
 
-def test_the_defensive_state_drives_the_looming_populations_on_its_side():
+def test_the_defensive_state_stays_on_the_side_of_the_threat():
     state = DefensiveState(DECAY, BASE_RATE)
-    assert state.drive(0.0) == {}
     state.threat('right', 0.5, now=0.0)
-    assert state.drive(0.0) == {'loom_size_right': 0.5, 'loom_speed_right': 0.5}
+    assert state.level(0.0, 'right') == 0.5
+    assert state.level(0.0, 'left') == 0.0
 
 
 @pytest.mark.parametrize('sightings, arousal, pull', [

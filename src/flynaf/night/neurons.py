@@ -53,6 +53,5 @@ def stimulus_rates(neurons: NeuronMap, state, base_rate_hz: float):
         yield neurons.inputs[f'{role}_right'], base_rate_hz * state.right_rate
     yield neurons.inputs['inhibitors_left'], state.cam_inhib
     yield neurons.inputs['inhibitors_right'], state.cam_inhib
-    for drive in (state.tablet_drive, state.memory_drive):
-        for population, level in drive.items():
-            yield neurons.inputs[population], base_rate_hz * level
+    for population, level in state.tablet_drive.items():
+        yield neurons.inputs[population], base_rate_hz * level

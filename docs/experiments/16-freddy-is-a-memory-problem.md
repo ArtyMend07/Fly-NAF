@@ -80,13 +80,15 @@ The none row is the run started with the left trials. The one started with the r
 
 From a quarter of the span upwards, the drive leans to the sighted side on every frame for the whole ten seconds, and with nothing seen it splits close to even. A Freddy read on CAM 4B should therefore bring the next raise back to CAM 4B, which stalls him, and the same lean sends the light checks to the right door. The 4/20 players' habit of parking on CAM 4B has the same effect, and here nobody wrote it down as a rule.
 
+Since experiment 17 the defensive state no longer drives LPLC2 and LC4, so this lean is gone. The pull back to a sighted camera now comes from vigilance alone.
+
 ### What Changed In The Code
 
 - DNp09 is read per side (`explore_left`, `explore_right`). The pooled readout still drives the monitor, and a figure counts on the side whose DNp09 fired.
 - `watched` now holds CAM 1C and CAM 4B, and each `CameraButton` carries its own `figure_span_mse`. CAM 4B starts with the CAM 1C value of 1500 until a live night gives it one.
 - A figure raises a vigilance trace on its side, and only CAM 1C also feeds the defensive state. Vigilance raises the gain of the DNp09 accumulator and draws the camera choice back to its side. Empty views habituate their side for the next choice (ADR 0026).
 
-`python -m flynaf.scripts.measure_freddy_pathway` reproduces both tables, and `test_inhibition.py` asserts that a figure stays on its own side.
+`python -m flynaf.scripts.measure_freddy_pathway` reproduces the first table, and `test_inhibition.py` asserts that a figure stays on its own side.
 
 ### On The Live Game, 2026-10-16
 
@@ -107,3 +109,4 @@ That night is why CAM 4B no longer closes a door and the clearing rule is gone.
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | Freddy's rules from the game, the right half of the tablet channels, the lean a sighting gives the search drive, and the first live nights with CAM 4B, after which the corner raises vigilance instead of closing a door | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 |
+| 1.1 | Noted that the lean through the defensive state went away with experiment 17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 |

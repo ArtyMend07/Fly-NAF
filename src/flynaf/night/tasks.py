@@ -24,11 +24,10 @@ _log = logging.getLogger(__name__)
 
 async def vision_task(
     vision: FNAFVision, controller: FNAFController, state: SensoryState, shutdown: asyncio.Event,
-    senses=None, memories: Memories | None = None,
+    senses=None,
 ):
     delay = config.VISION_DYNAMICS.capture_delay_sec
     senses = senses or BlindSenses()
-    memories = memories or Memories()
     while not shutdown.is_set():
         state.tablet_seen = vision.is_camera_up()
         now = clock.now()
@@ -39,7 +38,6 @@ async def vision_task(
         state.right_rate = vision.get_right_sensory_rate(closed['right']) if looking_right else 0.0
         state.cam_inhib = config.SIMULATION_PARAMS.base_sensory_rate_hz if state.tablet_seen else 0.0
         state.tablet_drive = senses.read(state, now)
-        state.memory_drive = memories.defence.drive(now)
         await asyncio.sleep(delay)
 
 
@@ -59,11 +57,16 @@ async def observe_hallway(
         state.check_right = True
 
     fired = False
+    driven_seen, last_driven_at = opened_at_driven, opened_at_frame
     while engine.frames - opened_at_frame < foraging.light_inspection_frames:
         if state.l_spike if side == 'left' else state.r_spike:
             fired = True
             break
         if clock.now() >= deadline:
+            break
+        if engine.driven_frames[side] != driven_seen:
+            driven_seen, last_driven_at = engine.driven_frames[side], engine.frames
+        if engine.frames - last_driven_at >= foraging.light_quiet_frames:
             break
         await asyncio.sleep(engine.frame_dt / 2)
 
@@ -149,7 +152,7 @@ async def engine_task(
     search = SearchDrive(engine.sensory_span)
     explore = ExploreDrive()
     monitor = MonitorControl(vision, controller, telemetry, state, tablet)
-    doors = DoorControl(controller, telemetry, state)
+    doors = DoorControl(controller, telemetry, state, memories.defence)
     last_frame_at = clock.now()
     views_seen = tablet.finished_views
 
@@ -311,7 +314,7 @@ def panel_frame(state: SensoryState, vision: FNAFVision, doors: DoorControl,
         door_l=doors.closed['left'],
         door_r=doors.closed['right'],
         figure=_strongest(state.tablet_drive, 'figure'),
-        loom=_strongest(state.memory_drive, 'loom'),
+        loom=_strongest(state.tablet_drive, 'loom'),
         recall_l=state.remembered['left'],
         recall_r=state.remembered['right'],
         dnp09=state.explore_spike,

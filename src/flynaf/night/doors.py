@@ -1,6 +1,7 @@
 import logging
 
 from flynaf import config
+from flynaf.night.memory import DefensiveState
 from flynaf.night.state import MotorRefrac, SensoryState
 
 _log = logging.getLogger(__name__)
@@ -9,11 +10,12 @@ SIDES = ('left', 'right')
 
 
 class DoorControl:
-    def __init__(self, controller, telemetry, state: SensoryState):
+    def __init__(self, controller, telemetry, state: SensoryState, defence: DefensiveState | None = None):
         dynamics = config.DOOR_DYNAMICS
         self._controller = controller
         self._telemetry = telemetry
         self._state = state
+        self._defence = defence or DefensiveState()
         self._hold_leak = dynamics.hold_leak_per_frame
         self._release_threshold = dynamics.release_threshold
         self._motion_settle = dynamics.motion_settle_sec
@@ -59,13 +61,16 @@ class DoorControl:
             if not self.closed[side]:
                 continue
             self._hold[side] *= decay
-            if self._hold[side] >= self._release_threshold:
+            if self._held(side, now):
                 continue
             if self._calm_at[side] is None:
                 self._calm_at[side] = now
             if self._tablet_in_the_way() or not self._verified_clear(side):
                 continue
             self._release(side, now)
+
+    def _held(self, side: str, now: float) -> bool:
+        return max(self._hold[side], self._defence.level(now, side)) >= self._release_threshold
 
     def _tablet_in_the_way(self) -> bool:
         return self._state.camera_open or self._state.tablet_seen
@@ -76,7 +81,7 @@ class DoorControl:
     def _release(self, side: str, now: float):
         held = now - self._closed_at[side]
         waited = now - self._calm_at[side]
-        _log.info('%s escape drive decayed and the last look found the hallway empty, '
+        _log.info('%s escape drive and defensive state decayed and the last look found the hallway empty, '
                   'door released after %.1fs', side, held)
         self._telemetry.record_door_release(side, held, waited)
         self.closed[side] = False

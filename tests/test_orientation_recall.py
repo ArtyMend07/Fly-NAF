@@ -169,7 +169,7 @@ def test_a_hallway_figure_drives_the_wide_field_neurons_of_its_side_with_the_eye
                 'inhibitors_left': [4], 'inhibitors_right': [5], 'loom_size_right': [6]},
         outputs={},
     )
-    state = SensoryState(left_rate=1.0, memory_drive={'loom_size_right': 0.2})
+    state = SensoryState(left_rate=1.0, tablet_drive={'loom_size_right': 0.2})
     rates = {tuple(indices): rate for indices, rate in stimulus_rates(neurons, state, 1000.0)}
     assert rates[(0,)] == rates[(2,)] == 1000.0
     assert rates[(1,)] == rates[(3,)] == 0.0

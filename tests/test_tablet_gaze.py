@@ -112,7 +112,7 @@ def test_a_figure_dnp09_answered_alerts_its_side_without_reaching_the_door(camer
     watch, memories, controller, telemetry, _state = _watching(0.6, camera, side)
     watch.update(5.0, explore_fired=_fired(side), escape_fired={})
     assert memories.vigilance.level(5.0, side) == pytest.approx(0.6)
-    assert memories.defence.drive(5.0) == {}
+    assert memories.defence.level(5.0, side) == 0.0
     assert memories.orientation.level(5.0, side) == 0.0
     assert controller.selected == [(camera, config.TABLET_VISION.map_ready_sec)]
     assert telemetry.figures_remembered == {camera: 1}
@@ -122,7 +122,7 @@ def test_a_figure_dnp09_answered_alerts_its_side_without_reaching_the_door(camer
 def test_the_dnp09_across_the_midline_does_not_count_a_figure_on_the_other_side(camera, side, other):
     watch, memories, _controller, telemetry, _state = _watching(0.6, camera, side)
     watch.update(5.0, explore_fired=_fired(other), escape_fired={})
-    assert memories.defence.drive(5.0) == {}
+    assert memories.defence.level(5.0, other) == 0.0
     assert memories.vigilance.arousal(5.0) == 0.0
     assert telemetry.figures_remembered == {}
 

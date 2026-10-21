@@ -45,7 +45,7 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
 
     async with asyncio.TaskGroup() as tg:
         tg.create_task(vision_task(
-            vision, controller, state, shutdown, TabletSenses(tablet_feed), memories,
+            vision, controller, state, shutdown, TabletSenses(tablet_feed),
         ))
         tg.create_task(saccade_task(
             engine, vision, controller, state, shutdown, telemetry, calibration_done,

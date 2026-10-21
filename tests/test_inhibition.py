@@ -67,13 +67,6 @@ def test_each_tablet_channel_wakes_its_own_descending_neuron(side, label, popula
 
 
 @pytest.mark.parametrize('side', SIDES)
-def test_a_defensive_state_keeps_the_giant_fiber_answering_once_the_tablet_is_down(side):
-    faint = {f'loom_size_{side}': 0.05, f'loom_speed_{side}': 0.05}
-    counts = _spike_frames(SensoryState(memory_drive=faint), TABLET_FRAMES, side)
-    assert counts['giant_fiber'] > 0, f'the {side} giant fiber ignored the defensive state, {counts}'
-
-
-@pytest.mark.parametrize('side', SIDES)
 @pytest.mark.parametrize('level', [0.25, 1.0])
 def test_a_figure_on_the_tablet_wakes_only_the_dnp09_on_its_own_side(side, level):
     drive = {f'figure_{side}': level}

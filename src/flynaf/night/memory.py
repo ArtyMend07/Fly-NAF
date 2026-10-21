@@ -60,13 +60,6 @@ class DefensiveState:
     def level(self, now: float, side: str) -> float:
         return self._trace.level(now, side)
 
-    def drive(self, now: float) -> dict:
-        drive = {}
-        for side, level in self._trace.present(now).items():
-            drive[f'loom_size_{side}'] = level
-            drive[f'loom_speed_{side}'] = level
-        return drive
-
 
 def quickened(seconds: float, arousal: float, quickening: float | None = None) -> float:
     factor = config.FORAGING_PARAMS.arousal_quickening if quickening is None else quickening
