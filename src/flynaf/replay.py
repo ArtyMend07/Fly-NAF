@@ -40,7 +40,7 @@ def _reflex_latencies(driven: list) -> list:
     return latencies
 
 
-def replay(trace_path: str, device: str = 'cpu', watch=None) -> dict:
+def replay(trace_path: str, device: str = 'cpu', watch=None, engine=None) -> dict:
     from flynaf.night.engine import ConnectomeEngine
     from flynaf.night.state import SensoryState
 
@@ -49,7 +49,7 @@ def replay(trace_path: str, device: str = 'cpu', watch=None) -> dict:
         raise SystemExit('the trace has no frames in it: %s' % trace_path)
 
     _log.info('replaying %d frames from %s', len(frames), os.path.basename(trace_path))
-    engine = ConnectomeEngine(device)
+    engine = engine or ConnectomeEngine(device)
     engine.settle()
     state = SensoryState()
 

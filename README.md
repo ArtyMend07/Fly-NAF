@@ -248,6 +248,12 @@ uv run python -m flynaf.scripts.find_motor_pathway --source LC9 --target DNp09
 
 The first drives each tablet channel into the running engine with the inhibitors on and prints which descending neuron answers and on which frame, the table ADR 0026 rests on. The second prints the cheapest excitatory path between any two FlyWire cell types.
 
+```bash
+uv run python -m flynaf.scripts.measure_controls
+```
+
+This one asks whether the wiring plays or the code around it does. It runs the same stimuli and the latest recorded night through the FlyWire brain and through three controls borrowed from other projects in the awesome-fly list: the connectome shuffled so that every neuron keeps its in-degree, its out-degree and the weights it sends while each connection goes to a random target, as [drosophila-brain-mlx](https://github.com/Kisame76/drosophila-brain-mlx#does-the-wiring-matter) does; the eyes swapped left for right, as [Doodle Fly](https://github.com/dtecx/doodle-fly#is-it-really-playing) does; and the camera inhibitors with their outgoing synapses cut. On the night 3 of 2026-10-16 the FlyWire brain answered 7 of 8 hallway threats on the side of the threat, three shuffles answered 0, 3 and 3 and fired the Giant Fiber on 161 to 394 idle frames against 11, the swapped eyes answered all 7 on the wrong side, and with the inhibitors cut the Giant Fiber fired through the raised tablet. It takes about 35 minutes, and experiment 17 has the tables.
+
 Every run also writes a trace to `logs/traces/`, one line per engine frame,
 carrying the input the eyes produced and what the descending neurons did with
 it. `uv run python -m flynaf.replay <trace>` feeds that input back through a real
@@ -306,7 +312,7 @@ answers through it. ADR 0027 covers the `flynaf` package and the test pipeline,
 and ADR 0028 covers the single clock every time step of a night is read from.
 ADR 0011 and experiment 14 cover why the fly once reopened the door into Bonnie
 and how the window behind a closed door is read now. Experiment 16 covers Freddy
-and CAM 4B.
+and CAM 4B, and experiment 17 covers the wiring controls.
 
 ## Licensing and credits
 
@@ -346,4 +352,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.19 | Described the window read behind a closed door, the lit look a door needs to reopen and the game moved aside for the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.20 | Added three clips of a night 3, the new best run, and the memory of Foxy that replaced the look at CAM 2A | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 |
 | 1.21 | Added the night 3 page and the bundled trace, described the ring neuron memory and renamed the cove memory a defensive state | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 |
-| 1.22 | Described the cameras routed by size, the watched CAM 4B and the knocked-out feed | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 |
+| 1.22 | Described the cameras routed by size and the wiring controls | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 |
