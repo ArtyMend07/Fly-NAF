@@ -4,14 +4,13 @@ import logging
 import os
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import cv2
-import mss
 import numpy as np
 
 from flynaf import clock, config
-from flynaf.env import anchor
+from flynaf.env import anchor, capture
 
 _log = logging.getLogger(__name__)
 
@@ -109,6 +108,7 @@ def bank_distance(frame: np.ndarray, bank: list, mask: np.ndarray | None = None,
 class Reading:
     contrast: float
     share: float
+    share_since_last_look: float | None = None
 
 
 def bank_reading(frame: np.ndarray, bank: list, mask: np.ndarray, noise: float, params=None) -> Reading:
@@ -152,7 +152,10 @@ class TabletFeed:
         self._banks: dict = {}
         self._noise: dict = {}
         self._watching = None
-        self._reading = (None, None)
+        self._reading = (None, None, None)
+        self._look: list = []
+        self._look_camera = None
+        self._last_looks: dict = {}
         threading.Thread(target=self._capture_loop, daemon=True).start()
 
     def activate(self):
@@ -162,8 +165,9 @@ class TabletFeed:
         self._active.clear()
         with self._lock:
             self._latest.clear()
+            self._close_the_look()
             self._watching = None
-            self._reading = (None, None)
+            self._reading = (None, None, None)
 
     def has_reference(self, camera: str) -> bool:
         return bool(self._banks.get(camera))
@@ -174,8 +178,11 @@ class TabletFeed:
     def reading(self, camera: str) -> Reading | None:
         with self._lock:
             self._watching = camera
-            read_camera, reading = self._reading
-        return reading if read_camera == camera else None
+            read_camera, reading, frame = self._reading
+            if read_camera != camera:
+                return None
+            self._keep_in_the_look(camera, frame)
+        return reading
 
     def contrast(self, camera: str) -> float | None:
         reading = self.reading(camera)
@@ -223,25 +230,44 @@ class TabletFeed:
         return frames
 
     def _capture_loop(self):
-        with mss.MSS() as screen:
-            while True:
-                self._active.wait()
-                frame = self._grab(screen)
-                with self._lock:
-                    if self._active.is_set():
-                        self._latest.append(frame)
-                    camera = self._watching
-                self._read(camera, frame)
-                time.sleep(self._p.capture_delay_sec)
+        capture.keep_capturing(self._capture_once, 'tablet', config.VISION_DYNAMICS.capture_retry_sec)
+
+    def _capture_once(self, screen):
+        self._active.wait()
+        frame = self._grab(screen)
+        with self._lock:
+            if self._active.is_set():
+                self._latest.append(frame)
+            camera = self._watching
+        self._read(camera, frame)
+        time.sleep(self._p.capture_delay_sec)
 
     def _read(self, camera: str | None, frame: np.ndarray):
         bank = self._banks.get(camera)
         if not bank:
             return
-        reading = bank_reading(frame, bank, self._mask, self._noise.get(camera, 0.0), self._p)
+        noise = self._noise.get(camera, 0.0)
+        reading = bank_reading(frame, bank, self._mask, noise, self._p)
+        with self._lock:
+            last_look = self._last_looks.get(camera)
+        if last_look:
+            since = bank_reading(frame, last_look, self._mask, noise, self._p).share
+            reading = replace(reading, share_since_last_look=since)
         with self._lock:
             if self._watching == camera:
-                self._reading = (camera, reading)
+                self._reading = (camera, reading, frame)
+
+    def _keep_in_the_look(self, camera: str, frame: np.ndarray):
+        if camera != self._look_camera:
+            self._close_the_look()
+            self._look_camera = camera
+        if not self._look or self._look[-1] is not frame:
+            self._look.append(frame)
+
+    def _close_the_look(self):
+        if self._look_camera is not None and self._look:
+            self._last_looks[self._look_camera] = spread_sample(self._look, self._p.reference_frames)
+        self._look, self._look_camera = [], None
 
     def _grab(self, screen) -> np.ndarray:
         left, top, right, bottom = self._p.view

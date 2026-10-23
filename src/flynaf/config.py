@@ -77,7 +77,6 @@ class VisionDynamics:
     frame_buffer_size: int = 5
     capture_delay_sec: float = 0.016
     capture_retry_sec: float = 1.0
-    capture_retry_sec: float = 1.0
     reference_sweep_sec: float = 4.0
     bank_tolerance_mse: float = 5.0
     light_button_half_size: int = 10
@@ -239,6 +238,7 @@ class CameraButton:
     side: str
     figure_span_mse: float = 1500.0
     defensive: bool = True
+    pursue_to: str | None = None
     loom_share_floor: float = 0.10
     loom_share_span: float = 0.30
     wide_field_share: float = 0.80
@@ -271,8 +271,9 @@ class TabletVision:
     lower_settle_sec: float = 0.35
     first_camera: str = '1C'
     cameras: tuple = (
-        CameraButton('1C', 925, 484, 'left'),
+        CameraButton('1C', 925, 484, 'left', pursue_to='2A'),
         CameraButton('4B', 1087, 641, 'right', defensive=False),
+        CameraButton('2A', 983, 599, 'left', defensive=False),
     )
     watched: tuple = ('1C', '4B')
 

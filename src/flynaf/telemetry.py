@@ -29,6 +29,7 @@ class ConnectomeTelemetry:
         self.camera_views = {}
         self.figures_remembered = {}
         self.tablet_escapes = {}
+        self.pursuits = {}
         self.look_contrast = {'left': [], 'right': []}
         self.look_frames = []
         self.look_driven = []
@@ -66,6 +67,14 @@ class ConnectomeTelemetry:
         self.tablet_escapes[key] = self.tablet_escapes.get(key, 0) + 1
         self.events.append(
             f"[{t:>6.1f}s] DNp04 {side} fired while watching CAM {camera}. Tablet dropped for the door."
+        )
+
+    def record_pursuit(self, side: str, camera: str, followed_to: str):
+        t = clock.now() - self.start_time
+        key = f'{camera} to {followed_to}'
+        self.pursuits[key] = self.pursuits.get(key, 0) + 1
+        self.events.append(
+            f"[{t:>6.1f}s] DNp09 {side} fired on CAM {camera} behind the shut door. The gaze follows to CAM {followed_to}."
         )
 
     def record_door_hold_renewed(self, side: str, cause: str):
@@ -181,7 +190,9 @@ class ConnectomeTelemetry:
         ) or 'none'
         f.write(f"{'Figures remembered after DNp09':<38}: {remembered}\n")
         escapes = ', '.join(f'{key} x{count}' for key, count in sorted(self.tablet_escapes.items())) or 'none'
-        f.write(f"{'DNp04 escapes from the tablet':<38}: {escapes}\n\n")
+        f.write(f"{'DNp04 escapes from the tablet':<38}: {escapes}\n")
+        pursuits = ', '.join(f'{key} x{count}' for key, count in sorted(self.pursuits.items())) or 'none'
+        f.write(f"{'DNp09 pursuits behind a shut door':<38}: {pursuits}\n\n")
 
     def dump_report(self):
         duration = clock.now() - self.start_time

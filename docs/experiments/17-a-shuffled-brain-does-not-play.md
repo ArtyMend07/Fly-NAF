@@ -95,9 +95,10 @@ That is about 53 seconds of door and 19 of light in 304 seconds, roughly 7 perce
 ### What Is Not Measured Yet
 
 - A live night with the defensive state holding the door.
-- Whether 21 seconds of hold after an empty cove is enough. Foxy runs 25 seconds after leaving the cove, and the fly has to read the cove again before then. Vigilance brings the tablet back sooner, and a cove still empty fires DNp04 and adds to the state.
+- Whether 21 seconds of hold after an empty cove is enough. Foxy runs 25 seconds after leaving the cove, and the fly has to read the cove again before then. Vigilance brings the tablet back sooner, and a cove still empty fires DNp04 and adds to the state. Since 2026-10-21 the question is gone: a door shut from the cove also waits for a view of the cove in which nothing looms, and with the door shut DNp09 follows the cove to CAM 2A, which sends Foxy at once (ADR 0026, version 1.8).
 - `test_inhibition.py::test_metu4_adds_nothing_to_what_the_descending_neurons_do_on_a_sighting` fails about two runs in three on the right side, by 5 Giant Fiber frames against a tolerance of 3.5. Nothing in this change touches what it stimulates, and it is left for a separate look.
 
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | Shuffled wiring, swapped eyes and cut inhibitors against the FlyWire brain on stimuli and on a recorded night, and the defensive state moved out of the eye into the door hold | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 |
+| 1.1 | Noted that the left door no longer races Foxy's 25 seconds | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |

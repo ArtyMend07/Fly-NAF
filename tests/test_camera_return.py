@@ -49,6 +49,17 @@ def test_a_side_where_a_figure_was_seen_draws_the_next_camera_back(alert, camera
     assert drive.camera_leaning == camera
 
 
+@pytest.mark.parametrize('alert, threat, camera', [(0.6, 0.0, 'right'), (0.6, 0.6, 'left'), (0.0, 0.0, 'right')])
+def test_a_door_held_by_the_defensive_state_keeps_the_camera_on_its_side(alert, threat, camera):
+    """On the night 4 of 2026-10-21 the left door was held for a Foxy out of the
+    curtain while the hallway search leaned right, and three raises opened on
+    CAM 4B in the gaps in which Foxy left the cove."""
+    drive = SearchDrive(SPAN)
+    for frame in range(int(15.0 / DT)):
+        drive.update(0.0, 0, SPAN, DT, frame * DT, False, alert=alert, threat=threat)
+    assert drive.camera_leaning == camera
+
+
 class _Tablet:
     def __init__(self, finished_views: int, last_view):
         self.finished_views = finished_views

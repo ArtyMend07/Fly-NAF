@@ -29,6 +29,7 @@ class SensoryState:
     blind_until: dict = field(default_factory=lambda: {'left': 0.0, 'right': 0.0})
     door_closed: dict = field(default_factory=lambda: {'left': False, 'right': False})
     cleared_at: dict = field(default_factory=lambda: {'left': 0.0, 'right': 0.0})
+    view_cleared_at: dict = field(default_factory=dict)
     look_started: dict = field(default_factory=lambda: {'left': 0.0, 'right': 0.0})
     tablet_camera: str | None = None
     tablet_readable_at: float = 0.0

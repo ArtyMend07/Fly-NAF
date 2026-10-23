@@ -1,6 +1,7 @@
 import math
 
 from flynaf import config
+from flynaf.night.memory import quickened
 
 
 class AdaptiveSignal:
@@ -94,6 +95,8 @@ class SearchDrive:
         self._habituation = {'left': 0.0, 'right': 0.0}
         self._viewed = {'left': 0.0, 'right': 0.0}
         self._alert = 0.0
+        self._threat = 0.0
+        self._arousal = 0.0
         self._last_look = {'left': None, 'right': None}
         self.reason = None
         self.last_drive = 0.0
@@ -113,7 +116,7 @@ class SearchDrive:
     @property
     def camera_leaning(self) -> str:
         returning = self._p.habituation_gain * (self._viewed['left'] - self._viewed['right'])
-        drawn = self._p.memory_gain * self._alert
+        drawn = self._p.memory_gain * (self._alert + self._threat)
         return 'left' if self.drive - returning + drawn >= 0.0 else 'right'
 
     def update(
@@ -126,10 +129,14 @@ class SearchDrive:
         can_act: bool,
         recalled: float = 0.0,
         alert: float = 0.0,
+        threat: float = 0.0,
+        arousal: float = 0.0,
     ) -> str | None:
         p = self._p
         frames = _frames(elapsed_sec, self._fps)
         self._alert = max(-1.0, min(1.0, alert))
+        self._threat = max(-1.0, min(1.0, threat))
+        self._arousal = arousal
 
         if self._last_look['left'] is None:
             self._last_look = {'left': now, 'right': now}
@@ -187,9 +194,13 @@ class SearchDrive:
         }
         return max(terms, key=terms.get)
 
+    def overdue(self, now: float) -> bool:
+        return self._last_look['left'] is not None and self._starved_side(now) is not None
+
     def _starved_side(self, now: float) -> str | None:
+        longest = quickened(self._p.starvation_sec, self._arousal)
         waits = {side: now - t for side, t in self._last_look.items()}
-        starved = [side for side, wait in waits.items() if wait >= self._p.starvation_sec]
+        starved = [side for side, wait in waits.items() if wait >= longest]
         if not starved:
             return None
         if len(starved) == 1:

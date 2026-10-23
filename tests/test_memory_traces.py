@@ -122,6 +122,14 @@ def test_the_defensive_state_stays_on_the_side_of_the_threat():
     assert state.level(0.0, 'left') == 0.0
 
 
+@pytest.mark.parametrize('threats, pull', [((), 0.0), ((('left', 0.7),), 0.7), ((('left', 0.3), ('right', 0.8)), -0.5)])
+def test_the_defensive_state_pulls_toward_the_side_it_is_holding(threats, pull):
+    state = DefensiveState(DECAY, BASE_RATE)
+    for side, strength in threats:
+        state.threat(side, strength, now=0.0)
+    assert state.pull(0.0) == pytest.approx(pull)
+
+
 @pytest.mark.parametrize('sightings, arousal, pull', [
     ((), 0.0, 0.0),
     ((('right', 0.6),), 0.6, -0.6),

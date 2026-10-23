@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 import math
 
 import pytest
@@ -194,6 +195,109 @@ def test_a_view_that_became_readable_is_remembered_with_whether_dnp09_found_some
     watch.on_lower(now=lowered_at)
     assert watch.last_view == (None if found is None else FinishedView(side, found))
     assert watch.finished_views == (0 if found is None else 1)
+
+
+LOOMING = {'figure_left': 0.6, 'loom_size_left': 0.4, 'loom_speed_left': 0.4}
+
+
+@pytest.mark.parametrize('label, drive, escaped, lowered_at, cleared', [
+    ('the curtain closed', {'figure_left': 0.0}, False, RAISE + 1.0, True),
+    ('Foxy peeking', {'figure_left': 0.3, 'loom_size_left': 0.18}, False, RAISE + 1.0, True),
+    ('something large DNp04 did not answer', LOOMING, False, RAISE + 1.0, True),
+    ('DNp04 answered', LOOMING, True, RAISE + 1.0, False),
+    ('the feed gave nothing', {}, False, RAISE + 1.0, False),
+    ('lowered in the switching static', {'figure_left': 0.0}, False, RAISE - 0.1, False),
+])
+def test_a_view_clears_its_camera_when_it_was_read_and_dnp04_stayed_silent(
+        label, drive, escaped, lowered_at, cleared):
+    """On the night 4 of 2026-10-21 a peek read a loom of 0.18 that DNp04
+    never answered, and the door stayed shut for eighty seconds because any
+    loom at all counted against the cove."""
+    watch, _memories, _controller, _telemetry, state = _watching(0.0)
+    state.tablet_drive = drive
+    watch.update(min(lowered_at, RAISE + 0.5), explore_fired=NOBODY,
+                 escape_fired={'left': escaped, 'right': False})
+    watch.on_lower(now=lowered_at)
+    assert ('1C' in state.view_cleared_at) is cleared, label
+
+
+def test_a_view_dnp04_escaped_from_counts_as_one_that_found_something():
+    watch, _memories, _controller, _telemetry, state = _watching(0.0)
+    state.tablet_drive = LOOMING
+    watch.update(RAISE + 0.5, explore_fired=NOBODY, escape_fired={'left': True, 'right': False})
+    watch.on_lower(now=RAISE + 0.6)
+    assert watch.last_view == FinishedView('left', True)
+
+
+@pytest.mark.parametrize('label, door_shut, fired, at, loom, followed', [
+    ('DNp09 on a cove changed since the last look, behind the shut door', True, 'left', RAISE + 0.5, 0.4, True),
+    ('Foxy who has not moved since the last look', True, 'left', RAISE + 0.5, 0.0, False),
+    ('the door still open', False, 'left', RAISE + 0.5, 0.4, False),
+    ('DNp09 silent', True, None, RAISE + 0.5, 0.4, False),
+    ('only the DNp09 across the midline', True, 'right', RAISE + 0.5, 0.4, False),
+    ('the switching static', True, 'left', RAISE - 0.1, 0.4, False),
+])
+def test_dnp09_follows_the_cove_to_the_west_hall_only_from_behind_a_shut_door(label, door_shut, fired, at, loom,
+                                                                               followed):
+    """Foxy reaches the left door 1.7 seconds after CAM 2A shows him, so the
+    hall is only safe to look at once the door is already shut, and only what
+    changed since the last look is followed. On the night 4 of 2026-10-21 the
+    door was shut for Bonnie, and every look at Foxy standing out of the
+    curtain sent the gaze to the empty hall."""
+    watch, _memories, controller, telemetry, state = _watching(0.8)
+    state.tablet_drive = {'figure_left': 0.8, 'loom_size_left': loom, 'loom_speed_left': loom}
+    state.door_closed['left'] = door_shut
+    watch.update(at, explore_fired=_fired(fired), escape_fired={})
+    assert watch.camera == ('2A' if followed else '1C'), label
+    assert controller.selected[-1] == (('2A', 0.0) if followed else ('1C', config.TABLET_VISION.map_ready_sec))
+    assert telemetry.pursuits == ({'1C to 2A': 1} if followed else {}), label
+
+
+def test_the_corner_has_nowhere_to_follow_to():
+    watch, _memories, _controller, telemetry, state = _watching(0.8, '4B', 'right')
+    state.door_closed['right'] = True
+    watch.update(RAISE + 0.5, explore_fired=_fired('right'), escape_fired={})
+    assert watch.camera == '4B'
+    assert telemetry.pursuits == {}
+
+
+@pytest.mark.parametrize('late_escape, cleared', [(False, True), (True, False)])
+def test_the_cove_view_stays_open_while_the_gaze_follows_to_the_west_hall(late_escape, cleared):
+    """DNp04 answers the cove one to four frames after the gaze has left it,
+    so a spike during the CAM 2A view still belongs to the cove."""
+    watch, memories, _controller, _telemetry, state = _watching(0.0)
+    state.door_closed['left'] = True
+    state.tablet_drive = LOOMING
+    watch.update(RAISE + 0.5, explore_fired=_fired('left'), escape_fired={})
+    state.tablet_drive = {}
+    watch.update(RAISE + 0.6, explore_fired=NOBODY, escape_fired={'left': late_escape, 'right': False})
+    watch.on_lower(now=RAISE + 3.0)
+    assert watch.finished_views == 1
+    assert watch.last_view == FinishedView('left', True)
+    assert ('1C' in state.view_cleared_at) is cleared
+    assert (memories.defence.level(RAISE + 0.6, 'left') > 0.0) is late_escape
+
+
+@pytest.mark.parametrize('followed, last_tap', [(True, ('1C', 0.0)), (False, ('1C', config.TABLET_VISION.map_ready_sec))])
+def test_the_tablet_goes_down_on_the_camera_it_was_raised_on(followed, last_tap):
+    """The game reopens the tablet on the last camera, and CAM 2A shown while
+    Foxy is out of the cove sends him running at once."""
+    watch, _memories, controller, _telemetry, state = _watching(0.8)
+    state.tablet_drive = LOOMING
+    state.door_closed['left'] = followed
+    watch.update(RAISE + 0.5, explore_fired=_fired('left'), escape_fired={})
+    watch.on_lower(now=RAISE + 3.0)
+    assert controller.selected[-1] == last_tap
+
+
+def test_a_dnp04_spike_in_the_frame_the_gaze_follows_is_put_on_the_cove(caplog):
+    watch, _memories, _controller, _telemetry, state = _watching(0.0)
+    state.door_closed['left'] = True
+    state.tablet_drive = LOOMING
+    with caplog.at_level(logging.INFO, logger='flynaf.night.tablet.watch'):
+        watch.update(RAISE + 0.5, explore_fired=_fired('left'), escape_fired={'left': True})
+    assert watch.camera == '2A'
+    assert 'something large on camera 1C' in caplog.text
 
 
 def test_the_watch_taps_the_map_and_tells_the_senses_where_it_looks():

@@ -60,6 +60,9 @@ class DefensiveState:
     def level(self, now: float, side: str) -> float:
         return self._trace.level(now, side)
 
+    def pull(self, now: float) -> float:
+        return self.level(now, 'left') - self.level(now, 'right')
+
 
 def quickened(seconds: float, arousal: float, quickening: float | None = None) -> float:
     factor = config.FORAGING_PARAMS.arousal_quickening if quickening is None else quickening

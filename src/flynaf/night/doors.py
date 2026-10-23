@@ -25,6 +25,8 @@ class DoorControl:
         self.closed = {side: False for side in SIDES}
         self._closed_at = {side: 0.0 for side in SIDES}
         self._renewed_at = {side: 0.0 for side in SIDES}
+        self._alarm_camera = {side: None for side in SIDES}
+        self._alarm_at = {side: 0.0 for side in SIDES}
         self._calm_at = {side: None for side in SIDES}
         self._hold = {side: 0.0 for side in SIDES}
         self._moving = {side: None for side in SIDES}
@@ -39,10 +41,13 @@ class DoorControl:
         setattr(self._refrac, side, now + self._motor_sec)
         return moved
 
-    def slam(self, side: str, now: float, cause: str):
+    def slam(self, side: str, now: float, cause: str, camera: str | None = None):
         self._hold[side] = 1.0
         self._renewed_at[side] = now
         self._calm_at[side] = None
+        if camera is not None:
+            self._alarm_camera[side] = camera
+            self._alarm_at[side] = now
         if self.closed[side]:
             _log.info('%s %s fired behind the closed door, hold renewed', side, cause)
             self._telemetry.record_door_hold_renewed(side, cause)
@@ -76,14 +81,20 @@ class DoorControl:
         return self._state.camera_open or self._state.tablet_seen
 
     def _verified_clear(self, side: str) -> bool:
-        return self._state.cleared_at[side] > self._renewed_at[side]
+        if self._state.cleared_at[side] <= self._renewed_at[side]:
+            return False
+        camera = self._alarm_camera[side]
+        return camera is None or self._state.view_cleared_at.get(camera, 0.0) > self._alarm_at[side]
 
     def _release(self, side: str, now: float):
         held = now - self._closed_at[side]
         waited = now - self._calm_at[side]
-        _log.info('%s escape drive and defensive state decayed and the last look found the hallway empty, '
-                  'door released after %.1fs', side, held)
+        camera = self._alarm_camera[side]
+        seen = f'the hallway and camera {camera}' if camera else 'the hallway'
+        _log.info('%s escape drive and defensive state decayed and the last looks found %s empty, '
+                  'door released after %.1fs', side, seen, held)
         self._telemetry.record_door_release(side, held, waited)
+        self._alarm_camera[side] = None
         self.closed[side] = False
         self._state.door_closed[side] = False
         self._calm_at[side] = None

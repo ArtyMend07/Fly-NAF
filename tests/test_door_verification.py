@@ -151,6 +151,38 @@ def test_the_defensive_state_holds_the_door_until_it_falls_under_the_release_lev
     assert buttons.calls == ['trigger_left_door', 'open_left_door']
 
 
+def escaped_from_the_cove():
+    state = SensoryState()
+    buttons = DoorButtons()
+    doors = DoorControl(buttons, ConnectomeTelemetry(), state)
+    doors.slam('left', 1.0, 'DNp04 looming escape', '1C')
+    state.cleared_at['left'] = 2.0
+    return doors, buttons, state
+
+
+@pytest.mark.parametrize('cove_cleared_at, released', [(None, False), (0.5, False), (3.0, True)])
+def test_a_door_shut_from_the_cove_waits_for_a_clear_view_of_the_cove(cove_cleared_at, released):
+    """Foxy never shows in the hallway light, so an empty hallway says nothing
+    about him. Only the cove read without a looming change does."""
+    doors, buttons, state = escaped_from_the_cove()
+    if cove_cleared_at is not None:
+        state.view_cleared_at['1C'] = cove_cleared_at
+    run_frames(doors, 1.0, HOLD_SEC + 2.0)
+    assert doors.closed['left'] is not released
+    assert buttons.calls == ['trigger_left_door'] + (['open_left_door'] if released else [])
+
+
+def test_a_hallway_threat_behind_a_door_shut_from_the_cove_still_waits_for_the_cove():
+    doors, _buttons, state = escaped_from_the_cove()
+    doors.on_giant_fiber('left', now=1.5)
+    state.cleared_at['left'] = 2.0
+    run_frames(doors, 1.5, HOLD_SEC + 2.0)
+    assert doors.closed['left']
+    state.view_cleared_at['1C'] = 2.5
+    run_frames(doors, 1.5 + HOLD_SEC + 2.0, 1.0)
+    assert not doors.closed['left']
+
+
 @pytest.mark.parametrize('finished, blind', [(False, True), (True, False)])
 def test_the_eye_is_blind_only_while_the_door_is_moving(finished, blind):
     doors, _, _, state = closed_door(finished=finished)

@@ -170,11 +170,11 @@ async def engine_task(
         explore.update(engine.explore_membrane, state.explore_spike, state.arousal)
         look_pending = saccade.side is not None or saccade.busy
         telemetry.record_frame(state.cam_inhib > 0, look_pending)
-        monitor.update(now, explore, state.forage_bias, look_pending)
+        monitor.update(now, explore, state.forage_bias, look_pending or search.overdue(now))
         views_seen = habituate_to_an_empty_view(search, tablet, views_seen)
         watch_the_tablet(tablet, monitor, doors, telemetry, state, now)
         request_saccade(search, saccade, monitor, engine, state, frame_elapsed, now, look_pending,
-                        memories.vigilance.pull(now))
+                        memories.vigilance.pull(now), memories.defence.pull(now))
 
         feed.publish(
             spikes[0].nonzero().flatten().cpu().numpy(),
@@ -243,14 +243,15 @@ def watch_the_tablet(tablet, monitor: MonitorControl, doors: DoorControl, teleme
                      state: SensoryState, now: float):
     if not monitor.is_open:
         return
-    camera = tablet.camera
+    camera, camera_side = tablet.source, tablet.side
     side = tablet.update(now, {'left': state.l_explore, 'right': state.r_explore},
                          {'left': state.l_escape, 'right': state.r_escape})
     if side is None:
         return
+    alarm = camera if camera_side == side else None
 
     async def close_the_door():
-        pressed = doors.slam(side, now, 'DNp04 looming escape')
+        pressed = doors.slam(side, now, 'DNp04 looming escape', alarm)
         if pressed is not None:
             await await_motor(pressed)
 
@@ -262,12 +263,12 @@ def watch_the_tablet(tablet, monitor: MonitorControl, doors: DoorControl, teleme
 
 def request_saccade(search: SearchDrive, saccade: SaccadeRequest, monitor: MonitorControl,
                     engine, state: SensoryState, frame_elapsed: float, now: float,
-                    look_pending: bool, alert: float = 0.0):
+                    look_pending: bool, alert: float = 0.0, threat: float = 0.0):
     can_look = (not look_pending and not monitor.engaged and not state.tablet_seen
                 and now >= saccade.ready_at)
     wants = search.update(
         engine.eye_membrane_diff, state.l_sensory_count, state.r_sensory_count,
-        frame_elapsed, now, can_look, state.recalled, alert,
+        frame_elapsed, now, can_look, state.recalled, alert, threat, state.arousal,
     )
     state.forage_bias = search.tension
     state.gaze_side = search.camera_leaning

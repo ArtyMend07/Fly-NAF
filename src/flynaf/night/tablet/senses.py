@@ -20,12 +20,18 @@ class TabletSenses:
         return transduce(spec, reading, self._feed.noise(camera))
 
 
+def new_share(reading) -> float:
+    if reading.share_since_last_look is None:
+        return reading.share
+    return min(reading.share, reading.share_since_last_look)
+
+
 def transduce(spec, reading, noise: float) -> dict:
     side = spec.side
     if reading.share >= spec.wide_field_share:
         return {f'wide_field_{side}': 1.0}
     drive = {f'figure_{side}': figure_level(reading.contrast, noise, spec.figure_span_mse)}
-    loom = loom_level(reading.share, spec.loom_share_floor, spec.loom_share_span) if spec.defensive else 0.0
+    loom = loom_level(new_share(reading), spec.loom_share_floor, spec.loom_share_span) if spec.defensive else 0.0
     if loom > 0.0:
         drive[f'loom_size_{side}'] = loom
         drive[f'loom_speed_{side}'] = loom
