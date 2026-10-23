@@ -76,6 +76,7 @@ class ForagingParams:
 class VisionDynamics:
     frame_buffer_size: int = 5
     capture_delay_sec: float = 0.016
+    capture_retry_sec: float = 1.0
     reference_sweep_sec: float = 4.0
     bank_tolerance_mse: float = 5.0
     light_button_half_size: int = 10

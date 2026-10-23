@@ -8,9 +8,17 @@ import time
 import cv2
 import mss
 import numpy as np
+from mss.exception import ScreenShotError
 
 from flynaf import config
-from flynaf.env import anchor, desktop, hallway_bank, reference_store, tablet_map
+from flynaf.env import (
+    anchor,
+    capture,
+    desktop,
+    hallway_bank,
+    reference_store,
+    tablet_map,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -105,22 +113,22 @@ class FNAFVision:
         return cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY).astype(np.float32)
 
     def _capture_loop(self):
-        delay = config.VISION_DYNAMICS.capture_delay_sec
-        with mss.MSS() as sct:
-            while True:
-                left_frame = self._grab_gray(sct, self.l_x, self.l_y, self.l_bbox)
-                right_frame = self._grab_gray(sct, self.r_x, self.r_y, self.r_bbox)
-                windows = {side: self._grab_window(sct, side) for side in SIDES}
-                buttons = tablet_map.count_camera_buttons(
-                    tablet_map.to_design(np.array(sct.grab(tablet_map.map_box()))),
-                )
-                with self._buf_lock:
-                    self._left_buf.append(left_frame)
-                    self._right_buf.append(right_frame)
-                    for side, frame in windows.items():
-                        self._window_bufs[side].append(frame)
-                    self._map_buttons.append(buttons)
-                time.sleep(delay)
+        capture.keep_capturing(self._capture_once, 'eye', config.VISION_DYNAMICS.capture_retry_sec)
+
+    def _capture_once(self, sct):
+        left_frame = self._grab_gray(sct, self.l_x, self.l_y, self.l_bbox)
+        right_frame = self._grab_gray(sct, self.r_x, self.r_y, self.r_bbox)
+        windows = {side: self._grab_window(sct, side) for side in SIDES}
+        buttons = tablet_map.count_camera_buttons(
+            tablet_map.to_design(np.array(sct.grab(tablet_map.map_box()))),
+        )
+        with self._buf_lock:
+            self._left_buf.append(left_frame)
+            self._right_buf.append(right_frame)
+            for side, frame in windows.items():
+                self._window_bufs[side].append(frame)
+            self._map_buttons.append(buttons)
+        time.sleep(self._capture_delay)
 
     def _buffer(self, side: str, door_closed: bool) -> collections.deque:
         if door_closed:
@@ -231,9 +239,12 @@ class FNAFVision:
         half = config.VISION_DYNAMICS.light_button_half_size
         left, top = anchor.point(x - half, y - half)
         right, bottom = anchor.point(x + half, y + half)
-        with mss.MSS() as screen:
-            patch = np.array(screen.grab({'left': left, 'top': top,
-                                          'width': max(1, right - left), 'height': max(1, bottom - top)}))
+        try:
+            with mss.MSS() as screen:
+                patch = np.array(screen.grab({'left': left, 'top': top,
+                                              'width': max(1, right - left), 'height': max(1, bottom - top)}))
+        except ScreenShotError:
+            return None
         gray = cv2.cvtColor(patch, cv2.COLOR_BGRA2GRAY)
         return float(gray.mean()) > config.VISION_DYNAMICS.light_button_lit_level
 

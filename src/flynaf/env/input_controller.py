@@ -31,7 +31,7 @@ def _pan_side(x: int) -> str:
     return 'centre'
 
 
-def _worker():
+def _worker(game_in_front=None):
     def _reach(x: int, y: int):
         side = _pan_side(x)
         moved = side != office_facing()
@@ -68,11 +68,19 @@ def _worker():
         action = cmd.get('action')
         done = cmd.get('done')
         try:
-            _dispatch(cmd, action, _reach, _click, _flip, light_state, door_state)
+            if _may_act(game_in_front, action):
+                _dispatch(cmd, action, _reach, _click, _flip, light_state, door_state)
         finally:
             if done is not None:
                 done.set()
             _CMD_QUEUE.task_done()
+
+
+def _may_act(game_in_front, action) -> bool:
+    if game_in_front is None or game_in_front():
+        return True
+    _log.warning('the game is not in front and could not be brought back, %s skipped', action)
+    return False
 
 
 def _dispatch(cmd, action, _reach, _click, _flip, light_state, door_state):
@@ -135,8 +143,8 @@ def _camera_button(name):
     return None
 
 
-def start_worker():
-    t = threading.Thread(target=_worker, daemon=True)
+def start_worker(game_in_front=None):
+    t = threading.Thread(target=_worker, args=(game_in_front,), daemon=True)
     t.start()
 
 

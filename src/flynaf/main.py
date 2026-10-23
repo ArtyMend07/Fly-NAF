@@ -8,7 +8,7 @@ from flynaf import config, tuning
 from flynaf.env.brain_view import SpikeFeed
 from flynaf.env.cascade import CascadeTracer
 from flynaf.env.input_controller import FNAFController, start_worker
-from flynaf.env.overlay import anchor_to_game
+from flynaf.env.overlay import anchor_to_game, bring_game_forward
 from flynaf.env.tablet_feed import TabletFeed
 from flynaf.env.vision import FNAFVision
 from flynaf.night.engine import ConnectomeEngine
@@ -28,7 +28,7 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     _log.info('brain core online, device=%s', device)
 
-    start_worker()
+    start_worker(bring_game_forward)
     engine = ConnectomeEngine(device)
     vision = FNAFVision()
     controller = FNAFController()

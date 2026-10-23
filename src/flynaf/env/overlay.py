@@ -143,6 +143,13 @@ def game_in_front() -> int:
     return front if _belongs_to_game(front) else 0
 
 
+def bring_game_forward() -> bool:
+    if game_in_front():
+        return True
+    handle = find_game_window()
+    return bool(handle) and give_focus_back(handle) and bool(game_in_front())
+
+
 def find_game_window() -> int:
     front = game_in_front()
     if front:
