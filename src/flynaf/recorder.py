@@ -1,3 +1,4 @@
+import glob
 import json
 import logging
 import os
@@ -11,11 +12,19 @@ _log = logging.getLogger(__name__)
 TRACE_VERSION = 4
 
 
+TRACES_FOLDER = os.path.join(config.PROJECT_ROOT, 'logs', 'traces')
+
+
 def default_path() -> str:
-    folder = os.path.join(config.PROJECT_ROOT, 'logs', 'traces')
-    os.makedirs(folder, exist_ok=True)
+    os.makedirs(TRACES_FOLDER, exist_ok=True)
     stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    return os.path.join(folder, 'trace_%s.jsonl' % stamp)
+    return os.path.join(TRACES_FOLDER, 'trace_%s.jsonl' % stamp)
+
+
+def latest_trace(folder: str = TRACES_FOLDER) -> str | None:
+    dated = glob.glob(os.path.join(folder, 'trace_[0-9]*.jsonl'))
+    traces = sorted(path for path in dated if os.path.getsize(path) > 0)
+    return traces[-1] if traces else None
 
 
 def _settings() -> dict:

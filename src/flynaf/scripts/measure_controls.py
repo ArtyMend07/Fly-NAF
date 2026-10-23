@@ -1,11 +1,10 @@
 import argparse
-import glob
 import json
 import os
 import statistics
 import time
 
-from flynaf import config
+from flynaf import config, recorder
 from flynaf.neural.rewiring import shuffled_targets, without_outgoing
 from flynaf.night.engine import ConnectomeEngine
 from flynaf.night.neurons import NeuronMap
@@ -168,12 +167,6 @@ def print_tables(results: list, trials: int):
         print(f'{key:<42}' + ''.join(f'{str(result["night"][key]):>16}' for result in results))
 
 
-def latest_trace() -> str:
-    traces = [path for path in glob.glob(os.path.join(config.PROJECT_ROOT, 'logs', 'traces', 'trace_2*.jsonl'))
-              if os.path.getsize(path) > 0]
-    return max(traces, key=os.path.getmtime)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description='The same stimuli and the same recorded night run through the FlyWire brain and through '
@@ -188,7 +181,7 @@ def main() -> int:
     parser.add_argument('--device', default='cpu', choices=('cpu', 'cuda'))
     parser.add_argument('--out', default=os.path.join(config.PROJECT_ROOT, 'logs', 'controls.json'))
     args = parser.parse_args()
-    args.trace = args.trace or latest_trace()
+    args.trace = args.trace or recorder.latest_trace()
     print(f'replaying {os.path.basename(args.trace)}', flush=True)
 
     brains = [('FlyWire', None, False)]

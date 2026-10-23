@@ -107,6 +107,15 @@ def test_a_frame_missing_fields_falls_back_to_silence():
     assert frame.tablet_drive == {}
 
 
+def test_the_latest_trace_is_the_newest_dated_one_with_frames():
+    with tempfile.TemporaryDirectory() as folder:
+        for name, body in (('trace_20261016_235445.jsonl', '{}'), ('trace_20261021_210713.jsonl', '{}'),
+                           ('trace_20261021_220000.jsonl', ''), ('trace_synthetic_demo.jsonl', '{}')):
+            with open(os.path.join(folder, name), 'w', encoding='utf-8') as handle:
+                handle.write(body)
+        assert os.path.basename(recorder.latest_trace(folder)) == 'trace_20261021_210713.jsonl'
+
+
 if __name__ == '__main__':
     for name, fn in sorted(globals().items()):
         if name.startswith('test_'):

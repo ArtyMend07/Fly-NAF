@@ -7,6 +7,7 @@ import torch
 from flynaf import config, tuning
 from flynaf.env.brain_view import SpikeFeed
 from flynaf.env.cascade import CascadeTracer
+from flynaf.env.frame_recorder import FrameRecorder, frames_folder
 from flynaf.env.input_controller import FNAFController, start_worker
 from flynaf.env.overlay import anchor_to_game, bring_game_forward
 from flynaf.env.tablet_feed import TabletFeed
@@ -60,7 +61,7 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
         ))
 
 
-def main(begin_night=None):
+def main(begin_night=None, record_frames: bool = False):
     trace = SessionRecorder(enabled=os.environ.get('FLYNAF_RECORD', '1') != '0')
     tuning.load()
     if anchor_to_game():
@@ -71,6 +72,8 @@ def main(begin_night=None):
             'measured, which assumes a 1280x720 window at the top left of the display'
         )
     telemetry = ConnectomeTelemetry()
+    if record_frames:
+        FrameRecorder(frames_folder(trace.path), telemetry.start_time).start()
     try:
         asyncio.run(_run(telemetry, trace, begin_night))
     except KeyboardInterrupt:

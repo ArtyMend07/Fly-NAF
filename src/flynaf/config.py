@@ -77,6 +77,7 @@ class VisionDynamics:
     frame_buffer_size: int = 5
     capture_delay_sec: float = 0.016
     capture_retry_sec: float = 1.0
+    capture_retry_sec: float = 1.0
     reference_sweep_sec: float = 4.0
     bank_tolerance_mse: float = 5.0
     light_button_half_size: int = 10
@@ -136,6 +137,35 @@ class BrainView:
     dock_game: bool = True
     corner_radius: int = 14
     launch_browser: bool = True
+
+
+@dataclass(frozen=True)
+class FrameRecording:
+    period_sec: float = 0.33
+    jpeg_quality: int = 90
+
+
+@dataclass(frozen=True)
+class NightAudit:
+    usage_bar_rows: tuple = (664, 682)
+    usage_bar_centres: tuple = (129, 150, 171, 192, 213)
+    usage_bar_half_width: int = 5
+    usage_bar_flatness: float = 40.0
+    usage_bar_lit_level: int = 180
+    usage_bar_blue_ceiling: int = 90
+    button_half_size: int = 8
+    button_colour_margin: int = 40
+    full_battery_percent: float = 100.0
+    percent_per_bar_second: float = 0.1
+    night_drain_percent: float = 0.1
+    night_drain_interval_sec: tuple = (0.0, 6.0, 5.0, 4.0, 3.0, 3.0, 3.0)
+    longest_step_sec: float = 1.0
+    night_gap_sec: float = 20.0
+    night_length_sec: float = 530.0
+    power_out_dark_level: float = 15.0
+    power_out_look_sec: float = 5.0
+    door_desync_shortest_sec: float = 2.0
+    cove_camera: str = '1C'
 
 
 @dataclass(frozen=True)
@@ -303,6 +333,8 @@ NEURAL_PARAMS = NeuralParams()
 CAMERA_DETECTION = CameraDetection()
 BRAIN_VIEW = BrainView()
 GAME_LAUNCHER = GameLauncher()
+FRAME_RECORDING = FrameRecording()
+NIGHT_AUDIT = NightAudit()
 EXPLORE_DYNAMICS = ExploreDynamics()
 SEARCH_DYNAMICS = SearchDynamics()
 DOOR_DYNAMICS = DoorDynamics()
