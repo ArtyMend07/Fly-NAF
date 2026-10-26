@@ -11,9 +11,9 @@ The cost of reproducing a night is the obstacle, not the willingness. A reviewer
 ## Decision
 A run writes a trace, and the trace can be replayed through the brain without the game.
 
-`src/recorder.py` appends one JSON line per engine frame holding the three fields of `SensoryState`, the raw hallway readings, the tablet state, whether each giant fiber fired, and the two membrane potentials the decision layers read. The header line records the connectome file and every setting in force, so a trace carries the conditions it was made under.
+`flynaf/recorder.py` appends one JSON line per engine frame holding the three fields of `SensoryState`, the raw hallway readings, the tablet state, whether each giant fiber fired, and the two membrane potentials the decision layers read. The header line records the connectome file and every setting in force, so a trace carries the conditions it was made under.
 
-`src/replay.py` feeds a trace back into a real `ConnectomeEngine` and writes a report. It drives the engine directly rather than impersonating the vision and motor layers, because the question a reviewer is asking is narrow. Given this input, does DNp01 answer, how long does it take, and does it stay quiet when nothing is on screen.
+`flynaf/replay.py` feeds a trace back into a real `ConnectomeEngine` and writes a report. It drives the engine directly rather than impersonating the vision and motor layers, because the question a reviewer is asking is narrow. Given this input, does DNp01 answer, how long does it take, and does it stay quiet when nothing is on screen.
 
 Replay does not reproduce the recorded night frame for frame, and the report says so in the report itself rather than in a footnote. The Poisson generator and the subliminal noise are unseeded on purpose, because the fly is meant to behave stochastically. What is checked across runs is the shape. The fiber answers while its own eye is driven, it is quiet on idle frames, and the latency lands in the seven to nine frame band ADR 0013 measured.
 
@@ -35,6 +35,12 @@ A trace holds what the fly read and what it decided, and nothing of what the gam
 
 The audit is printed and saved to `logs/audits/` under the same stamp. It stops at the first absence of the HUD longer than twenty seconds, because after 6 AM the game goes straight into the next night and the fly does not stop.
 
+### Amendment, 2026-10-24: night 3 in the browser
+
+A replay still needs the 140 MB of FlyWire data and an install. `python -m flynaf.replay_page record` runs `examples/night-3.jsonl` through the engine once and keeps what the panel needs in `examples/night-3-page/`: `night.json`, 0.46 MB, with one row per frame of the readings, the doors, the camera and the descending neurons, and `spikes.bin`, 8.8 MB, with the index of every neuron that fired in each frame as delta-coded varints. `python -m flynaf.replay_page build <folder>` writes the panel of ADR 0022 with a player on top into a static folder, and `.github/workflows/pages.yml` publishes that folder on GitHub Pages when a push to `main` touches it. The workflow runs only from `main`, and only once the repository's Pages source is set to GitHub Actions.
+
+The page holds numbers only. No frame, sound or file of the game is in it, so it carries nothing of Scott Cawthon's and needs no copy of the game. The neuron order, the positions and classes and the brain outline load in the visitor's browser from fixed commits of eonsystemspbc/fly-brain, flywire_annotations and navis-flybrains, and three.js r128 from cdnjs, so no FlyWire data is redistributed from here. On 2026-10-24 all four answered 200 with `Access-Control-Allow-Origin: *`, and the built page drew the brain and played the night in headless Chrome.
+
 ## Consequences
 A reviewer with the data and no game can now confirm the central claim on any operating system, which is what ADR 0017 made possible and what this decision makes worth doing. Recording is on by default and can be turned off with `FLYNAF_RECORD=0`.
 
@@ -52,3 +58,4 @@ The night 4 that followed lost its power at about 4 AM, and the bars explained 8
 |---|---|---|---|---|---|
 | 1.0 | Recorded the trace format and what replay does and does not prove | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-24 |
 | 1.1 | Added the frame recording and the night audit, and joined the lines broken at eighty columns | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |
+| 1.2 | Described the night 3 page and what it loads, and pointed the recorder and the replay at the flynaf package | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |

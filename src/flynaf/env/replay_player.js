@@ -253,7 +253,8 @@
         (Dorkenwald et al. 2024, Schlegel et al. 2024, Matsliah et al. 2024, Berg et al. 2025), the neuron order from
         <a href="https://github.com/eonsystemspbc/fly-brain">eonsystemspbc/fly-brain</a> and the brain outline from
         <a href="https://github.com/navis-org/navis-flybrains">navis-flybrains</a>, straight from those repositories.
-        FlyWire data is released under CC BY-NC 4.0. Code and write-up at
+        The FlyWire connectivity dump is released under CC BY 4.0 and the community's edits and annotations under
+        CC BY-NC 4.0. Code and write-up at
         <a href="https://github.com/ArtyMend07/Fly-NAF">github.com/ArtyMend07/Fly-NAF</a>.</p>
       </div>`);
     document.getElementById('about-toggle').onclick = () => {

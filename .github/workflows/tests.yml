@@ -17,3 +17,21 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check src run.py tests
       - run: uv run pytest -q -rs
+
+  test-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv venv
+      - name: install the locked versions with the CPU build of PyTorch
+        run: |
+          uv export --locked --no-hashes --no-emit-project --all-groups \
+            | grep -v -E '^(cuda-|nvidia-|triton)' > requirements-cpu.txt
+          uv pip install --torch-backend cpu -r requirements-cpu.txt
+          uv pip install --no-deps -e .
+      - run: uv run --no-sync ruff check src run.py tests
+      - run: uv run --no-sync pytest -q -rs

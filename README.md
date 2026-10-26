@@ -82,7 +82,7 @@ The annotations file is also found if you keep it under `fly-brain/data/flywire_
 
 Three reasons, and the first one settles it on its own.
 
-FlyWire releases the connectome under CC BY-NC 4.0, which allows sharing with attribution but forbids commercial use. This project is GPL v3, and the GPL does not allow extra restrictions to be layered on top of it. Shipping the data here would put two incompatible licences in the same repository.
+FlyWire's [terms of service](https://flywire.ai/tos) (version 1.5) put the edits and annotations of its community under CC BY-NC 4.0, which allows sharing with attribution but forbids commercial use. The connectivity dump the FlyWire paper points to is under CC BY 4.0 ([Zenodo record 10676866](https://zenodo.org/records/10676866)), and the Codex download page states no licence for the soma coordinates. The files this project reads come from that release as a whole, and a non commercial clause is an extra restriction the GPL v3 does not allow on top of it, so shipping them here would put two incompatible licences in the same repository.
 
 The `flywire_annotations` supplement carries no licence file at all, so redistributing that one would be worse still.
 
@@ -300,7 +300,8 @@ They need the FlyWire data in place, take several minutes each, and are skipped
 when the data is missing. The second command leaves them out.
 
 Every push to `main` and every pull request runs the lint and the tests on a
-Windows runner. The FlyWire data cannot be redistributed, so the two connectome
+Windows runner and on an Ubuntu 24.04 runner, the second with the CPU build of
+PyTorch (ADR 0027). The FlyWire data cannot be redistributed, so the connectome
 tests are skipped there and run only on a machine that holds the data.
 
 ## Documentation
@@ -321,7 +322,8 @@ and ADR 0028 covers the single clock every time step of a night is read from.
 ADR 0011 and experiment 14 cover why the fly once reopened the door into Bonnie
 and how the window behind a closed door is read now. Experiment 16 covers Freddy
 and CAM 4B, and experiment 17 covers the controls and why the defensive state
-now holds the door instead of driving the eye.
+now holds the door instead of driving the eye. Experiment 18 replays every look at the cove of two
+recorded nights to show why the last look at a camera fades over 30 seconds.
 
 ## Licensing and credits
 
@@ -333,9 +335,9 @@ Everything else here is original. An audit of all twenty source files against th
 
 The fly in the launcher is the NeuroMechFly body model from [NeLy-EPFL/flygym](https://github.com/NeLy-EPFL/flygym), built from a micro-CT scan of an adult female fly and licensed under Apache 2.0, which the GPL v3 can include. `src/flynaf/scripts/build_fly_model.py` downloads its simplified meshes at a fixed commit, poses them in the neutral stance and writes `src/flynaf/env/assets/neuromechfly.bin.gz`, and the Apache licence travels with it as `src/flynaf/env/assets/LICENSE-neuromechfly.txt`. The brain outline in the panel comes from [navis-flybrains](https://github.com/navis-org/navis-flybrains), GPL v3, made from the FAFB tissue mask, and is downloaded rather than committed. `src/flynaf/env/assets/CHANGES-neuromechfly.txt` states what was changed from the original meshes, as the Apache licence asks of a derived file. The model is Lobato-Rios et al., *NeuroMechFly, a neuromechanical model of adult Drosophila melanogaster*, Nature Methods 2022, and Wang-Chen et al., *NeuroMechFly v2*, Nature Methods 2024, and both ask to be cited by anyone using the model, which this note does on their behalf.
 
-The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It is released under CC BY-NC 4.0 and stays subject to FlyWire's own terms and citation requirements, so anyone using this project has to obtain it from the sources listed above.
+The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. The connectivity dump is under CC BY 4.0, the community's edits and annotations under CC BY-NC 4.0, and all of it stays subject to FlyWire's own terms and citation requirements, so anyone using this project has to obtain it from the sources listed above.
 
-Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project.
+Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project. The three clips in `docs/media/` show 4.5 to 15.5 seconds of the game beside the panel, to show what the fly saw and what it did. They are short quotations for study, the use article 46 of the Brazilian copyright law allows with the author and the source named ([Lei 9.610/1998](https://www.planalto.gov.br/ccivil_03/leis/l9610.htm)), and the GPL does not cover them. No other image, sound or file of the game is in this repository or on the replay page, and playing a night needs your own copy of the game.
 
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
@@ -367,3 +369,5 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.25 | Read each look against the last one, cleared a camera on DNp04's silence, lowered the tablet on its own camera and let the defensive state draw the camera choice | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |
 | 1.26 | Followed the cove only on a change since the last look, and let arousal shorten the wait of each door | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |
 | 1.27 | Let the last look at a camera fade, fed the defensive state a constant per escape and followed the cove while that state holds the door | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-23 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-23 |
+| 1.28 | Split the FlyWire licences between the CC BY 4.0 connectivity dump and the CC BY-NC 4.0 community edits, and stated what the game clips are and that the GPL does not cover them | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
+| 1.29 | Added the Ubuntu runner to the tests and pointed to experiment 18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
