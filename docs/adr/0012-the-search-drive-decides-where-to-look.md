@@ -1,7 +1,7 @@
 # ADR 0012: An Accumulator Decides Where the Fly Looks
 
 ## Status
-Accepted. Supersedes ADR 0008. Amended on 2026-10-21, when arousal started shortening the guard.
+Accepted. Supersedes ADR 0008. Amended on 2026-10-21, when arousal started shortening the guard, and on 2026-10-26, when experiment 19 measured which part of the choice depends on the wiring.
 
 ## Context
 ADR 0008 added a starvation guard so a hallway could not go unwatched forever, with the connectome's own bias as the normal path and the guard as a backstop. The session report from the 2026-09-16 21:20 run shows the guard was not the backstop; it was the entire mechanism. Twenty-five of twenty-seven light checks logged a membrane bias of exactly `+0.00`, and the checks arrived every 2.1 seconds, alternating left, right, left, right for the whole night. The fly was a metronome again, which is the same defect ADR 0010 removed from the camera.
@@ -48,6 +48,7 @@ Since 2026-10-21 the guard is shortened by arousal in the same proportion as the
 - An alarmed fly lights the doors more often, each look about a second of light, and holds the tablet back while a door is overdue, which leaves Foxy less stalled than before. The night audit of ADR 0019 measures both.
 - `SearchDrive` has no torch dependency and takes its time from its caller, so the whole decision is unit-testable without the connectome, the game or the event loop. `tests/test_saccade_scheduling.py` covers it against a synthetic drift built from the measured statistics.
 - The fly can still be caught mid-look, and both doors are unwatched while a look runs. Since 2026-10-17 a look ends once the eye has gone `light_quiet_frames` (4) engine frames without driving its cluster, instead of always holding the light for `light_inspection_frames` (12). A driven eye still gets the twelve frames the Giant Fiber needs. Across every recorded night, 420 looks found the hallway empty over all twelve frames, and every look in which the eye went on to fire DNp01 had gone at most three frames without driving it. On the night 3 recorded on 2026-10-16 the 21 empty looks would have kept the light on about 19 seconds less, about 2 percent of the battery in 304 seconds.
+- Experiment 19 ran this loop with no game on the FlyWire brain, on shuffled wiring and on a brain with every synapse removed. The drift belongs to the network, since it started 30 of the 49 idle looks of the FlyWire brain and none of the 34 of the brain without synapses, which gets the same noise. With both hallways empty the side it picks is close to a coin, 25 switches in 48 looks with 32 of 49 to the left, so an idle look reflects the fly's spontaneous asymmetry rather than anything about the hallways. After a sighting the FlyWire brain went back to that side 24 times out of 24, against 13 for each shuffle and 4 for the brain without synapses. `ring_resting_*` and `ring_sighting_*` are FlyWire's ring rates, so the memory term does not carry over to another brain.
 
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
@@ -55,3 +56,4 @@ Since 2026-10-21 the guard is shortened by arousal in the same proportion as the
 | 1.1 | Editorial pass for consistency with the rest of the documentation | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-18 |
 | 1.2 | Ended a look once the eye has stayed quiet for four frames | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 |
 | 1.3 | Shortened the guard with arousal and let an overdue door hold back the next raise of the tablet | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |
+| 1.4 | Recorded what experiment 19 found about the drift, the idle choice of side and the return after a sighting | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |
