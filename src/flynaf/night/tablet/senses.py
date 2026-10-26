@@ -1,3 +1,5 @@
+import math
+
 from flynaf import config
 from flynaf.night.state import SensoryState
 from flynaf.night.tablet.transduction import figure_level, loom_level
@@ -17,21 +19,25 @@ class TabletSenses:
         reading = self._feed.reading(camera)
         if reading is None:
             return {}
-        return transduce(spec, reading, self._feed.noise(camera))
+        return transduce(spec, reading, self._feed.noise(camera), self._p)
 
 
-def new_share(reading) -> float:
+def new_share(reading, recovery_sec: float) -> float:
     if reading.share_since_last_look is None:
         return reading.share
-    return min(reading.share, reading.share_since_last_look)
+    adapted = min(reading.share, reading.share_since_last_look)
+    still_adapted = math.exp(-reading.since_last_look_sec / recovery_sec)
+    return reading.share - (reading.share - adapted) * still_adapted
 
 
-def transduce(spec, reading, noise: float) -> dict:
+def transduce(spec, reading, noise: float, params=None) -> dict:
+    params = params or config.TABLET_VISION
     side = spec.side
     if reading.share >= spec.wide_field_share:
         return {f'wide_field_{side}': 1.0}
     drive = {f'figure_{side}': figure_level(reading.contrast, noise, spec.figure_span_mse)}
-    loom = loom_level(new_share(reading), spec.loom_share_floor, spec.loom_share_span) if spec.defensive else 0.0
+    share = new_share(reading, params.look_recovery_sec)
+    loom = loom_level(share, spec.loom_share_floor, spec.loom_share_span) if spec.defensive else 0.0
     if loom > 0.0:
         drive[f'loom_size_{side}'] = loom
         drive[f'loom_speed_{side}'] = loom

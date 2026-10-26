@@ -109,6 +109,7 @@ class Reading:
     contrast: float
     share: float
     share_since_last_look: float | None = None
+    since_last_look_sec: float | None = None
 
 
 def bank_reading(frame: np.ndarray, bank: list, mask: np.ndarray, noise: float, params=None) -> Reading:
@@ -251,8 +252,9 @@ class TabletFeed:
         with self._lock:
             last_look = self._last_looks.get(camera)
         if last_look:
-            since = bank_reading(frame, last_look, self._mask, noise, self._p).share
-            reading = replace(reading, share_since_last_look=since)
+            frames, closed_at = last_look
+            since = bank_reading(frame, frames, self._mask, noise, self._p).share
+            reading = replace(reading, share_since_last_look=since, since_last_look_sec=clock.now() - closed_at)
         with self._lock:
             if self._watching == camera:
                 self._reading = (camera, reading, frame)
@@ -266,7 +268,7 @@ class TabletFeed:
 
     def _close_the_look(self):
         if self._look_camera is not None and self._look:
-            self._last_looks[self._look_camera] = spread_sample(self._look, self._p.reference_frames)
+            self._last_looks[self._look_camera] = (spread_sample(self._look, self._p.reference_frames), clock.now())
         self._look, self._look_camera = [], None
 
     def _grab(self, screen) -> np.ndarray:

@@ -171,10 +171,15 @@ def test_a_second_view_adds_to_what_the_first_one_left():
 
 
 @pytest.mark.parametrize('drive, defended', [
-    ({'loom_size_left': 0.6, 'loom_speed_left': 0.6, 'figure_left': 0.5}, 0.6),
+    ({'loom_size_left': 0.6, 'loom_speed_left': 0.6, 'figure_left': 0.5}, config.MEMORY_DYNAMICS.threat_per_escape),
+    ({'loom_size_left': 0.3, 'loom_speed_left': 0.3, 'figure_left': 0.5}, config.MEMORY_DYNAMICS.threat_per_escape),
     ({'figure_left': 0.5}, 0.0),
 ])
-def test_a_dnp04_escape_from_something_large_on_the_tablet_leaves_the_fly_defensive(drive, defended):
+def test_each_dnp04_escape_from_something_large_on_the_tablet_adds_the_same_threat(drive, defended):
+    """Gibson et al. (2015) model the defensive state as a leaky integrator
+    in which each shadow adds a constant value. Fed with the loom of the
+    moment, an escape from a cove read against the last look left a state that
+    stopped holding the door within a few seconds."""
     watch, memories, _controller, _telemetry, state = _watching(0.0)
     state.tablet_drive = drive
     assert watch.update(5.0, explore_fired=NOBODY, escape_fired={'left': True, 'right': False}) == 'left'
@@ -229,28 +234,96 @@ def test_a_view_dnp04_escaped_from_counts_as_one_that_found_something():
     assert watch.last_view == FinishedView('left', True)
 
 
-@pytest.mark.parametrize('label, door_shut, fired, at, loom, followed', [
-    ('DNp09 on a cove changed since the last look, behind the shut door', True, 'left', RAISE + 0.5, 0.4, True),
-    ('Foxy who has not moved since the last look', True, 'left', RAISE + 0.5, 0.0, False),
-    ('the door still open', False, 'left', RAISE + 0.5, 0.4, False),
-    ('DNp09 silent', True, None, RAISE + 0.5, 0.4, False),
-    ('only the DNp09 across the midline', True, 'right', RAISE + 0.5, 0.4, False),
-    ('the switching static', True, 'left', RAISE - 0.1, 0.4, False),
+def _came_down_from_the_cove(drive: dict):
+    watch, memories, _controller, _telemetry, state = _watching(0.0)
+    state.tablet_drive = drive
+    watch.update(RAISE + 0.5, explore_fired=NOBODY, escape_fired=NOBODY)
+    watch.on_lower(now=RAISE + 1.0)
+    return watch, memories, state
+
+
+@pytest.mark.parametrize('cleared_before', [None, 0.3])
+def test_a_dnp04_spike_as_the_tablet_comes_down_is_an_escape_from_the_view_it_left(cleared_before):
+    """On the night 4 of 2026-10-26 the fly lowered the tablet from a cove
+    Foxy had just left, a loom of 0.27 still in the network, and DNp04 fired
+    0.22 seconds into the lowering. The spike was dropped, the cove counted as
+    clear, the door opened and Foxy came in 16 seconds later."""
+    watch, memories, _controller, _telemetry, state = _watching(0.0)
+    if cleared_before is not None:
+        state.view_cleared_at['1C'] = cleared_before
+    state.tablet_drive = {'figure_left': 1.0, 'loom_size_left': 0.27}
+    watch.update(RAISE + 0.5, explore_fired=NOBODY, escape_fired=NOBODY)
+    watch.on_lower(now=RAISE + 1.0)
+    assert state.view_cleared_at['1C'] == RAISE + 1.0
+
+    assert watch.update(RAISE + 1.2, explore_fired=NOBODY, escape_fired={'left': True, 'right': False}) == 'left'
+    assert watch.source == '1C'
+    assert state.view_cleared_at.get('1C') == cleared_before
+    assert watch.last_view == FinishedView('left', True)
+    assert memories.defence.level(RAISE + 1.2, 'left') == pytest.approx(config.MEMORY_DYNAMICS.threat_per_escape)
+
+
+@pytest.mark.parametrize('label, escape, office_back', [
+    ('DNp04 on the other side', {'left': False, 'right': True}, False),
+    ('DNp04 once the office is back', {'left': True, 'right': False}, True),
 ])
-def test_dnp09_follows_the_cove_to_the_west_hall_only_from_behind_a_shut_door(label, door_shut, fired, at, loom,
-                                                                               followed):
+def test_only_dnp04_on_the_side_of_the_view_before_the_office_is_back_counts(label, escape, office_back):
+    watch, _memories, state = _came_down_from_the_cove(LOOMING)
+    if office_back:
+        watch.on_office(RAISE + 1.5)
+    assert watch.update(RAISE + 1.6, explore_fired=NOBODY, escape_fired=escape) is None, label
+    assert '1C' in state.view_cleared_at, label
+
+
+def test_a_lowering_counts_one_escape():
+    watch, _memories, _state = _came_down_from_the_cove(LOOMING)
+    left = {'left': True, 'right': False}
+    first = watch.update(RAISE + 1.2, explore_fired=NOBODY, escape_fired=left)
+    second = watch.update(RAISE + 1.3, explore_fired=NOBODY, escape_fired=left)
+    assert (first, second) == ('left', None)
+
+
+def _alarmed(memories: Memories, now: float = RAISE):
+    memories.defence.threat('left', 1.0, now=now)
+
+
+@pytest.mark.parametrize('label, door_shut, fired, at, defended, followed', [
+    ('DNp09 on the cove while the defensive state holds the shut door', True, 'left', RAISE + 0.5, True, True),
+    ('a door shut for Bonnie', True, 'left', RAISE + 0.5, False, False),
+    ('the door still open', False, 'left', RAISE + 0.5, True, False),
+    ('DNp09 silent', True, None, RAISE + 0.5, True, False),
+    ('only the DNp09 across the midline', True, 'right', RAISE + 0.5, True, False),
+    ('the switching static', True, 'left', RAISE - 0.1, True, False),
+])
+def test_dnp09_follows_the_cove_to_the_west_hall_only_from_behind_a_door_shut_for_it(label, door_shut, fired, at,
+                                                                                     defended, followed):
     """Foxy reaches the left door 1.7 seconds after CAM 2A shows him, so the
-    hall is only safe to look at once the door is already shut, and only what
-    changed since the last look is followed. On the night 4 of 2026-10-21 the
+    hall is only safe to look at once the door is already shut, and only while
+    the escape from the cove still holds it. On the night 4 of 2026-10-21 the
     door was shut for Bonnie, and every look at Foxy standing out of the
     curtain sent the gaze to the empty hall."""
-    watch, _memories, controller, telemetry, state = _watching(0.8)
-    state.tablet_drive = {'figure_left': 0.8, 'loom_size_left': loom, 'loom_speed_left': loom}
+    watch, memories, controller, telemetry, state = _watching(0.8)
+    state.tablet_drive = LOOMING
     state.door_closed['left'] = door_shut
+    if defended:
+        _alarmed(memories)
     watch.update(at, explore_fired=_fired(fired), escape_fired={})
     assert watch.camera == ('2A' if followed else '1C'), label
     assert controller.selected[-1] == (('2A', 0.0) if followed else ('1C', config.TABLET_VISION.map_ready_sec))
     assert telemetry.pursuits == ({'1C to 2A': 1} if followed else {}), label
+
+
+@pytest.mark.parametrize('alarmed_at, followed', [(RAISE, True), (RAISE - 8.0, False)])
+def test_an_unchanged_cove_is_followed_until_the_defensive_state_lets_the_door_go(alarmed_at, followed):
+    """Foxy gone from the cove looks the same on every look after the first,
+    and only CAM 2A shown from behind the shut door sends him into it before
+    the door reopens. On the night 4 of 2026-10-22 the cove was seen empty on
+    three looks in a row before he came through the open left door."""
+    watch, memories, _controller, _telemetry, state = _watching(0.8)
+    state.door_closed['left'] = True
+    _alarmed(memories, alarmed_at)
+    watch.update(RAISE + 0.5, explore_fired=_fired('left'), escape_fired={})
+    assert watch.camera == ('2A' if followed else '1C')
 
 
 def test_the_corner_has_nowhere_to_follow_to():
@@ -261,28 +334,34 @@ def test_the_corner_has_nowhere_to_follow_to():
     assert telemetry.pursuits == {}
 
 
-@pytest.mark.parametrize('late_escape, cleared', [(False, True), (True, False)])
-def test_the_cove_view_stays_open_while_the_gaze_follows_to_the_west_hall(late_escape, cleared):
+@pytest.mark.parametrize('late_escape', [False, True])
+def test_the_cove_view_stays_open_while_the_gaze_follows_to_the_west_hall(late_escape):
     """DNp04 answers the cove one to four frames after the gaze has left it,
-    so a spike during the CAM 2A view still belongs to the cove."""
+    so a spike during the CAM 2A view still belongs to the cove. A view the
+    gaze left clears nothing either way. On the night 4 of 2026-10-22 the
+    empty cove was followed to CAM 2A, DNp04 stayed silent, and the left door
+    reopened 2.6 seconds later."""
     watch, memories, _controller, _telemetry, state = _watching(0.0)
     state.door_closed['left'] = True
+    _alarmed(memories)
     state.tablet_drive = LOOMING
     watch.update(RAISE + 0.5, explore_fired=_fired('left'), escape_fired={})
+    assert watch.camera == '2A'
     state.tablet_drive = {}
     watch.update(RAISE + 0.6, explore_fired=NOBODY, escape_fired={'left': late_escape, 'right': False})
     watch.on_lower(now=RAISE + 3.0)
     assert watch.finished_views == 1
     assert watch.last_view == FinishedView('left', True)
-    assert ('1C' in state.view_cleared_at) is cleared
-    assert (memories.defence.level(RAISE + 0.6, 'left') > 0.0) is late_escape
+    assert '1C' not in state.view_cleared_at
+    assert (memories.defence.level(RAISE + 0.6, 'left') == pytest.approx(1.0)) is late_escape
 
 
 @pytest.mark.parametrize('followed, last_tap', [(True, ('1C', 0.0)), (False, ('1C', config.TABLET_VISION.map_ready_sec))])
 def test_the_tablet_goes_down_on_the_camera_it_was_raised_on(followed, last_tap):
     """The game reopens the tablet on the last camera, and CAM 2A shown while
     Foxy is out of the cove sends him running at once."""
-    watch, _memories, controller, _telemetry, state = _watching(0.8)
+    watch, memories, controller, _telemetry, state = _watching(0.8)
+    _alarmed(memories)
     state.tablet_drive = LOOMING
     state.door_closed['left'] = followed
     watch.update(RAISE + 0.5, explore_fired=_fired('left'), escape_fired={})
@@ -291,7 +370,8 @@ def test_the_tablet_goes_down_on_the_camera_it_was_raised_on(followed, last_tap)
 
 
 def test_a_dnp04_spike_in_the_frame_the_gaze_follows_is_put_on_the_cove(caplog):
-    watch, _memories, _controller, _telemetry, state = _watching(0.0)
+    watch, memories, _controller, _telemetry, state = _watching(0.0)
+    _alarmed(memories)
     state.door_closed['left'] = True
     state.tablet_drive = LOOMING
     with caplog.at_level(logging.INFO, logger='flynaf.night.tablet.watch'):

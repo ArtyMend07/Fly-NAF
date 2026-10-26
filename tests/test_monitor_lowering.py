@@ -198,6 +198,31 @@ def test_the_escape_closes_the_door_only_after_the_tablet_is_down(ignored, door_
     assert bool(closed) is door_closed
 
 
+def test_a_dnp04_spike_during_a_lowering_closes_the_door_once_the_office_is_back():
+    screen = Screen()
+    control_, _, _, _ = control(screen)
+    pressed = []
+
+    async def reflex():
+        pressed.append(screen.up)
+
+    async def scenario():
+        await settle(control_, 1000.0, StubExplore(wants=True))
+        control_.update(1003.5, StubExplore(wants=False, spent=True), 0.0, look_pending=False)
+        lowering = control_._gesture
+        answers = (control_.escape(1003.6, reflex), control_.escape(1003.7, reflex))
+        await lowering[1]
+        await settle(control_, 1004.0, StubExplore(wants=False))
+        return lowering[0], answers
+
+    kind, answers = asyncio.run(scenario())
+
+    assert kind == 'lower'
+    assert answers == (True, False)
+    assert pressed == [False]
+    assert control_.is_open is False
+
+
 @pytest.mark.parametrize('watched, still_open', [(1.0, True), (3.1, True), (3.3, False)])
 def test_the_fly_only_tires_of_a_camera_after_it_could_read_it(watched, still_open):
     screen = Screen()

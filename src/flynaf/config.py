@@ -227,6 +227,7 @@ class MemoryDynamics:
     ring_sighting_left: float = 15.7
     ring_sighting_right: float = 33.8
     defence_sec: float = 15.0
+    threat_per_escape: float = 1.0
     vigilance_sec: float = 30.0
 
 
@@ -267,6 +268,7 @@ class TabletVision:
     switch_settle_sec: float = 0.5
     reference_sweep_sec: float = 3.0
     reference_frames: int = 24
+    look_recovery_sec: float = 30.0
     noise_margin: float = 1.5
     lower_settle_sec: float = 0.35
     first_camera: str = '1C'

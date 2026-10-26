@@ -63,6 +63,9 @@ class StubTablet:
     def on_lower(self, now):
         self.lowered += 1
 
+    def on_office(self, now):
+        pass
+
     def update(self, now, explore_fired, escape_fired):
         return self.escape_side
 

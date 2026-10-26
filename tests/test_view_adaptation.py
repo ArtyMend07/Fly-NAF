@@ -1,3 +1,4 @@
+import math
 from unittest.mock import patch
 
 import cv2
@@ -46,9 +47,18 @@ def look(feed: tablet_feed.TabletFeed, frame: np.ndarray, seed: int) -> Reading:
     return reading
 
 
-@pytest.mark.parametrize('share, since, expected', [(0.4, None, 0.4), (0.4, 0.05, 0.05), (0.1, 0.6, 0.1)])
-def test_only_what_changed_both_from_the_reference_and_since_the_last_look_is_new(share, since, expected):
-    assert new_share(Reading(1000.0, share, since)) == expected
+RECOVERY = config.TABLET_VISION.look_recovery_sec
+
+
+@pytest.mark.parametrize('share, since, elapsed, expected', [
+    (0.4, None, None, 0.4),
+    (0.4, 0.05, 0.0, 0.05),
+    (0.1, 0.6, 0.0, 0.1),
+    (0.4, 0.05, RECOVERY * math.log(2.0), 0.225),
+    (0.4, 0.05, RECOVERY * 50.0, 0.4),
+])
+def test_only_what_changed_since_the_last_look_is_new_until_the_look_fades(share, since, elapsed, expected):
+    assert new_share(Reading(1000.0, share, since, elapsed), RECOVERY) == pytest.approx(expected)
 
 
 def test_a_figure_that_has_not_moved_since_the_last_look_stops_looming(tmp_path):
@@ -73,6 +83,23 @@ def test_a_figure_that_leaves_between_two_looks_looms_again(tmp_path):
     look(feed, out, 10)
     after = look(feed, gone, 11)
     assert transduce(COVE, after, feed.noise('1C')).get('loom_size_left', 0.0) > 0.0
+
+
+def test_a_figure_that_has_not_moved_looms_again_once_the_last_look_has_faded(tmp_path):
+    """Foxy out of the curtain and the cove he left both stay large against
+    the closed curtain. Read against a look that never fades, the empty cove
+    of the night 4 of 2026-10-22 differed from Foxy out of the curtain nine
+    seconds before by 0.11 of the view, barely over the loom floor, and DNp04
+    let him run through the open door."""
+    curtain = scene()
+    out = with_block(curtain, 20, 60)
+    feed = feed_with_reference(tmp_path, curtain)
+    with patch.object(tablet_feed.clock, 'now', return_value=100.0):
+        look(feed, out, 10)
+    with patch.object(tablet_feed.clock, 'now', return_value=100.0 + 3.0 * RECOVERY):
+        later = look(feed, out, 11)
+    assert later.since_last_look_sec == pytest.approx(3.0 * RECOVERY)
+    assert transduce(COVE, later, feed.noise('1C')).get('loom_size_left', 0.0) > 0.0
 
 
 def test_a_look_is_remembered_only_from_the_frames_the_senses_read(tmp_path):
