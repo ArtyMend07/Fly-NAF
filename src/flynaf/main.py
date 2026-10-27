@@ -13,6 +13,7 @@ from flynaf.env.overlay import anchor_to_game, bring_game_forward
 from flynaf.env.tablet_feed import TabletFeed
 from flynaf.env.vision import FNAFVision
 from flynaf.night.engine import ConnectomeEngine
+from flynaf.night.hallway import build_eye
 from flynaf.night.memory import Memories
 from flynaf.night.panel import brain_view_task
 from flynaf.night.state import SaccadeRequest, SensoryState
@@ -46,7 +47,7 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
 
     async with asyncio.TaskGroup() as tg:
         tg.create_task(vision_task(
-            vision, controller, state, shutdown, TabletSenses(tablet_feed),
+            vision, controller, state, shutdown, TabletSenses(tablet_feed), build_eye(),
         ))
         tg.create_task(saccade_task(
             engine, vision, controller, state, shutdown, telemetry, calibration_done,

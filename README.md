@@ -20,7 +20,7 @@ https://www.youtube.com/watch?v=R4Ogbf33Gfo.
 
 Four behaviours come out of the network, and each one is a different pathway.
 
-**Slamming a door.** The hallway is captured while the light is on, which the fly confirms by reading the light button on screen, and compared against the views of that hallway recorded empty at midnight, lit, flickering and dark. A frame that is far from all of them drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why a driven eye gets twelve frames of light. An eye that stays quiet for four frames ends the look, since no recorded threat ever left it quiet that long before DNp01 answered (ADR 0012). The door stays shut while the fly can still see the threat. With the door closed the light still reaches the window, where Bonnie casts a shadow and Chica stands, and the eye reads that window on its own against the lit view of the empty window behind a closed door, so a dark window never passes for an empty one. A threat still there fires DNp01 again and renews the hold, and the door only reopens once the hold and any defensive state on that side have decayed and the latest look at that side, taken with the light confirmed on, came back empty (ADR 0011, experiment 14). A door shut from the tablet also waits for a view of that camera in which DNp04 stayed silent, because Foxy never shows in the hallway light.
+**Slamming a door.** The hallway is captured while the light is on, which the fly confirms by reading the light button on screen, and compared against the views of that hallway recorded empty at midnight, lit, flickering and dark. A frame that is far from all of them drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why a driven eye gets twelve frames of light. With `looming_eye = 1` in `tuning.toml` the hallway is read the way the tablet reads a camera instead. The share of the window that differs from the empty views drives LPLC2 in proportion to its size and LC4 for the frame in which it appeared, the two features the Giant Fiber sums in flies, where LPLC2 supplies the whole size component and LC4 the velocity ([Ache et al. 2019](https://doi.org/10.1016/j.cub.2019.01.079)). A change across most of the window, the tablet's static or another window over the game, drives only the MeTu4 wide-field neurons, since LPLC2 ignores wide-field motion and a plain change of brightness ([Klapoetke et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC7457385/)). The network then decides how much is enough. Bonnie in the doorway is answered about a third of a second later than at full rate, every saved detection of an animatronic at a door still reaches LPLC2, and of the 70 saved detections that were static, another window, a camera view or the office panned, 66 no longer do (experiment 20). An eye that stays quiet for four frames ends the look, since no recorded threat ever left it quiet that long before DNp01 answered (ADR 0012). The door stays shut while the fly can still see the threat. With the door closed the light still reaches the window, where Bonnie casts a shadow and Chica stands, and the eye reads that window on its own against the lit view of the empty window behind a closed door, so a dark window never passes for an empty one. A threat still there fires DNp01 again and renews the hold, and the door only reopens once the hold and any defensive state on that side have decayed and the latest look at that side, taken with the light confirmed on, came back empty (ADR 0011, experiment 14). A door shut from the tablet also waits for a view of that camera in which DNp04 stayed silent, because Foxy never shows in the hallway light.
 
 ![Chica at the right window, DNp01 fires and the right door closes](docs/media/door-on-chica.gif)
 
@@ -175,7 +175,7 @@ changes, so a stale reference cannot be loaded silently.
 
 ## Changing how the fly behaves
 
-The first run writes `tuning.toml` next to this file. It exposes seven settings,
+The first run writes `tuning.toml` next to this file. It exposes eight settings,
 each with the range a measurement supports, and it explains what each one does.
 A value outside its range is clamped and the clamp is reported when the run
 starts.
@@ -324,6 +324,10 @@ and how the window behind a closed door is read now. Experiment 16 covers Freddy
 and CAM 4B, and experiment 17 covers the controls and why the defensive state
 now holds the door instead of driving the eye. Experiment 18 replays every look at the cove of two
 recorded nights to show why the last look at a camera fades over 30 seconds.
+Experiment 19 runs the look loop with no game on the FlyWire brain, on shuffled
+wiring and on a brain without synapses, to find which part of the choice of
+hallway depends on the wiring, and experiment 20 reads every saved hallway again
+with the looming eye.
 
 ## Licensing and credits
 
@@ -371,3 +375,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.27 | Let the last look at a camera fade, fed the defensive state a constant per escape and followed the cove while that state holds the door | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-23 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-23 |
 | 1.28 | Split the FlyWire licences between the CC BY 4.0 connectivity dump and the CC BY-NC 4.0 community edits, and stated what the game clips are and that the GPL does not cover them | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
 | 1.29 | Added the Ubuntu runner to the tests and pointed to experiment 18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
+| 1.30 | Described the looming eye and pointed to experiments 19 and 20 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |

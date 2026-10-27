@@ -15,6 +15,7 @@ class FrameInput:
         self.right_rate = float(payload.get('right_rate', 0.0))
         self.cam_inhib = float(payload.get('cam_inhib', 0.0))
         self.tablet_drive = dict(payload.get('tablet_drive') or {})
+        self.hallway_drive = dict(payload.get('hallway_drive') or {})
         self.memory_drive = dict(payload.get('memory_drive') or {})
         self.left_mse = float(payload.get('left_mse') or 0.0)
         self.right_mse = float(payload.get('right_mse') or 0.0)
@@ -64,6 +65,7 @@ def replay(trace_path: str, device: str = 'cpu', watch=None, engine=None) -> dic
         state.right_rate = recorded.right_rate
         state.cam_inhib = recorded.cam_inhib
         state.tablet_drive = recorded.tablet_drive
+        state.hallway_drive = recorded.hallway_drive
 
         spikes = engine.step(state, recorded.t)
         if watch is not None:

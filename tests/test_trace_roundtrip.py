@@ -57,6 +57,20 @@ def test_the_tablet_drive_survives_the_trace_and_reaches_replay():
         assert 'memory_drive' not in frames[0]
 
 
+def test_the_hallway_drive_survives_the_trace_and_reaches_replay():
+    with tempfile.TemporaryDirectory() as folder:
+        path = os.path.join(folder, 'trace.jsonl')
+        trace = recorder.SessionRecorder(path=path)
+        state = FakeState(0.73, 0.0, 0.0, hallway_drive={'loom_size_left': 0.4, 'loom_speed_left': 0.73})
+        trace.frame(0.1, state, FakeEngine(), False, False, 118.6, 0.0, False)
+        trace.close()
+
+        _header, frames, _events = recorder.load_trace(path)
+        recorded = replay.FrameInput(frames[0])
+        assert recorded.hallway_drive == {'loom_size_left': 0.4, 'loom_speed_left': 0.73}
+        assert replay.FrameInput({}).hallway_drive == {}
+
+
 def test_an_older_trace_keeps_its_memory_drive_for_the_page():
     recorded = replay.FrameInput({'kind': 'frame', 'memory_drive': {'loom_size_right': 0.25}})
     assert recorded.memory_drive == {'loom_size_right': 0.25}

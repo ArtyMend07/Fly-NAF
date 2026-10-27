@@ -8,6 +8,7 @@ from flynaf.env.vision import FNAFVision
 from flynaf.night.calibration import calibrate
 from flynaf.night.doors import DoorControl
 from flynaf.night.engine import ConnectomeEngine
+from flynaf.night.hallway import ThresholdEye, without_side
 from flynaf.night.lights import set_light
 from flynaf.night.memory import Memories, OrientationMemory, quickened
 from flynaf.night.monitor import MonitorControl
@@ -24,18 +25,22 @@ _log = logging.getLogger(__name__)
 
 async def vision_task(
     vision: FNAFVision, controller: FNAFController, state: SensoryState, shutdown: asyncio.Event,
-    senses=None,
+    senses=None, eye=None,
 ):
     delay = config.VISION_DYNAMICS.capture_delay_sec
     senses = senses or BlindSenses()
+    eye = eye or ThresholdEye()
     while not shutdown.is_set():
         state.tablet_seen = vision.is_camera_up()
         now = clock.now()
         looking_left = state.check_left and now >= state.blind_until['left']
         looking_right = state.check_right and now >= state.blind_until['right']
         closed = state.door_closed
-        state.left_rate = vision.get_left_sensory_rate(closed['left']) if looking_left else 0.0
-        state.right_rate = vision.get_right_sensory_rate(closed['right']) if looking_right else 0.0
+        left = eye.read(vision, 'left', closed['left'], now) if looking_left else {}
+        right = eye.read(vision, 'right', closed['right'], now) if looking_right else {}
+        state.left_rate = max(left.values(), default=0.0)
+        state.right_rate = max(right.values(), default=0.0)
+        state.hallway_drive = {**left, **right}
         state.cam_inhib = config.SIMULATION_PARAMS.base_sensory_rate_hz if state.tablet_seen else 0.0
         state.tablet_drive = senses.read(state, now)
         await asyncio.sleep(delay)
@@ -289,6 +294,7 @@ def answer_giant_fibers(engine, doors: DoorControl, feed: SpikeFeed, state: Sens
         moved = doors.on_giant_fiber(side, now)
         feed.trace_escape(side, motor_idx[0], sensory_idx, moved)
         setattr(state, f'{side}_rate', 0.0)
+        state.hallway_drive = without_side(state.hallway_drive, side)
 
 
 def _strongest(drive: dict, prefix: str) -> float:

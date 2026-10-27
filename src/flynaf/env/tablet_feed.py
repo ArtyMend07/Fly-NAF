@@ -49,7 +49,7 @@ def _overlap(frame: np.ndarray, references: np.ndarray, mask: np.ndarray, shift:
     return frame[:, ahead], references[..., behind], mask[:, ahead] & mask[:, behind]
 
 
-def _cell_means(squared: np.ndarray, mask: np.ndarray, cell: int) -> tuple:
+def cell_means(squared: np.ndarray, mask: np.ndarray, cell: int) -> tuple:
     height, width = (squared.shape[-2] // cell) * cell, (squared.shape[-1] // cell) * cell
     rows, columns = height // cell, width // cell
     lead = squared.shape[:-2]
@@ -82,7 +82,7 @@ def _nearest_alignments(frame, references, mask, params) -> list:
 
 
 def strongest_cells(difference: np.ndarray, mask: np.ndarray, cell: int, count: int) -> float:
-    means, covered = _cell_means(difference, mask, cell)
+    means, covered = cell_means(difference, mask, cell)
     means = np.where(covered, means, 0.0)
     if means.size == 0:
         return float(difference[mask].mean()) if mask.any() else 0.0
@@ -122,7 +122,7 @@ def bank_reading(frame: np.ndarray, bank: list, mask: np.ndarray, noise: float, 
         if best is None or contrast < best[0]:
             best = (contrast, squared, shared)
     contrast, squared, shared = best
-    means, covered = _cell_means(squared, shared, params.cell_pixels)
+    means, covered = cell_means(squared, shared, params.cell_pixels)
     changed = means[covered] > noise if covered.any() else np.zeros(1, bool)
     return Reading(contrast, float(changed.mean()))
 

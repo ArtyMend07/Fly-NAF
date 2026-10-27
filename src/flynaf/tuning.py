@@ -67,6 +67,14 @@ KNOBS = (
         6.0, 1.0, 30.0, False,
         'Hard cap on how long the tablet stays up. The fly is blind for all of it.',
     ),
+    Knob(
+        'looming_eye', 'HALLWAY_VISION', 'looming',
+        0, 0, 1, True,
+        'At 1 a hallway is read the way the tablet reads a camera: the share of the window that '
+        'differs from the empty views drives LPLC2 with its size and LC4 with how fast it grew, and a '
+        'change across most of the window drives only the MeTu4 wide-field neurons. At 0 any '
+        'difference above mse_threshold drives the whole eye cluster (experiment 20).',
+    ),
 )
 
 _BY_NAME = {knob.name: knob for knob in KNOBS}

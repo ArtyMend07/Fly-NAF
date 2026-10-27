@@ -85,6 +85,18 @@ class VisionDynamics:
 
 
 @dataclass(frozen=True)
+class HallwayVision:
+    looming: int = 0
+    view_scale: int = 8
+    cell_pixels: int = 5
+    cell_noise_mse: float = 100.0
+    loom_share_floor: float = 0.10
+    loom_share_span: float = 0.30
+    loom_speed_span_per_sec: float = 3.0
+    wide_field_share: float = 0.60
+
+
+@dataclass(frozen=True)
 class NeuralParams:
     tau_syn: float = 5.0
     t_delay: float = 1.0
@@ -332,6 +344,7 @@ MOTOR_CALIBRATION = MotorCalibration()
 SIMULATION_PARAMS = SimulationParams()
 FORAGING_PARAMS = ForagingParams()
 VISION_DYNAMICS = VisionDynamics()
+HALLWAY_VISION = HallwayVision()
 NEURAL_PARAMS = NeuralParams()
 CAMERA_DETECTION = CameraDetection()
 BRAIN_VIEW = BrainView()

@@ -9,7 +9,7 @@ from flynaf import config
 
 _log = logging.getLogger(__name__)
 
-TRACE_VERSION = 4
+TRACE_VERSION = 5
 
 
 TRACES_FOLDER = os.path.join(config.PROJECT_ROOT, 'logs', 'traces')
@@ -93,6 +93,7 @@ class SessionRecorder:
                 'door_right': bool(state.door_closed['right']),
                 'tablet_camera': state.tablet_camera,
                 'tablet_drive': _rounded(state.tablet_drive),
+                'hallway_drive': _rounded(state.hallway_drive),
                 'arousal': round(float(state.arousal), 3),
                 'eye_membrane_diff': round(float(engine.eye_membrane_diff), 4),
                 'explore_membrane': round(float(engine.explore_membrane), 4),
