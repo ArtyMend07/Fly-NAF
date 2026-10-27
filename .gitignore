@@ -17,3 +17,5 @@ data/
 *.csv
 *.npy
 tuning.toml
+.coverage
+coverage.xml

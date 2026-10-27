@@ -48,6 +48,14 @@ Replayed in WSL Ubuntu 22.04 with `DISPLAY` and `WAYLAND_DISPLAY` unset, as on a
 
 The Windows job still installs with `uv sync --locked`, so the lock file is checked as a whole on the platform the game runs on, and the Linux job checks the code against the same versions.
 
+### Amendment, 2026-10-27: SonarQube Cloud reads the Linux job
+
+`test-linux` runs pytest with `pytest-cov`, writes `coverage.xml` and hands it to `SonarSource/sonarqube-scan-action` with the `SONAR_TOKEN` secret. The analysis covers `src/` and `run.py`, reads `tests/` as test code and leaves out `src/flynaf/env/assets/`, which holds the NeuroMechFly meshes and their licence. The settings are in [`sonar-project.properties`](../../sonar-project.properties), and `[tool.coverage.run]` in `pyproject.toml` writes the paths relative to the repository so the scanner can match them to the files it reads. The job clones the full history, since the scanner attributes each line through git blame to tell new code from old.
+
+`models.py` and `data_loader.py`, adapted from `eonsystemspbc/fly-brain`, stay in the analysis. They are the engine and have been rewritten for the real-time loop, so leaving them out would hide code this project maintains. The quality gate judges the code each change adds, so what they carried over shows on the dashboard without failing a pull request.
+
+Only one job sends the report, because the code is the same on both runners. The two `connectome` tests are skipped on the runner, so the engine they exercise reads as less covered on the dashboard than it is on a machine with the FlyWire data.
+
 ## Consequences
 The FlyWire data cannot be redistributed, so the runner never holds it and the
 two connectome tests are reported as skipped there. Everything they check is
@@ -72,3 +80,4 @@ paths they were written with.
 |---|---|---|---|---|---|
 | 1.0 | Recorded the move to the flynaf package, the pytest and ruff pipeline and the connectome marker | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.1 | Added a Linux job that installs the locked versions on the CPU build of PyTorch | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
+| 1.2 | Sent the coverage of the Linux job to SonarQube Cloud | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-27 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-27 |

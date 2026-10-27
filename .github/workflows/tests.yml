@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -34,4 +36,7 @@ jobs:
           uv pip install --torch-backend cpu -r requirements-cpu.txt
           uv pip install --no-deps -e .
       - run: uv run --no-sync ruff check src run.py tests
-      - run: uv run --no-sync pytest -q -rs
+      - run: uv run --no-sync pytest -q -rs --cov --cov-report=xml
+      - uses: SonarSource/sonarqube-scan-action@v8.3.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
