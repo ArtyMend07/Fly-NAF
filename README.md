@@ -203,6 +203,12 @@ option in the menu, so the night starts only once the brain is ready to play
 it. A copy outside Steam is opened through `GameLauncher.executable` in
 `src/flynaf/config.py`. `--new` and `--continue` do the same without the window.
 
+The night ends by itself. When the power meter leaves the screen, after a
+jumpscare, at 6 AM or when the power runs out, the fly stops pressing anything.
+A jumpscare is then shown to the brain as what it is to a fly, something growing
+over both eyes, and the panel shows both Giant Fibers answering before the run
+ends (ADR 0021).
+
 The menu clicks need two points measured once, `new_game_x`, `new_game_y`,
 `continue_x` and `continue_y` in `GameLauncher`, in the same 1280x720 layout as
 every other target. Until they are set, the launcher still opens the game and
@@ -376,3 +382,4 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.28 | Split the FlyWire licences between the CC BY 4.0 connectivity dump and the CC BY-NC 4.0 community edits, and stated what the game clips are and that the GPL does not cover them | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
 | 1.29 | Added the Ubuntu runner to the tests and pointed to experiment 18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
 | 1.30 | Described the looming eye and pointed to experiments 19 and 20 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |
+| 1.31 | Described how a night ends by itself | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |

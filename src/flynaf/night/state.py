@@ -35,6 +35,7 @@ class SensoryState:
     tablet_readable_at: float = 0.0
     tablet_drive: dict = field(default_factory=dict)
     hallway_drive: dict = field(default_factory=dict)
+    night_over: str | None = None
 
 
 @dataclass

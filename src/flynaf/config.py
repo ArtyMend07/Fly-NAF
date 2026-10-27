@@ -97,6 +97,16 @@ class HallwayVision:
 
 
 @dataclass(frozen=True)
+class NightEnd:
+    check_interval_sec: float = 0.25
+    hud_gone_sec: float = 2.0
+    static_level: float = 30.0
+    ending_watch_sec: float = 60.0
+    last_look_frames: int = 20
+    ending_hold_sec: float = 6.0
+
+
+@dataclass(frozen=True)
 class NeuralParams:
     tau_syn: float = 5.0
     t_delay: float = 1.0
@@ -345,6 +355,7 @@ SIMULATION_PARAMS = SimulationParams()
 FORAGING_PARAMS = ForagingParams()
 VISION_DYNAMICS = VisionDynamics()
 HALLWAY_VISION = HallwayVision()
+NIGHT_END = NightEnd()
 NEURAL_PARAMS = NeuralParams()
 CAMERA_DETECTION = CameraDetection()
 BRAIN_VIEW = BrainView()

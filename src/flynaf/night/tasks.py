@@ -4,11 +4,12 @@ import logging
 from flynaf import clock, config
 from flynaf.env.brain_view import PanelFrame, SpikeFeed
 from flynaf.env.input_controller import FNAFController
+from flynaf.env.night_end import STATIC
 from flynaf.env.vision import FNAFVision
 from flynaf.night.calibration import calibrate
 from flynaf.night.doors import DoorControl
 from flynaf.night.engine import ConnectomeEngine
-from flynaf.night.hallway import ThresholdEye, without_side
+from flynaf.night.hallway import FULL_FIELD_LOOM, ThresholdEye, without_side
 from flynaf.night.lights import set_light
 from flynaf.night.memory import Memories, OrientationMemory, quickened
 from flynaf.night.monitor import MonitorControl
@@ -99,7 +100,7 @@ async def saccade_task(
     calibration_done.set()
 
     while not shutdown.is_set():
-        if saccade.side is None:
+        if saccade.side is None or state.night_over is not None:
             await asyncio.sleep(engine.frame_dt)
             continue
 
@@ -162,6 +163,13 @@ async def engine_task(
     views_seen = tablet.finished_views
 
     while not shutdown.is_set():
+        if state.night_over == STATIC:
+            await the_last_look(engine, feed, trace, telemetry, vision, doors, monitor)
+            shutdown.set()
+            break
+        if state.night_over is not None:
+            await asyncio.sleep(engine.frame_dt)
+            continue
         now = clock.now()
         frame_elapsed = now - last_frame_at
         last_frame_at = now
@@ -195,6 +203,51 @@ async def engine_task(
 
         remaining = engine.frame_dt - (clock.now() - now)
         await asyncio.sleep(max(remaining, 0.0))
+
+
+async def night_end_task(watch, controller, state: SensoryState, shutdown: asyncio.Event,
+                         telemetry: ConnectomeTelemetry, trace=None):
+    trace = trace or SessionRecorder(enabled=False)
+    while not shutdown.is_set():
+        ending = watch.ending()
+        if ending is not None and ending != state.night_over:
+            if state.night_over is None:
+                controller.halt()
+                _log.warning('the power meter has left the screen, the night is over and the fly stops acting')
+            if ending == STATIC:
+                _log.warning('the screen is static, the jumpscare has happened')
+            trace.event(clock.now() - telemetry.start_time, 'night over', ending)
+            state.night_over = ending
+        if watch.gave_up(clock.now()):
+            _log.info('no jumpscare followed, the night ended at 6 AM or in the dark, stopping')
+            shutdown.set()
+            break
+        await asyncio.sleep(config.NIGHT_END.check_interval_sec)
+
+
+async def the_last_look(engine: ConnectomeEngine, feed: SpikeFeed, trace, telemetry,
+                        vision: FNAFVision, doors: DoorControl, monitor: MonitorControl):
+    params = config.NIGHT_END
+    seen = SensoryState(hallway_drive=dict(FULL_FIELD_LOOM))
+    answered = {}
+    for frame in range(1, params.last_look_frames + 1):
+        now = clock.now()
+        spikes = await asyncio.to_thread(engine.step, seen, now)
+        read_spikes(engine, spikes, seen)
+        for side, fired, motor_idx, sensory_idx in (
+            ('left', seen.l_spike, engine.l_motor_idx, engine.l_sensory_idx),
+            ('right', seen.r_spike, engine.r_motor_idx, engine.r_sensory_idx),
+        ):
+            if fired and side not in answered:
+                answered[side] = frame
+                feed.trace_escape(side, motor_idx[0], sensory_idx, False)
+        feed.publish(spikes[0].nonzero().flatten().cpu().numpy(),
+                     panel_frame(seen, vision, doors, monitor, (True, True)))
+        trace.frame(now - telemetry.start_time, seen, engine, seen.l_spike, seen.r_spike, 0.0, 0.0, False)
+        await asyncio.sleep(max(engine.frame_dt - (clock.now() - now), 0.0))
+    _log.warning('the jumpscare reached the brain as a looming over both eyes, giant fibers answered %s',
+                 ', '.join(f'{side} at frame {frame}' for side, frame in answered.items()) or 'not at all')
+    await asyncio.sleep(params.ending_hold_sec)
 
 
 async def warm_up(engine: ConnectomeEngine, telemetry: ConnectomeTelemetry):

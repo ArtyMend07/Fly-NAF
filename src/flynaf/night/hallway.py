@@ -6,6 +6,7 @@ from flynaf.night.neurons import side_of
 from flynaf.night.tablet.transduction import clamp_unit, loom_level
 
 SIDES = ('left', 'right')
+FULL_FIELD_LOOM = {f'{kind}_{side}': 1.0 for kind in ('loom_size', 'loom_speed') for side in SIDES}
 
 
 def without_side(drive: dict, side: str) -> dict:

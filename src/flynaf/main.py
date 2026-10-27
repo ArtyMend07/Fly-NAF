@@ -9,6 +9,7 @@ from flynaf.env.brain_view import SpikeFeed
 from flynaf.env.cascade import CascadeTracer
 from flynaf.env.frame_recorder import FrameRecorder, frames_folder
 from flynaf.env.input_controller import FNAFController, start_worker
+from flynaf.env.night_end import NightEndWatch
 from flynaf.env.overlay import anchor_to_game, bring_game_forward
 from flynaf.env.tablet_feed import TabletFeed
 from flynaf.env.vision import FNAFVision
@@ -19,7 +20,7 @@ from flynaf.night.panel import brain_view_task
 from flynaf.night.state import SaccadeRequest, SensoryState
 from flynaf.night.tablet.senses import TabletSenses
 from flynaf.night.tablet.watch import TabletWatch, build_gaze
-from flynaf.night.tasks import engine_task, saccade_task, vision_task
+from flynaf.night.tasks import engine_task, night_end_task, saccade_task, vision_task
 from flynaf.recorder import SessionRecorder
 from flynaf.telemetry import ConnectomeTelemetry
 
@@ -44,6 +45,8 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
     tablet_feed = TabletFeed()
     memories = Memories()
     tablet = TabletWatch(build_gaze(), tablet_feed, controller, telemetry, state, memories)
+    night_end = NightEndWatch()
+    night_end.start()
 
     async with asyncio.TaskGroup() as tg:
         tg.create_task(vision_task(
@@ -57,6 +60,7 @@ async def _run(telemetry: ConnectomeTelemetry, trace: SessionRecorder, begin_nig
             engine, vision, controller, state, shutdown, telemetry, calibration_done,
             feed, saccade, trace, tablet, memories,
         ))
+        tg.create_task(night_end_task(night_end, controller, state, shutdown, telemetry, trace))
         tg.create_task(brain_view_task(
             feed, shutdown, view_ready, vision.latest_patches,
         ))
