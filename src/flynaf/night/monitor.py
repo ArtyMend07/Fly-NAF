@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from flynaf import clock, config
+from flynaf.night.memory import quickened
 from flynaf.night.motor import await_motor
 from flynaf.night.state import SensoryState
 from flynaf.night.tablet.watch import IdleTablet
@@ -71,6 +72,7 @@ class MonitorControl:
         self.ready_at = 0.0
         self._releasing = False
         self._gesture = None
+        self._reflex = None
         self._retry_at = 0.0
         self._opened_at = 0.0
         self._cap_at = 0.0
@@ -93,15 +95,23 @@ class MonitorControl:
             self._raise(now, explore)
 
     def escape(self, now: float, reflex) -> bool:
-        if not self.is_open or self._gesture is not None:
+        if not self.is_open:
             return False
+        if self._gesture is not None:
+            return self._after_the_lowering(reflex)
         if not self._releasing:
             self._telemetry.record_camera_release(now - self._opened_at, 'escape')
         self._releasing = True
-        self._tablet.on_lower()
-        self._start('lower', escape_from_tablet(
+        self._tablet.on_lower(now)
+        self._start('escape', escape_from_tablet(
             self._vision, self._controller, self._confirm_sec, reflex,
         ))
+        return True
+
+    def _after_the_lowering(self, reflex) -> bool:
+        if self._gesture[0] != 'lower' or self._reflex is not None:
+            return False
+        self._reflex = reflex
         return True
 
     def _raise(self, now: float, explore):
@@ -130,7 +140,7 @@ class MonitorControl:
             if now < self._cap_at and not bored:
                 return
             self._releasing = True
-            self._tablet.on_lower()
+            self._tablet.on_lower(now)
             self._telemetry.record_camera_release(watched_for, release_reason(explore, bored))
         if now < self._retry_at:
             return
@@ -176,7 +186,17 @@ class MonitorControl:
         self._releasing = False
         self._attempts = 0
         self._state.camera_open = False
-        self.ready_at = now + self._refractory_sec
+        self.ready_at = now + quickened(self._refractory_sec, self._state.arousal)
+        self._tablet.on_office(now)
+        if self._reflex is not None:
+            reflex, self._reflex = self._reflex, None
+            self._start('reflex', reflex())
+
+    def _after_escape(self, now: float, lowered: bool):
+        self._after_lower(now, lowered)
+
+    def _after_reflex(self, now: float, _result):
+        return None
 
     def _after_tidy(self, now: float, lowered: bool):
         if not lowered:

@@ -50,7 +50,8 @@ def quick_confirmation(monkeypatch):
 
 
 class StubTablet:
-    camera = '1C'
+    camera = source = '1C'
+    side = 'left'
 
     def __init__(self, escape_side):
         self.escape_side = escape_side
@@ -59,8 +60,11 @@ class StubTablet:
     def on_raise(self, now):
         pass
 
-    def on_lower(self):
+    def on_lower(self, now):
         self.lowered += 1
+
+    def on_office(self, now):
+        pass
 
     def update(self, now, explore_fired, escape_fired):
         return self.escape_side
@@ -119,6 +123,18 @@ def test_the_escape_is_reported_as_its_own_release_and_door_cause():
     assert telemetry.stats['right_door_panics'] == 1
     assert telemetry.tablet_escapes == {'1C right': 1}
     assert tablet.lowered >= 1
+
+
+@pytest.mark.parametrize('escape_side, needs_the_cove', [('left', True), ('right', False)])
+def test_an_escape_on_the_side_of_the_camera_leaves_the_door_waiting_for_that_camera(escape_side, needs_the_cove):
+    _control, doors, _controller, _telemetry, state, _tablet = _run(escape_side)
+    state.cleared_at[escape_side] = 10.0
+    for step in range(400):
+        doors.update(10.0 + step * 0.1, 0.1)
+    assert doors.closed[escape_side] is needs_the_cove
+    state.view_cleared_at['1C'] = 60.0
+    doors.update(60.1, 0.1)
+    assert not doors.closed[escape_side]
 
 
 def test_no_escape_is_started_without_a_dnp04_spike():

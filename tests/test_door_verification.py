@@ -1,5 +1,6 @@
 import asyncio
 import collections
+import math
 import threading
 from unittest.mock import patch
 
@@ -10,6 +11,7 @@ from flynaf import config
 from flynaf.env.vision import FNAFVision
 from flynaf.night import calibration
 from flynaf.night.doors import DoorControl
+from flynaf.night.memory import DefensiveState
 from flynaf.night.state import SensoryState
 from flynaf.night.tasks import remember_a_clear_look
 from flynaf.telemetry import ConnectomeTelemetry
@@ -117,6 +119,67 @@ def test_the_door_waits_for_the_tablet_to_come_down():
 
     state.camera_open = False
     run_frames(doors, now, FRAME)
+    assert not doors.closed['left']
+
+
+DEFENCE_SEC = 15.0
+HOLD_SEC = math.log(config.DOOR_DYNAMICS.release_threshold) / math.log(config.DOOR_DYNAMICS.hold_leak_per_frame) * FRAME
+
+
+def escaped_through_the_door(level: float):
+    state = SensoryState()
+    buttons = DoorButtons()
+    defence = DefensiveState(DEFENCE_SEC)
+    defence.threat('left', level, now=1.0)
+    doors = DoorControl(buttons, ConnectomeTelemetry(), state, defence)
+    doors.slam('left', 1.0, 'DNp04 looming escape')
+    state.cleared_at['left'] = 2.0
+    return doors, buttons
+
+
+@pytest.mark.parametrize('level', [1.0, 0.5, 0.2])
+def test_the_defensive_state_holds_the_door_until_it_falls_under_the_release_level(level):
+    doors, buttons = escaped_through_the_door(level)
+    defended = DEFENCE_SEC * math.log(level / config.DOOR_DYNAMICS.release_threshold)
+    held = max(HOLD_SEC, defended)
+
+    now = run_frames(doors, 1.0, held - 0.5)
+    assert doors.closed['left'], f'a defensive state of {level} let the door go early'
+
+    run_frames(doors, now, 1.0)
+    assert not doors.closed['left'], f'a defensive state of {level} held the door past its fall'
+    assert buttons.calls == ['trigger_left_door', 'open_left_door']
+
+
+def escaped_from_the_cove():
+    state = SensoryState()
+    buttons = DoorButtons()
+    doors = DoorControl(buttons, ConnectomeTelemetry(), state)
+    doors.slam('left', 1.0, 'DNp04 looming escape', '1C')
+    state.cleared_at['left'] = 2.0
+    return doors, buttons, state
+
+
+@pytest.mark.parametrize('cove_cleared_at, released', [(None, False), (0.5, False), (3.0, True)])
+def test_a_door_shut_from_the_cove_waits_for_a_clear_view_of_the_cove(cove_cleared_at, released):
+    """Foxy never shows in the hallway light, so an empty hallway says nothing
+    about him. Only the cove read without a looming change does."""
+    doors, buttons, state = escaped_from_the_cove()
+    if cove_cleared_at is not None:
+        state.view_cleared_at['1C'] = cove_cleared_at
+    run_frames(doors, 1.0, HOLD_SEC + 2.0)
+    assert doors.closed['left'] is not released
+    assert buttons.calls == ['trigger_left_door'] + (['open_left_door'] if released else [])
+
+
+def test_a_hallway_threat_behind_a_door_shut_from_the_cove_still_waits_for_the_cove():
+    doors, _buttons, state = escaped_from_the_cove()
+    doors.on_giant_fiber('left', now=1.5)
+    state.cleared_at['left'] = 2.0
+    run_frames(doors, 1.5, HOLD_SEC + 2.0)
+    assert doors.closed['left']
+    state.view_cleared_at['1C'] = 2.5
+    run_frames(doors, 1.5 + HOLD_SEC + 2.0, 1.0)
     assert not doors.closed['left']
 
 

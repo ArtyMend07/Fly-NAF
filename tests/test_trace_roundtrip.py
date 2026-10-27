@@ -52,7 +52,28 @@ def test_the_tablet_drive_survives_the_trace_and_reaches_replay():
         _header, frames, _events = recorder.load_trace(path)
         assert frames[0]['tablet_camera'] == '2A'
         assert frames[0]['escape_left'] is True
-        assert replay.FrameInput(frames[0]).tablet_drive == {'loom_size_left': 0.4, 'loom_speed_left': 0.9}
+        recorded = replay.FrameInput(frames[0])
+        assert recorded.tablet_drive == {'loom_size_left': 0.4, 'loom_speed_left': 0.9}
+        assert 'memory_drive' not in frames[0]
+
+
+def test_the_hallway_drive_survives_the_trace_and_reaches_replay():
+    with tempfile.TemporaryDirectory() as folder:
+        path = os.path.join(folder, 'trace.jsonl')
+        trace = recorder.SessionRecorder(path=path)
+        state = FakeState(0.73, 0.0, 0.0, hallway_drive={'loom_size_left': 0.4, 'loom_speed_left': 0.73})
+        trace.frame(0.1, state, FakeEngine(), False, False, 118.6, 0.0, False)
+        trace.close()
+
+        _header, frames, _events = recorder.load_trace(path)
+        recorded = replay.FrameInput(frames[0])
+        assert recorded.hallway_drive == {'loom_size_left': 0.4, 'loom_speed_left': 0.73}
+        assert replay.FrameInput({}).hallway_drive == {}
+
+
+def test_an_older_trace_keeps_its_memory_drive_for_the_page():
+    recorded = replay.FrameInput({'kind': 'frame', 'memory_drive': {'loom_size_right': 0.25}})
+    assert recorded.memory_drive == {'loom_size_right': 0.25}
 
 
 def test_a_disabled_recorder_writes_nothing():
@@ -98,6 +119,15 @@ def test_a_frame_missing_fields_falls_back_to_silence():
     frame = replay.FrameInput({})
     assert (frame.left_rate, frame.right_rate, frame.cam_inhib) == (0.0, 0.0, 0.0)
     assert frame.tablet_drive == {}
+
+
+def test_the_latest_trace_is_the_newest_dated_one_with_frames():
+    with tempfile.TemporaryDirectory() as folder:
+        for name, body in (('trace_20261016_235445.jsonl', '{}'), ('trace_20261021_210713.jsonl', '{}'),
+                           ('trace_20261021_220000.jsonl', ''), ('trace_synthetic_demo.jsonl', '{}')):
+            with open(os.path.join(folder, name), 'w', encoding='utf-8') as handle:
+                handle.write(body)
+        assert os.path.basename(recorder.latest_trace(folder)) == 'trace_20261021_210713.jsonl'
 
 
 if __name__ == '__main__':

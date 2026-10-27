@@ -1,29 +1,47 @@
+import math
+
 from flynaf import config
 from flynaf.night.state import SensoryState
-from flynaf.night.tablet.transduction import figure_level
+from flynaf.night.tablet.transduction import figure_level, loom_level
 
 
 class TabletSenses:
-    def __init__(self, feed, memory=None, params=None):
+    def __init__(self, feed, params=None):
         self._p = params or config.TABLET_VISION
         self._feed = feed
-        self._memory = memory
         self._cameras = {camera.name: camera for camera in self._p.cameras}
 
     def read(self, state: SensoryState, now: float) -> dict:
-        remembered = self._memory.drive(now) if self._memory is not None else {}
-        return {**remembered, **self._seen(state, now)}
-
-    def _seen(self, state: SensoryState, now: float) -> dict:
-        camera = state.tablet_camera if state.camera_open else None
+        camera = state.tablet_camera if state.camera_open and state.tablet_seen else None
         spec = self._cameras.get(camera)
         if spec is None or now < state.tablet_readable_at:
             return {}
-        contrast = self._feed.contrast(camera)
-        if contrast is None:
+        reading = self._feed.reading(camera)
+        if reading is None:
             return {}
-        level = figure_level(contrast, self._feed.noise(camera), self._p.figure_span_mse)
-        return {f'figure_{spec.side}': level}
+        return transduce(spec, reading, self._feed.noise(camera), self._p)
+
+
+def new_share(reading, recovery_sec: float) -> float:
+    if reading.share_since_last_look is None:
+        return reading.share
+    adapted = min(reading.share, reading.share_since_last_look)
+    still_adapted = math.exp(-reading.since_last_look_sec / recovery_sec)
+    return reading.share - (reading.share - adapted) * still_adapted
+
+
+def transduce(spec, reading, noise: float, params=None) -> dict:
+    params = params or config.TABLET_VISION
+    side = spec.side
+    if reading.share >= spec.wide_field_share:
+        return {f'wide_field_{side}': 1.0}
+    drive = {f'figure_{side}': figure_level(reading.contrast, noise, spec.figure_span_mse)}
+    share = new_share(reading, params.look_recovery_sec)
+    loom = loom_level(share, spec.loom_share_floor, spec.loom_share_span) if spec.defensive else 0.0
+    if loom > 0.0:
+        drive[f'loom_size_{side}'] = loom
+        drive[f'loom_speed_{side}'] = loom
+    return drive
 
 
 class BlindSenses:

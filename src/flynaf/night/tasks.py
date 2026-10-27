@@ -4,11 +4,14 @@ import logging
 from flynaf import clock, config
 from flynaf.env.brain_view import PanelFrame, SpikeFeed
 from flynaf.env.input_controller import FNAFController
+from flynaf.env.night_end import STATIC
 from flynaf.env.vision import FNAFVision
 from flynaf.night.calibration import calibrate
 from flynaf.night.doors import DoorControl
 from flynaf.night.engine import ConnectomeEngine
+from flynaf.night.hallway import FULL_FIELD_LOOM, ThresholdEye, without_side
 from flynaf.night.lights import set_light
+from flynaf.night.memory import Memories, OrientationMemory, quickened
 from flynaf.night.monitor import MonitorControl
 from flynaf.night.motor import await_motor
 from flynaf.night.state import SaccadeRequest, SensoryState
@@ -23,18 +26,22 @@ _log = logging.getLogger(__name__)
 
 async def vision_task(
     vision: FNAFVision, controller: FNAFController, state: SensoryState, shutdown: asyncio.Event,
-    senses=None,
+    senses=None, eye=None,
 ):
     delay = config.VISION_DYNAMICS.capture_delay_sec
     senses = senses or BlindSenses()
+    eye = eye or ThresholdEye()
     while not shutdown.is_set():
         state.tablet_seen = vision.is_camera_up()
         now = clock.now()
         looking_left = state.check_left and now >= state.blind_until['left']
         looking_right = state.check_right and now >= state.blind_until['right']
         closed = state.door_closed
-        state.left_rate = vision.get_left_sensory_rate(closed['left']) if looking_left else 0.0
-        state.right_rate = vision.get_right_sensory_rate(closed['right']) if looking_right else 0.0
+        left = eye.read(vision, 'left', closed['left'], now) if looking_left else {}
+        right = eye.read(vision, 'right', closed['right'], now) if looking_right else {}
+        state.left_rate = max(left.values(), default=0.0)
+        state.right_rate = max(right.values(), default=0.0)
+        state.hallway_drive = {**left, **right}
         state.cam_inhib = config.SIMULATION_PARAMS.base_sensory_rate_hz if state.tablet_seen else 0.0
         state.tablet_drive = senses.read(state, now)
         await asyncio.sleep(delay)
@@ -56,11 +63,16 @@ async def observe_hallway(
         state.check_right = True
 
     fired = False
+    driven_seen, last_driven_at = opened_at_driven, opened_at_frame
     while engine.frames - opened_at_frame < foraging.light_inspection_frames:
         if state.l_spike if side == 'left' else state.r_spike:
             fired = True
             break
         if clock.now() >= deadline:
+            break
+        if engine.driven_frames[side] != driven_seen:
+            driven_seen, last_driven_at = engine.driven_frames[side], engine.frames
+        if engine.frames - last_driven_at >= foraging.light_quiet_frames:
             break
         await asyncio.sleep(engine.frame_dt / 2)
 
@@ -88,7 +100,7 @@ async def saccade_task(
     calibration_done.set()
 
     while not shutdown.is_set():
-        if saccade.side is None:
+        if saccade.side is None or state.night_over is not None:
             await asyncio.sleep(engine.frame_dt)
             continue
 
@@ -118,7 +130,7 @@ async def saccade_task(
         telemetry.record_look_contrast(side, contrast, frames, driven)
         remember_a_clear_look(state, side, fired, driven, lit)
 
-        saccade.ready_at = clock.now() + config.FORAGING_PARAMS.saccade_refractory_sec
+        saccade.ready_at = clock.now() + quickened(config.FORAGING_PARAMS.saccade_refractory_sec, state.arousal)
         saccade.side = None
         saccade.busy = False
 
@@ -135,19 +147,29 @@ async def engine_task(
     saccade: SaccadeRequest,
     trace: SessionRecorder | None = None,
     tablet=None,
+    memories: Memories | None = None,
 ):
     await warm_up(engine, telemetry)
     await calibration_done.wait()
     trace = trace or SessionRecorder(enabled=False)
     tablet = tablet or IdleTablet()
+    memories = memories or Memories()
 
     search = SearchDrive(engine.sensory_span)
     explore = ExploreDrive()
     monitor = MonitorControl(vision, controller, telemetry, state, tablet)
-    doors = DoorControl(controller, telemetry, state)
+    doors = DoorControl(controller, telemetry, state, memories.defence)
     last_frame_at = clock.now()
+    views_seen = tablet.finished_views
 
     while not shutdown.is_set():
+        if state.night_over == STATIC:
+            await the_last_look(engine, feed, trace, telemetry, vision, doors, monitor)
+            shutdown.set()
+            break
+        if state.night_over is not None:
+            await asyncio.sleep(engine.frame_dt)
+            continue
         now = clock.now()
         frame_elapsed = now - last_frame_at
         last_frame_at = now
@@ -155,13 +177,17 @@ async def engine_task(
         inputs = (state.left_rate > 0.0, state.right_rate > 0.0)
         spikes = await asyncio.to_thread(engine.step, state, now)
         read_spikes(engine, spikes, state)
+        recall_the_hallway(memories.orientation, state, now)
 
-        explore.update(engine.explore_membrane, state.explore_spike, frame_elapsed)
+        state.arousal = memories.vigilance.arousal(now)
+        explore.update(engine.explore_membrane, state.explore_spike, state.arousal)
         look_pending = saccade.side is not None or saccade.busy
         telemetry.record_frame(state.cam_inhib > 0, look_pending)
-        monitor.update(now, explore, state.forage_bias, look_pending)
+        monitor.update(now, explore, state.forage_bias, look_pending or search.overdue(now))
+        views_seen = habituate_to_an_empty_view(search, tablet, views_seen)
         watch_the_tablet(tablet, monitor, doors, telemetry, state, now)
-        request_saccade(search, saccade, monitor, engine, state, frame_elapsed, now, look_pending)
+        request_saccade(search, saccade, monitor, engine, state, frame_elapsed, now, look_pending,
+                        memories.vigilance.pull(now), memories.defence.pull(now))
 
         feed.publish(
             spikes[0].nonzero().flatten().cpu().numpy(),
@@ -177,6 +203,51 @@ async def engine_task(
 
         remaining = engine.frame_dt - (clock.now() - now)
         await asyncio.sleep(max(remaining, 0.0))
+
+
+async def night_end_task(watch, controller, state: SensoryState, shutdown: asyncio.Event,
+                         telemetry: ConnectomeTelemetry, trace=None):
+    trace = trace or SessionRecorder(enabled=False)
+    while not shutdown.is_set():
+        ending = watch.ending()
+        if ending is not None and ending != state.night_over:
+            if state.night_over is None:
+                controller.halt()
+                _log.warning('the power meter has left the screen, the night is over and the fly stops acting')
+            if ending == STATIC:
+                _log.warning('the screen is static, the jumpscare has happened')
+            trace.event(clock.now() - telemetry.start_time, 'night over', ending)
+            state.night_over = ending
+        if watch.gave_up(clock.now()):
+            _log.info('no jumpscare followed, the night ended at 6 AM or in the dark, stopping')
+            shutdown.set()
+            break
+        await asyncio.sleep(config.NIGHT_END.check_interval_sec)
+
+
+async def the_last_look(engine: ConnectomeEngine, feed: SpikeFeed, trace, telemetry,
+                        vision: FNAFVision, doors: DoorControl, monitor: MonitorControl):
+    params = config.NIGHT_END
+    seen = SensoryState(hallway_drive=dict(FULL_FIELD_LOOM))
+    answered = {}
+    for frame in range(1, params.last_look_frames + 1):
+        now = clock.now()
+        spikes = await asyncio.to_thread(engine.step, seen, now)
+        read_spikes(engine, spikes, seen)
+        for side, fired, motor_idx, sensory_idx in (
+            ('left', seen.l_spike, engine.l_motor_idx, engine.l_sensory_idx),
+            ('right', seen.r_spike, engine.r_motor_idx, engine.r_sensory_idx),
+        ):
+            if fired and side not in answered:
+                answered[side] = frame
+                feed.trace_escape(side, motor_idx[0], sensory_idx, False)
+        feed.publish(spikes[0].nonzero().flatten().cpu().numpy(),
+                     panel_frame(seen, vision, doors, monitor, (True, True)))
+        trace.frame(now - telemetry.start_time, seen, engine, seen.l_spike, seen.r_spike, 0.0, 0.0, False)
+        await asyncio.sleep(max(engine.frame_dt - (clock.now() - now), 0.0))
+    _log.warning('the jumpscare reached the brain as a looming over both eyes, giant fibers answered %s',
+                 ', '.join(f'{side} at frame {frame}' for side, frame in answered.items()) or 'not at all')
+    await asyncio.sleep(params.ending_hold_sec)
 
 
 async def warm_up(engine: ConnectomeEngine, telemetry: ConnectomeTelemetry):
@@ -204,22 +275,41 @@ def read_spikes(engine, spikes, state: SensoryState):
     state.r_spike = bool(frame[engine.r_motor_idx].any())
     state.l_escape = bool(frame[engine.l_escape_idx].any())
     state.r_escape = bool(frame[engine.r_escape_idx].any())
-    state.explore_spike = bool(frame[engine.explore_idx].any())
+    state.l_explore = bool(frame[engine.l_explore_idx].any())
+    state.r_explore = bool(frame[engine.r_explore_idx].any())
+    state.explore_spike = state.l_explore or state.r_explore
     state.l_sensory_count = int(frame[engine.l_sensory_idx].sum().item())
     state.r_sensory_count = int(frame[engine.r_sensory_idx].sum().item())
+    state.l_ring_count = int(frame[engine.l_ring_idx].sum().item())
+    state.r_ring_count = int(frame[engine.r_ring_idx].sum().item())
+
+
+def recall_the_hallway(orientation: OrientationMemory, state: SensoryState, now: float):
+    orientation.imprint({'left': state.l_ring_count, 'right': state.r_ring_count}, now)
+    state.remembered = {side: orientation.level(now, side) for side in ('left', 'right')}
+    state.recalled = state.remembered['left'] - state.remembered['right']
+
+
+def habituate_to_an_empty_view(search: SearchDrive, tablet, views_seen: int) -> int:
+    view = tablet.last_view
+    if tablet.finished_views != views_seen and view is not None and not view.found:
+        search.viewed(view.side)
+    return tablet.finished_views
 
 
 def watch_the_tablet(tablet, monitor: MonitorControl, doors: DoorControl, telemetry,
                      state: SensoryState, now: float):
     if not monitor.is_open:
         return
-    camera = tablet.camera
-    side = tablet.update(now, state.explore_spike, {'left': state.l_escape, 'right': state.r_escape})
+    camera, camera_side = tablet.source, tablet.side
+    side = tablet.update(now, {'left': state.l_explore, 'right': state.r_explore},
+                         {'left': state.l_escape, 'right': state.r_escape})
     if side is None:
         return
+    alarm = camera if camera_side == side else None
 
     async def close_the_door():
-        pressed = doors.slam(side, now, 'DNp04 looming escape')
+        pressed = doors.slam(side, now, 'DNp04 looming escape', alarm)
         if pressed is not None:
             await await_motor(pressed)
 
@@ -231,14 +321,15 @@ def watch_the_tablet(tablet, monitor: MonitorControl, doors: DoorControl, teleme
 
 def request_saccade(search: SearchDrive, saccade: SaccadeRequest, monitor: MonitorControl,
                     engine, state: SensoryState, frame_elapsed: float, now: float,
-                    look_pending: bool):
+                    look_pending: bool, alert: float = 0.0, threat: float = 0.0):
     can_look = (not look_pending and not monitor.engaged and not state.tablet_seen
                 and now >= saccade.ready_at)
     wants = search.update(
         engine.eye_membrane_diff, state.l_sensory_count, state.r_sensory_count,
-        frame_elapsed, now, can_look,
+        frame_elapsed, now, can_look, state.recalled, alert, threat, state.arousal,
     )
     state.forage_bias = search.tension
+    state.gaze_side = search.camera_leaning
     if wants is None:
         return
     saccade.reason = search.reason
@@ -256,6 +347,7 @@ def answer_giant_fibers(engine, doors: DoorControl, feed: SpikeFeed, state: Sens
         moved = doors.on_giant_fiber(side, now)
         feed.trace_escape(side, motor_idx[0], sensory_idx, moved)
         setattr(state, f'{side}_rate', 0.0)
+        state.hallway_drive = without_side(state.hallway_drive, side)
 
 
 def _strongest(drive: dict, prefix: str) -> float:
@@ -283,6 +375,8 @@ def panel_frame(state: SensoryState, vision: FNAFVision, doors: DoorControl,
         door_r=doors.closed['right'],
         figure=_strongest(state.tablet_drive, 'figure'),
         loom=_strongest(state.tablet_drive, 'loom'),
+        recall_l=state.remembered['left'],
+        recall_r=state.remembered['right'],
         dnp09=state.explore_spike,
         dnp04_l=state.l_escape,
         dnp04_r=state.r_escape,

@@ -8,9 +8,17 @@ import time
 import cv2
 import mss
 import numpy as np
+from mss.exception import ScreenShotError
 
 from flynaf import config
-from flynaf.env import anchor, desktop, hallway_bank, tablet_map
+from flynaf.env import (
+    anchor,
+    capture,
+    desktop,
+    hallway_bank,
+    reference_store,
+    tablet_map,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -48,8 +56,7 @@ class FNAFVision:
         self.debug_dir = os.path.join(config.PROJECT_ROOT, 'logs', 'vision_debug')
         os.makedirs(self.debug_dir, exist_ok=True)
 
-        self.reference_dir = os.path.join(config.PROJECT_ROOT, 'logs', 'vision_reference')
-        os.makedirs(self.reference_dir, exist_ok=True)
+        self.reference_dir = None
 
         self._left_buf: collections.deque = collections.deque(maxlen=self._buf_size)
         self._right_buf: collections.deque = collections.deque(maxlen=self._buf_size)
@@ -65,9 +72,12 @@ class FNAFVision:
         self._capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
         self._capture_thread.start()
 
+    def _folder(self) -> str:
+        return self.reference_dir or reference_store.layout_folder('eye')
+
     @property
     def _layout_path(self) -> str:
-        return os.path.join(self.reference_dir, 'layout.txt')
+        return os.path.join(self._folder(), 'layout.txt')
 
     def _screen_size(self) -> tuple:
         cached = getattr(self, '_screen', None)
@@ -103,22 +113,22 @@ class FNAFVision:
         return cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY).astype(np.float32)
 
     def _capture_loop(self):
-        delay = config.VISION_DYNAMICS.capture_delay_sec
-        with mss.MSS() as sct:
-            while True:
-                left_frame = self._grab_gray(sct, self.l_x, self.l_y, self.l_bbox)
-                right_frame = self._grab_gray(sct, self.r_x, self.r_y, self.r_bbox)
-                windows = {side: self._grab_window(sct, side) for side in SIDES}
-                buttons = tablet_map.count_camera_buttons(
-                    tablet_map.to_design(np.array(sct.grab(tablet_map.map_box()))),
-                )
-                with self._buf_lock:
-                    self._left_buf.append(left_frame)
-                    self._right_buf.append(right_frame)
-                    for side, frame in windows.items():
-                        self._window_bufs[side].append(frame)
-                    self._map_buttons.append(buttons)
-                time.sleep(delay)
+        capture.keep_capturing(self._capture_once, 'eye', config.VISION_DYNAMICS.capture_retry_sec)
+
+    def _capture_once(self, sct):
+        left_frame = self._grab_gray(sct, self.l_x, self.l_y, self.l_bbox)
+        right_frame = self._grab_gray(sct, self.r_x, self.r_y, self.r_bbox)
+        windows = {side: self._grab_window(sct, side) for side in SIDES}
+        buttons = tablet_map.count_camera_buttons(
+            tablet_map.to_design(np.array(sct.grab(tablet_map.map_box()))),
+        )
+        with self._buf_lock:
+            self._left_buf.append(left_frame)
+            self._right_buf.append(right_frame)
+            for side, frame in windows.items():
+                self._window_bufs[side].append(frame)
+            self._map_buttons.append(buttons)
+        time.sleep(self._capture_delay)
 
     def _buffer(self, side: str, door_closed: bool) -> collections.deque:
         if door_closed:
@@ -149,7 +159,7 @@ class FNAFVision:
     def _layout_fingerprint(self) -> str:
         return '|'.join(str(getattr(self, name, None)) for name in (
             'l_x', 'l_y', 'l_bbox', 'r_x', 'r_y', 'r_bbox', 'windows',
-        )) + '|' + str(anchor.game_rect())
+        ))
 
     def _cached_layout_matches(self) -> bool:
         if not os.path.isfile(self._layout_path):
@@ -163,7 +173,7 @@ class FNAFVision:
 
     @property
     def _bank_index_path(self) -> str:
-        return os.path.join(self.reference_dir, 'banks.json')
+        return os.path.join(self._folder(), 'banks.json')
 
     def load_reference_from_disk(self) -> bool:
         if not self._cached_layout_matches() or not os.path.isfile(self._bank_index_path):
@@ -191,7 +201,7 @@ class FNAFVision:
         return (size, size)
 
     def _load_reference_image(self, filename: str, expected_shape: tuple):
-        path = os.path.join(self.reference_dir, filename)
+        path = os.path.join(self._folder(), filename)
         if not os.path.isfile(path):
             return None
         frame = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -200,12 +210,14 @@ class FNAFVision:
         return frame.astype(np.float32)
 
     def save_reference_to_disk(self):
+        folder = self._folder()
+        reference_store.keep_aside(folder)
         counts = {}
         for (side, closed), frames in self.banks.items():
             name = _bank_name(side, closed)
             counts[name] = len(frames)
             for i, frame in enumerate(frames):
-                cv2.imwrite(os.path.join(self.reference_dir, f'{name}_{i:02d}.png'), frame.astype(np.uint8))
+                cv2.imwrite(os.path.join(folder, f'{name}_{i:02d}.png'), frame.astype(np.uint8))
         with open(self._bank_index_path, 'w', encoding='utf-8') as handle:
             json.dump(counts, handle)
         with open(self._layout_path, 'w', encoding='utf-8') as handle:
@@ -227,9 +239,12 @@ class FNAFVision:
         half = config.VISION_DYNAMICS.light_button_half_size
         left, top = anchor.point(x - half, y - half)
         right, bottom = anchor.point(x + half, y + half)
-        with mss.MSS() as screen:
-            patch = np.array(screen.grab({'left': left, 'top': top,
-                                          'width': max(1, right - left), 'height': max(1, bottom - top)}))
+        try:
+            with mss.MSS() as screen:
+                patch = np.array(screen.grab({'left': left, 'top': top,
+                                              'width': max(1, right - left), 'height': max(1, bottom - top)}))
+        except ScreenShotError:
+            return None
         gray = cv2.cvtColor(patch, cv2.COLOR_BGRA2GRAY)
         return float(gray.mean()) > config.VISION_DYNAMICS.light_button_lit_level
 

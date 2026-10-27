@@ -1,14 +1,16 @@
 import collections
+import glob
 import logging
+import os
 import threading
 import time
+from dataclasses import dataclass, replace
 
 import cv2
-import mss
 import numpy as np
 
 from flynaf import clock, config
-from flynaf.env import anchor
+from flynaf.env import anchor, capture
 
 _log = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ def _overlap(frame: np.ndarray, references: np.ndarray, mask: np.ndarray, shift:
     return frame[:, ahead], references[..., behind], mask[:, ahead] & mask[:, behind]
 
 
-def _cell_means(squared: np.ndarray, mask: np.ndarray, cell: int) -> tuple:
+def cell_means(squared: np.ndarray, mask: np.ndarray, cell: int) -> tuple:
     height, width = (squared.shape[-2] // cell) * cell, (squared.shape[-1] // cell) * cell
     rows, columns = height // cell, width // cell
     lead = squared.shape[:-2]
@@ -80,7 +82,7 @@ def _nearest_alignments(frame, references, mask, params) -> list:
 
 
 def strongest_cells(difference: np.ndarray, mask: np.ndarray, cell: int, count: int) -> float:
-    means, covered = _cell_means(difference, mask, cell)
+    means, covered = cell_means(difference, mask, cell)
     means = np.where(covered, means, 0.0)
     if means.size == 0:
         return float(difference[mask].mean()) if mask.any() else 0.0
@@ -100,6 +102,29 @@ def bank_distance(frame: np.ndarray, bank: list, mask: np.ndarray | None = None,
             (recorded - seen) ** 2, shared, params.cell_pixels, params.strongest_cells,
         ))
     return min(distances)
+
+
+@dataclass(frozen=True)
+class Reading:
+    contrast: float
+    share: float
+    share_since_last_look: float | None = None
+    since_last_look_sec: float | None = None
+
+
+def bank_reading(frame: np.ndarray, bank: list, mask: np.ndarray, noise: float, params=None) -> Reading:
+    params = params or config.TABLET_VISION
+    best = None
+    for reference, shift in _nearest_alignments(frame, np.stack(bank), mask, params):
+        seen, recorded, shared = _overlap(frame, reference, mask, shift)
+        squared = (recorded - seen) ** 2
+        contrast = strongest_cells(squared, shared, params.cell_pixels, params.strongest_cells)
+        if best is None or contrast < best[0]:
+            best = (contrast, squared, shared)
+    contrast, squared, shared = best
+    means, covered = cell_means(squared, shared, params.cell_pixels)
+    changed = means[covered] > noise if covered.any() else np.zeros(1, bool)
+    return Reading(contrast, float(changed.mean()))
 
 
 def bank_noise(bank: list, mask: np.ndarray | None = None, params=None) -> float:
@@ -128,7 +153,10 @@ class TabletFeed:
         self._banks: dict = {}
         self._noise: dict = {}
         self._watching = None
-        self._reading = (None, None)
+        self._reading = (None, None, None)
+        self._look: list = []
+        self._look_camera = None
+        self._last_looks: dict = {}
         threading.Thread(target=self._capture_loop, daemon=True).start()
 
     def activate(self):
@@ -138,8 +166,9 @@ class TabletFeed:
         self._active.clear()
         with self._lock:
             self._latest.clear()
+            self._close_the_look()
             self._watching = None
-            self._reading = (None, None)
+            self._reading = (None, None, None)
 
     def has_reference(self, camera: str) -> bool:
         return bool(self._banks.get(camera))
@@ -147,11 +176,18 @@ class TabletFeed:
     def noise(self, camera: str) -> float:
         return self._noise.get(camera, 0.0)
 
-    def contrast(self, camera: str) -> float | None:
+    def reading(self, camera: str) -> Reading | None:
         with self._lock:
             self._watching = camera
-            read_camera, read_contrast = self._reading
-        return read_contrast if read_camera == camera else None
+            read_camera, reading, frame = self._reading
+            if read_camera != camera:
+                return None
+            self._keep_in_the_look(camera, frame)
+        return reading
+
+    def contrast(self, camera: str) -> float | None:
+        reading = self.reading(camera)
+        return None if reading is None else reading.contrast
 
     def capture_reference(self, camera: str) -> bool:
         frames = self._collect(self._p.reference_sweep_sec)
@@ -159,11 +195,29 @@ class TabletFeed:
         if not bank:
             _log.warning('no frames arrived from the tablet while recording camera %s', camera)
             return False
-        self._banks[camera] = bank
-        self._noise[camera] = bank_noise(bank, self._mask, self._p) * self._p.noise_margin
+        self._keep(camera, bank)
         _log.info('camera %s reference: %d frames, noise floor %.0f',
                   camera, len(bank), self._noise[camera])
         return True
+
+    def save_reference(self, camera: str, folder: str):
+        for i, frame in enumerate(self._banks[camera]):
+            cv2.imwrite(os.path.join(folder, f'{camera}_{i:02d}.png'), np.clip(frame, 0, 255).astype(np.uint8))
+
+    def load_reference(self, camera: str, folder: str) -> bool:
+        paths = sorted(glob.glob(os.path.join(folder, f'{camera}_[0-9][0-9].png')))
+        bank = [cv2.imread(path, cv2.IMREAD_GRAYSCALE) for path in paths]
+        width, height = self._size
+        if not bank or any(frame is None or frame.shape != (height, width) for frame in bank):
+            return False
+        self._keep(camera, [frame.astype(np.float32) for frame in bank])
+        _log.info('camera %s reference loaded from disk: %d frames, noise floor %.0f',
+                  camera, len(bank), self._noise[camera])
+        return True
+
+    def _keep(self, camera: str, bank: list):
+        self._banks[camera] = bank
+        self._noise[camera] = bank_noise(bank, self._mask, self._p) * self._p.noise_margin
 
     def _collect(self, seconds: float) -> list:
         frames, deadline, last = [], clock.now() + seconds, None
@@ -177,25 +231,45 @@ class TabletFeed:
         return frames
 
     def _capture_loop(self):
-        with mss.MSS() as screen:
-            while True:
-                self._active.wait()
-                frame = self._grab(screen)
-                with self._lock:
-                    if self._active.is_set():
-                        self._latest.append(frame)
-                    camera = self._watching
-                self._read(camera, frame)
-                time.sleep(self._p.capture_delay_sec)
+        capture.keep_capturing(self._capture_once, 'tablet', config.VISION_DYNAMICS.capture_retry_sec)
+
+    def _capture_once(self, screen):
+        self._active.wait()
+        frame = self._grab(screen)
+        with self._lock:
+            if self._active.is_set():
+                self._latest.append(frame)
+            camera = self._watching
+        self._read(camera, frame)
+        time.sleep(self._p.capture_delay_sec)
 
     def _read(self, camera: str | None, frame: np.ndarray):
         bank = self._banks.get(camera)
         if not bank:
             return
-        contrast = bank_distance(frame, bank, self._mask, self._p)
+        noise = self._noise.get(camera, 0.0)
+        reading = bank_reading(frame, bank, self._mask, noise, self._p)
+        with self._lock:
+            last_look = self._last_looks.get(camera)
+        if last_look:
+            frames, closed_at = last_look
+            since = bank_reading(frame, frames, self._mask, noise, self._p).share
+            reading = replace(reading, share_since_last_look=since, since_last_look_sec=clock.now() - closed_at)
         with self._lock:
             if self._watching == camera:
-                self._reading = (camera, contrast)
+                self._reading = (camera, reading, frame)
+
+    def _keep_in_the_look(self, camera: str, frame: np.ndarray):
+        if camera != self._look_camera:
+            self._close_the_look()
+            self._look_camera = camera
+        if not self._look or self._look[-1] is not frame:
+            self._look.append(frame)
+
+    def _close_the_look(self):
+        if self._look_camera is not None and self._look:
+            self._last_looks[self._look_camera] = (spread_sample(self._look, self._p.reference_frames), clock.now())
+        self._look, self._look_camera = [], None
 
     def _grab(self, screen) -> np.ndarray:
         left, top, right, bottom = self._p.view

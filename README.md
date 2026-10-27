@@ -20,23 +20,23 @@ https://www.youtube.com/watch?v=R4Ogbf33Gfo.
 
 Four behaviours come out of the network, and each one is a different pathway.
 
-**Slamming a door.** The hallway is captured while the light is on, which the fly confirms by reading the light button on screen, and compared against the views of that hallway recorded empty at midnight, lit, flickering and dark. A frame that is far from all of them drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why the light is held for twelve. The door stays shut while the fly can still see the threat. With the door closed the light still reaches the window, where Bonnie casts a shadow and Chica stands, and the eye reads that window on its own against the lit view of the empty window behind a closed door, so a dark window never passes for an empty one. A threat still there fires DNp01 again and renews the hold, and the door only reopens once the defensive state has decayed and the latest look at that side, taken with the light confirmed on, came back empty (ADR 0011, experiment 14).
+**Slamming a door.** The hallway is captured while the light is on, which the fly confirms by reading the light button on screen, and compared against the views of that hallway recorded empty at midnight, lit, flickering and dark. A frame that is far from all of them drives the corresponding eye cluster at full rate, every LPLC2 and LC4 neuron on that side, that excitation propagates through the real connectivity, and when DNp01, the Giant Fiber, crosses its own firing threshold the door closes. Measured on this machine, the neuron needs seven to nine engine frames of sustained input to answer, which is why a driven eye gets twelve frames of light. With `looming_eye = 1` in `tuning.toml` the hallway is read the way the tablet reads a camera instead. The share of the window that differs from the empty views drives LPLC2 in proportion to its size and LC4 for the frame in which it appeared, the two features the Giant Fiber sums in flies, where LPLC2 supplies the whole size component and LC4 the velocity ([Ache et al. 2019](https://doi.org/10.1016/j.cub.2019.01.079)). A change across most of the window, the tablet's static or another window over the game, drives only the MeTu4 wide-field neurons, since LPLC2 ignores wide-field motion and a plain change of brightness ([Klapoetke et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC7457385/)). The network then decides how much is enough. Bonnie in the doorway is answered about a third of a second later than at full rate, every saved detection of an animatronic at a door still reaches LPLC2, and of the 70 saved detections that were static, another window, a camera view or the office panned, 66 no longer do (experiment 20). An eye that stays quiet for four frames ends the look, since no recorded threat ever left it quiet that long before DNp01 answered (ADR 0012). The door stays shut while the fly can still see the threat. With the door closed the light still reaches the window, where Bonnie casts a shadow and Chica stands, and the eye reads that window on its own against the lit view of the empty window behind a closed door, so a dark window never passes for an empty one. A threat still there fires DNp01 again and renews the hold, and the door only reopens once the hold and any defensive state on that side have decayed and the latest look at that side, taken with the light confirmed on, came back empty (ADR 0011, experiment 14). A door shut from the tablet also waits for a view of that camera in which DNp04 stayed silent, because Foxy never shows in the hallway light.
 
 ![Chica at the right window, DNp01 fires and the right door closes](docs/media/door-on-chica.gif)
 
 Chica is at the right window. The panel reports DNp01 on the right firing, traces the spike back to the eye cluster, and the door comes down.
 
-**Checking a hallway.** The difference in membrane potential between the left and right eye populations is a slow spontaneous signal the network produces on its own, with a lag-1 autocorrelation of 0.97. It is accumulated to a bound together with what the last look revealed and a per-side habituation term, and whichever side wins gets looked at. There is one starvation guard, a clock that forces a look at a hallway left unwatched for thirty seconds, and every look it causes is counted separately in the session report so its share stays visible.
+**Checking a hallway.** The difference in membrane potential between the left and right eye populations is a slow spontaneous signal the network produces on its own, with a lag-1 autocorrelation of 0.97. It is accumulated to a bound together with what the last look revealed and a per-side habituation term, and whichever side wins gets looked at. A fourth term is a memory of where a figure was last seen. A lit figure in a hallway also drives MeTu4 on that side, which reaches the ER3d and ER3p ring neurons of the ellipsoid body through the bulb (MeTu4 to TuBu03, TuBu04 and TuBu05 to ER3, all on the same side). Flies keep the position of a vanished object for a few seconds and need these ring neurons to do it (Neuser et al. 2008, Kuntz et al. 2012), and the trace is a cGMP signal in their output branches (Kuntz et al. 2017). Here the ring spikes of each side, above their resting rate, write a trace that fades over four seconds, and the left trace minus the right one pulls the next look toward the side where the figure was. The resting rate and the burst a sighting produces were measured on the engine with `measure_orientation_pathway.py`. There is one starvation guard, a clock that forces a look at a hallway left unwatched for thirty seconds, and every look it causes is counted separately in the session report so its share stays visible.
 
 **Raising the monitor.** DNp09's own subthreshold membrane potential is accumulated the same way. A real spike raises the tablet outright, and the tablet comes down when that drive fades rather than when a timer expires.
 
 Raising the tablet also drives the GABAergic inhibitor clusters at full rate, which silences the Giant Fiber, so no door reflex can fire through the tablet, exactly as no door button can be pressed in the game. Whether the tablet is up is read off the screen, by counting the eleven camera buttons of the map, and the fly believes a raise or a lowering only once the map has appeared or gone (ADR 0015).
 
-**Watching for Foxy.** The tablet always comes up on Pirate Cove, CAM 1C. What differs from the cove as it looked at the start of the night drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object. When DNp09 fires on the cove, the fly keeps a memory of the object on its left that fades over about ten seconds, the way a fly keeps heading for a landmark that has vanished (Neuser et al. 2008). That memory drives LPLC2 and LC4 on the left, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. The fly then drops the tablet and closes the left door, and with the tablet down the same memory keeps the Giant Fiber firing, which holds the door for about twenty seconds. The west hall is never looked at, because Foxy reaches the door 1.7 seconds after CAM 2A shows him and the escape takes longer than that. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent while the tablet is up (ADR 0026, experiment 13).
+**Watching the cameras.** The tablet opens on Pirate Cove, CAM 1C, or on the corner of the east hall, CAM 4B, whichever side the search drive leans to. What differs from that camera as it looked at the start of the night is routed by how much of the view changed, the size tuning the lobula already has. A small change, Foxy peeking or Freddy in the corner, drives LC9 and LC31a, the lobula columns that feed DNp09 and are used by flies to pursue a moving object, and leaves the fly vigilant for about half a minute, raising the tablet sooner and coming back to that camera more often. The same arousal shortens how long either door can go without a look, and a door overdue for one goes before the tablet. A large change on CAM 1C that is also new since the last look at it, a look the eye forgets over about half a minute, Foxy coming out of the curtain or the cove left empty, also drives LPLC2 and LC4, and DNp04, a looming escape neuron the inhibitors barely reach, fires on it. A Foxy who stays out of the curtain is still seen and keeps the fly vigilant, but on the following looks he is no longer new and stops driving the escape. The fly drops the tablet and closes the left door, and the escape leaves a defensive state that holds that door for about twenty seconds, close to the time flies take to settle after a looming shadow, each escape adding the same amount as each shadow does in their model (Gibson et al. 2015), and after that until a look at the cove in which DNp04 stays silent. While that state holds the door it also draws the camera choice to its side, so the cove is watched more, and the tablet always goes down on the camera it was raised on, since the game reopens it on the last one and CAM 2A shown with Foxy out of the cove sends him running. A camera knocked out by an animatronic on the move drives the MeTu4 wide-field neurons instead and turns the next look towards that side's door. The west hall, CAM 2A, is only ever shown from behind a left door that is already shut. Foxy reaches the door 1.7 seconds after CAM 2A shows him, which no escape can beat, but while the defensive state from an escape on the cove still holds the door shut, a DNp09 spike on the cove follows him there, the game sends him at once, and he bangs on the door and goes back behind the curtain instead of the door waiting up to 25 seconds for him. Measured on the engine, each channel wakes its own descending neuron and never the other, and the Giant Fiber stays silent while the tablet is up (ADR 0026, experiments 13 and 16).
 
 ![Foxy peeking out of Pirate Cove, the tablet drops and the left door closes](docs/media/foxy-from-the-cove.gif)
 
-Foxy is peeking out of the curtain on CAM 1C. The fly drops the tablet and the left door is shut before he runs.
+Foxy is peeking out of the curtain on CAM 1C. The fly drops the tablet and the left door is shut before he runs. The clip predates the routing by size, and a peek like this one now leaves the fly vigilant without closing the door.
 
 ## What this is not
 
@@ -82,7 +82,7 @@ The annotations file is also found if you keep it under `fly-brain/data/flywire_
 
 Three reasons, and the first one settles it on its own.
 
-FlyWire releases the connectome under CC BY-NC 4.0, which allows sharing with attribution but forbids commercial use. This project is GPL v3, and the GPL does not allow extra restrictions to be layered on top of it. Shipping the data here would put two incompatible licences in the same repository.
+FlyWire's [terms of service](https://flywire.ai/tos) (version 1.5) put the edits and annotations of its community under CC BY-NC 4.0, which allows sharing with attribution but forbids commercial use. The connectivity dump the FlyWire paper points to is under CC BY 4.0 ([Zenodo record 10676866](https://zenodo.org/records/10676866)), and the Codex download page states no licence for the soma coordinates. The files this project reads come from that release as a whole, and a non commercial clause is an extra restriction the GPL v3 does not allow on top of it, so shipping them here would put two incompatible licences in the same repository.
 
 The `flywire_annotations` supplement carries no licence file at all, so redistributing that one would be worse still.
 
@@ -107,9 +107,18 @@ uv run python -m flynaf.scripts.fetch_data
 downloads `soma_coordinates_783.csv` and `brain_mesh_flywire.ply` into place. It fetches, it never
 redistributes. `--check` reports what is present without downloading anything, and `--yes` skips the licence prompt.
 
-## Three ways in
+## Four ways in
 
-Not everything here needs the game, and two of the three need no purchase at all.
+Not everything here needs the game, and three of the four need no purchase at all.
+
+**Watch night 3 in the browser.** Nothing to install. The page plays back the
+night in the clip above as the brain replayed it, every spike of the 138,639
+neurons, at https://artymend07.github.io/Fly-NAF/. The same page runs on your
+machine without the data:
+
+```bash
+uv run python run.py --page
+```
 
 **Check what is in the loop.** Needs the data and nothing else, on any operating
 system.
@@ -118,9 +127,10 @@ system.
 uv run python run.py --verify
 ```
 
-**Replay a recorded night through the brain.** Needs the data and a trace. No
-game, no Windows, no screen. This is the honest way to confirm that a hallway
-reading reaches DNp01 and closes a door.
+**Replay a recorded night through the brain.** Needs the data. The night 3 from
+the clip ships as `examples/night-3.jsonl`, and the replay uses it until you
+record a night of your own. No game, no Windows, no screen. This is the honest
+way to confirm that a hallway reading reaches DNp01 and closes a door.
 
 ```bash
 uv run python run.py --replay
@@ -165,7 +175,7 @@ changes, so a stale reference cannot be loaded silently.
 
 ## Changing how the fly behaves
 
-The first run writes `tuning.toml` next to this file. It exposes seven settings,
+The first run writes `tuning.toml` next to this file. It exposes eight settings,
 each with the range a measurement supports, and it explains what each one does.
 A value outside its range is clamped and the clamp is reported when the run
 starts.
@@ -192,6 +202,12 @@ through Steam, loads the brain, brings the game to the front and clicks that
 option in the menu, so the night starts only once the brain is ready to play
 it. A copy outside Steam is opened through `GameLauncher.executable` in
 `src/flynaf/config.py`. `--new` and `--continue` do the same without the window.
+
+The night ends by itself. When the power meter leaves the screen, after a
+jumpscare, at 6 AM or when the power runs out, the fly stops pressing anything.
+A jumpscare is then shown to the brain as what it is to a fly, something growing
+over both eyes, and the panel shows both Giant Fibers answering before the run
+ends (ADR 0021).
 
 The menu clicks need two points measured once, `new_game_x`, `new_game_y`,
 `continue_x` and `continue_y` in `GameLauncher`, in the same 1280x720 layout as
@@ -238,6 +254,12 @@ uv run python -m flynaf.scripts.find_motor_pathway --source LC9 --target DNp09
 
 The first drives each tablet channel into the running engine with the inhibitors on and prints which descending neuron answers and on which frame, the table ADR 0026 rests on. The second prints the cheapest excitatory path between any two FlyWire cell types.
 
+```bash
+uv run python -m flynaf.scripts.measure_controls
+```
+
+This one asks whether the wiring plays or the code around it does. It runs the same stimuli and the latest recorded night through the FlyWire brain and through three controls borrowed from other projects in the awesome-fly list: the connectome shuffled so that every neuron keeps its in-degree, its out-degree and the weights it sends while each connection goes to a random target, as [drosophila-brain-mlx](https://github.com/Kisame76/drosophila-brain-mlx#does-the-wiring-matter) does; the eyes swapped left for right, as [Doodle Fly](https://github.com/dtecx/doodle-fly#is-it-really-playing) does; and the camera inhibitors with their outgoing synapses cut. On the night 3 of 2026-10-16 the FlyWire brain answered 7 of 8 hallway threats on the side of the threat, three shuffles answered 0, 3 and 3 and fired the Giant Fiber on 161 to 394 idle frames against 11, the swapped eyes answered all 7 on the wrong side, and with the inhibitors cut the Giant Fiber fired through the raised tablet. It takes about 35 minutes, and experiment 17 has the tables.
+
 Every run also writes a trace to `logs/traces/`, one line per engine frame,
 carrying the input the eyes produced and what the descending neurons did with
 it. `uv run python -m flynaf.replay <trace>` feeds that input back through a real
@@ -249,6 +271,21 @@ Poisson generator and the background noise are unseeded on purpose, because the
 fly behaves stochastically. What holds across runs is the shape, and the report
 says which parts of it count as a failure. Set `FLYNAF_RECORD=0` to turn
 recording off.
+
+A trace holds what the fly read and decided. Played with `run.py --frames`, a night also keeps the game window about three times a second in `logs/frames/`, and
+
+```bash
+uv run python -m flynaf.scripts.audit_night 3
+```
+
+reads those frames next to the trace, for the night given: the power spent by the office, the tablet, each door and the lights, read off the HUD and minute by minute, whether anyone was at the window of each shut door, every stretch in which a door on screen was not where the fly believed it was, how much of the battery went where the HUD does not show it when the power ran out, and what each look at CAM 1C read. Each audit is saved to `logs/audits/` so nights can be compared, and ADR 0019 has the rules it uses.
+
+The browser page is built from the same replay. `uv run python -m flynaf.replay_page record`
+runs the bundled night through the engine and keeps every spike in
+`examples/night-3-page/`, and the `pages` workflow publishes the panel with a player
+on top. The page holds numbers only, no frame of the game, and the neuron positions
+load in the visitor's browser straight from `flywire_annotations` and navis-flybrains,
+so no FlyWire data is redistributed here.
 
 ## Tests
 
@@ -269,7 +306,8 @@ They need the FlyWire data in place, take several minutes each, and are skipped
 when the data is missing. The second command leaves them out.
 
 Every push to `main` and every pull request runs the lint and the tests on a
-Windows runner. The FlyWire data cannot be redistributed, so the two connectome
+Windows runner and on an Ubuntu 24.04 runner, the second with the CPU build of
+PyTorch (ADR 0027). The FlyWire data cannot be redistributed, so the connectome
 tests are skipped there and run only on a machine that holds the data.
 
 ## Documentation
@@ -288,7 +326,14 @@ experiment 13 cover the tablet, Foxy and why DNp04 rather than the Giant Fiber
 answers through it. ADR 0027 covers the `flynaf` package and the test pipeline,
 and ADR 0028 covers the single clock every time step of a night is read from.
 ADR 0011 and experiment 14 cover why the fly once reopened the door into Bonnie
-and how the window behind a closed door is read now.
+and how the window behind a closed door is read now. Experiment 16 covers Freddy
+and CAM 4B, and experiment 17 covers the controls and why the defensive state
+now holds the door instead of driving the eye. Experiment 18 replays every look at the cove of two
+recorded nights to show why the last look at a camera fades over 30 seconds.
+Experiment 19 runs the look loop with no game on the FlyWire brain, on shuffled
+wiring and on a brain without synapses, to find which part of the choice of
+hallway depends on the wiring, and experiment 20 reads every saved hallway again
+with the looming eye.
 
 ## Licensing and credits
 
@@ -300,9 +345,9 @@ Everything else here is original. An audit of all twenty source files against th
 
 The fly in the launcher is the NeuroMechFly body model from [NeLy-EPFL/flygym](https://github.com/NeLy-EPFL/flygym), built from a micro-CT scan of an adult female fly and licensed under Apache 2.0, which the GPL v3 can include. `src/flynaf/scripts/build_fly_model.py` downloads its simplified meshes at a fixed commit, poses them in the neutral stance and writes `src/flynaf/env/assets/neuromechfly.bin.gz`, and the Apache licence travels with it as `src/flynaf/env/assets/LICENSE-neuromechfly.txt`. The brain outline in the panel comes from [navis-flybrains](https://github.com/navis-org/navis-flybrains), GPL v3, made from the FAFB tissue mask, and is downloaded rather than committed. `src/flynaf/env/assets/CHANGES-neuromechfly.txt` states what was changed from the original meshes, as the Apache licence asks of a derived file. The model is Lobato-Rios et al., *NeuroMechFly, a neuromechanical model of adult Drosophila melanogaster*, Nature Methods 2022, and Wang-Chen et al., *NeuroMechFly v2*, Nature Methods 2024, and both ask to be cited by anyone using the model, which this note does on their behalf.
 
-The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. It is released under CC BY-NC 4.0 and stays subject to FlyWire's own terms and citation requirements, so anyone using this project has to obtain it from the sources listed above.
+The connectome is FlyWire 783, from the [FlyWire consortium](https://flywire.ai/). None of that data is redistributed here. The connectivity dump is under CC BY 4.0, the community's edits and annotations under CC BY-NC 4.0, and all of it stays subject to FlyWire's own terms and citation requirements, so anyone using this project has to obtain it from the sources listed above.
 
-Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project.
+Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this project. The three clips in `docs/media/` show 4.5 to 15.5 seconds of the game beside the panel, to show what the fly saw and what it did. They are short quotations for study, the use article 46 of the Brazilian copyright law allows with the author and the source named ([Lei 9.610/1998](https://www.planalto.gov.br/ccivil_03/leis/l9610.htm)), and the GPL does not cover them. No other image, sound or file of the game is in this repository or on the replay page, and playing a night needs your own copy of the game.
 
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
@@ -327,3 +372,14 @@ Five Nights at Freddy's is by Scott Cawthon and is not affiliated with this proj
 | 1.18 | Described the door that reopens after a clearing look, the closed-door calibration, the tablet read from the camera map, the warm-up and the bank of hallway views | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.19 | Described the window read behind a closed door, the lit look a door needs to reopen and the game moved aside for the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.20 | Added three clips of a night 3, the new best run, and the memory of Foxy that replaced the look at CAM 2A | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-06 |
+| 1.21 | Added the night 3 page and the bundled trace, described the ring neuron memory and renamed the cove memory a defensive state | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-14 |
+| 1.22 | Described the cameras routed by size, the defensive state that holds the door, the shorter empty look and the wiring controls | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-17 |
+| 1.23 | A door shut from the tablet waits for a clear view of that camera, and DNp09 follows the cove to CAM 2A from behind a shut door | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |
+| 1.24 | Added the frame recording and the night audit | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |
+| 1.25 | Read each look against the last one, cleared a camera on DNp04's silence, lowered the tablet on its own camera and let the defensive state draw the camera choice | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |
+| 1.26 | Followed the cove only on a change since the last look, and let arousal shorten the wait of each door | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-21 |
+| 1.27 | Let the last look at a camera fade, fed the defensive state a constant per escape and followed the cove while that state holds the door | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-23 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-23 |
+| 1.28 | Split the FlyWire licences between the CC BY 4.0 connectivity dump and the CC BY-NC 4.0 community edits, and stated what the game clips are and that the GPL does not cover them | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
+| 1.29 | Added the Ubuntu runner to the tests and pointed to experiment 18 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |
+| 1.30 | Described the looming eye and pointed to experiments 19 and 20 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |
+| 1.31 | Described how a night ends by itself | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |

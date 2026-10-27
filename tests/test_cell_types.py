@@ -2,6 +2,7 @@ import os
 import tempfile
 
 import pandas as pd
+import pytest
 
 from flynaf import config
 from flynaf.neural.cell_types import CellTypeIndex
@@ -63,6 +64,8 @@ def test_the_neuron_map_resolves_every_role_from_cell_types():
     assert neurons.outputs['giant_fiber_right'] == [8]
     assert neurons.outputs['looming_escape_left'] == [9]
     assert neurons.outputs['explore'] == [11, 12]
+    assert neurons.outputs['explore_left'] == [11]
+    assert neurons.outputs['explore_right'] == [12]
     assert neurons.inputs['inhibitors_left'] == list(config.SENSORY_NEURONS.camera_inhibitor_left)
 
 
@@ -75,13 +78,31 @@ def test_inhibitors_keep_their_refractory_period():
 
 def test_stimulus_rates_scale_levels_and_pass_the_inhibitor_rate_through():
     neurons = NeuronMap(
-        inputs={'eye_left': [0], 'eye_right': [1], 'inhibitors_left': [2],
-                'inhibitors_right': [3], 'figure_left': [4]},
+        inputs={'eye_left': [0], 'eye_right': [1], 'wide_field_left': [5], 'wide_field_right': [6],
+                'inhibitors_left': [2], 'inhibitors_right': [3], 'figure_left': [4]},
         outputs={},
     )
     state = SensoryState(left_rate=1.0, cam_inhib=250.0, tablet_drive={'figure_left': 0.5})
     rates = [(tuple(indices), rate) for indices, rate in stimulus_rates(neurons, state, 1000.0)]
-    assert rates == [((0,), 1000.0), ((1,), 0.0), ((2,), 250.0), ((3,), 250.0), ((4,), 500.0)]
+    assert rates == [
+        ((0,), 1000.0), ((5,), 1000.0), ((1,), 0.0), ((6,), 0.0),
+        ((2,), 250.0), ((3,), 250.0), ((4,), 500.0),
+    ]
+
+
+def test_a_graded_hallway_replaces_the_whole_eye_on_its_side_only():
+    neurons = NeuronMap(
+        inputs={'eye_left': [0], 'eye_right': [1], 'wide_field_left': [5], 'wide_field_right': [6],
+                'inhibitors_left': [2], 'inhibitors_right': [3], 'loom_size_left': [7], 'loom_speed_left': [8]},
+        outputs={},
+    )
+    state = SensoryState(left_rate=0.4, right_rate=1.0,
+                         hallway_drive={'loom_size_left': 0.4, 'loom_speed_left': 0.7})
+    rates = {tuple(indices): rate for indices, rate in stimulus_rates(neurons, state, 1000.0)}
+    assert (0,) not in rates and (5,) not in rates
+    assert rates[(7,)] == pytest.approx(400.0)
+    assert rates[(8,)] == pytest.approx(700.0)
+    assert rates[(1,)] == rates[(6,)] == 1000.0
 
 
 if __name__ == '__main__':

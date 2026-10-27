@@ -1,10 +1,9 @@
 import argparse
-import glob
 import logging
 import os
 from datetime import datetime
 
-from flynaf import config, launcher
+from flynaf import config, launcher, recorder
 from flynaf.env import desktop
 from flynaf.scripts import fetch_data
 
@@ -18,10 +17,17 @@ watch a recorded night instead.
 """
 
 
+EXAMPLE_TRACE = os.path.join(config.PROJECT_ROOT, 'examples', 'night-3.jsonl')
+
+
 def _latest_trace() -> str | None:
-    folder = os.path.join(config.PROJECT_ROOT, 'logs', 'traces')
-    traces = sorted(glob.glob(os.path.join(folder, 'trace_*.jsonl')))
-    return traces[-1] if traces else None
+    own = recorder.latest_trace()
+    if own:
+        return own
+    if os.path.isfile(EXAMPLE_TRACE):
+        _log.info('no night of your own under logs/traces, replaying the night 3 that ships in examples/')
+        return EXAMPLE_TRACE
+    return None
 
 
 def _report_platform():
@@ -38,8 +44,20 @@ def cmd_verify() -> int:
     return 0
 
 
+def _data_in_place() -> bool:
+    if fetch_data.ready():
+        return True
+    fetch_data.print_status()
+    if fetch_data.fetch():
+        return True
+    _log.error('the connectome data is incomplete, the fly cannot start without it')
+    return False
+
+
 def cmd_replay(trace: str | None) -> int:
     from flynaf import replay as replay_module
+    if not _data_in_place():
+        return 1
     path = trace or _latest_trace()
     if path is None:
         _log.error(
@@ -63,13 +81,16 @@ def _choose(session, mode: str | None):
     return window
 
 
-def cmd_play(mode: str | None) -> int:
+def cmd_page(port: int) -> int:
+    from flynaf import replay_page
+    replay_page.serve(port)
+    return 0
+
+
+def cmd_play(mode: str | None, record_frames: bool) -> int:
     from flynaf import main as main_module
-    if not fetch_data.ready():
-        fetch_data.print_status()
-        if not fetch_data.fetch():
-            _log.error('the connectome data is incomplete, the fly cannot start without it')
-            return 1
+    if not _data_in_place():
+        return 1
 
     if desktop.name == 'headless':
         _log.error('playing needs a desktop session, there is no display here')
@@ -81,7 +102,7 @@ def cmd_play(mode: str | None) -> int:
     if session.mode == launcher.MANUAL:
         if window:
             window.close(linger_sec=1.5)
-        main_module.main()
+        main_module.main(record_frames=record_frames)
         return 0
 
     if not launcher.open_game(session):
@@ -92,7 +113,7 @@ def cmd_play(mode: str | None) -> int:
     if window:
         window.close(linger_sec=1.5)
     launcher.leave_fullscreen(session)
-    main_module.main(begin_night=launcher.night_starter(session))
+    main_module.main(begin_night=launcher.night_starter(session), record_frames=record_frames)
     return 0
 
 
@@ -111,7 +132,11 @@ def main() -> int:
     parser.add_argument('--verify', action='store_true', help='check the connectome and exit')
     parser.add_argument('--replay', nargs='?', const='', metavar='TRACE',
                         help='replay a recorded night through the brain, no game needed')
+    parser.add_argument('--page', nargs='?', const=0, type=int, metavar='PORT',
+                        help='open the night 3 replay page in the browser, no data or game needed')
     parser.add_argument('--check-data', action='store_true', help='report which data files are present')
+    parser.add_argument('--frames', action='store_true',
+                        help='record the game window during the night for flynaf.scripts.audit_night')
     start = parser.add_mutually_exclusive_group()
     start.add_argument('--new', dest='mode', action='store_const', const=launcher.NEW,
                        help='open the game and start a new game, skipping the launcher window')
@@ -130,7 +155,9 @@ def main() -> int:
         return cmd_verify()
     if args.replay is not None:
         return cmd_replay(args.replay or None)
-    return cmd_play(args.mode)
+    if args.page is not None:
+        return cmd_page(args.page)
+    return cmd_play(args.mode, args.frames)
 
 
 if __name__ == '__main__':

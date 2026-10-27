@@ -1,17 +1,31 @@
+def watched_cameras(params) -> tuple:
+    return tuple(camera for camera in params.cameras if camera.name in params.watched)
+
+
 class TabletGaze:
-    def __init__(self, cameras: tuple, first_camera: str, raise_settle_sec: float):
+    def __init__(self, cameras: tuple, first_camera: str, raise_settle_sec: float, switch_settle_sec: float = 0.0):
         self._cameras = {camera.name: camera for camera in cameras}
+        self._by_side = {camera.side: camera.name for camera in reversed(cameras)}
         self._first = first_camera
         self._raise_settle = raise_settle_sec
+        self._switch_settle = switch_settle_sec
         self.camera = None
         self.readable_at = 0.0
 
     def spec(self, name: str | None = None):
         return self._cameras.get(name or self.camera)
 
-    def on_raised(self, now: float) -> str:
-        self.camera = self._first
+    def on_raised(self, now: float, side: str | None = None) -> str:
+        self.camera = self._by_side.get(side, self._first)
         self.readable_at = now + self._raise_settle
+        return self.camera
+
+    def follow(self, now: float) -> str | None:
+        spec = self.spec()
+        if spec is None or spec.pursue_to is None:
+            return None
+        self.camera = spec.pursue_to
+        self.readable_at = now + self._switch_settle
         return self.camera
 
     def on_lowered(self):

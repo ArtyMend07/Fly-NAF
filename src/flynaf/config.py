@@ -59,6 +59,7 @@ class ForagingParams:
     subliminal_noise_hz: float = 1.0
     mse_threshold: float = 40.0
     light_inspection_frames: int = 12
+    light_quiet_frames: int = 4
     light_inspection_max_sec: float = 8.0
     light_activation_settle_sec: float = 0.4
     motor_refractory_sec: float = 2.0
@@ -66,6 +67,7 @@ class ForagingParams:
     saccade_refractory_sec: float = 2.5
     camera_watch_max_sec: float = 6.0
     camera_watch_min_sec: float = 2.0
+    arousal_quickening: float = 2.0
     camera_release_forage_bias: float = 0.5
     closed_door_mse_threshold: float = 30.0
 
@@ -74,11 +76,34 @@ class ForagingParams:
 class VisionDynamics:
     frame_buffer_size: int = 5
     capture_delay_sec: float = 0.016
+    capture_retry_sec: float = 1.0
     reference_sweep_sec: float = 4.0
     bank_tolerance_mse: float = 5.0
     light_button_half_size: int = 10
     light_button_lit_level: float = 140.0
     light_check_interval_sec: float = 0.08
+
+
+@dataclass(frozen=True)
+class HallwayVision:
+    looming: int = 0
+    view_scale: int = 8
+    cell_pixels: int = 5
+    cell_noise_mse: float = 100.0
+    loom_share_floor: float = 0.10
+    loom_share_span: float = 0.30
+    loom_speed_span_per_sec: float = 3.0
+    wide_field_share: float = 0.60
+
+
+@dataclass(frozen=True)
+class NightEnd:
+    check_interval_sec: float = 0.25
+    hud_gone_sec: float = 2.0
+    static_level: float = 30.0
+    ending_watch_sec: float = 60.0
+    last_look_frames: int = 20
+    ending_hold_sec: float = 6.0
 
 
 @dataclass(frozen=True)
@@ -136,6 +161,35 @@ class BrainView:
 
 
 @dataclass(frozen=True)
+class FrameRecording:
+    period_sec: float = 0.33
+    jpeg_quality: int = 90
+
+
+@dataclass(frozen=True)
+class NightAudit:
+    usage_bar_rows: tuple = (664, 682)
+    usage_bar_centres: tuple = (129, 150, 171, 192, 213)
+    usage_bar_half_width: int = 5
+    usage_bar_flatness: float = 40.0
+    usage_bar_lit_level: int = 180
+    usage_bar_blue_ceiling: int = 90
+    button_half_size: int = 8
+    button_colour_margin: int = 40
+    full_battery_percent: float = 100.0
+    percent_per_bar_second: float = 0.1
+    night_drain_percent: float = 0.1
+    night_drain_interval_sec: tuple = (0.0, 6.0, 5.0, 4.0, 3.0, 3.0, 3.0)
+    longest_step_sec: float = 1.0
+    night_gap_sec: float = 20.0
+    night_length_sec: float = 530.0
+    power_out_dark_level: float = 15.0
+    power_out_look_sec: float = 5.0
+    door_desync_shortest_sec: float = 2.0
+    cove_camera: str = '1C'
+
+
+@dataclass(frozen=True)
 class GameLauncher:
     steam_uri: str = 'steam://rungameid/319510'
     executable: str = ''
@@ -158,8 +212,8 @@ class GameLauncher:
 @dataclass(frozen=True)
 class ExploreDynamics:
     bound: float = 1.0
-    drive_leak_per_frame: float = 0.95
     gain_ratio: float = 1.00
+    arousal_gain: float = 1.0
     baseline_tau_frames: float = 500.0
     scale_tau_frames: float = 300.0
     release_ratio: float = 0.40
@@ -174,7 +228,9 @@ class SearchDynamics:
     scale_tau_frames: float = 300.0
     habituation_leak_per_frame: float = 0.985
     habituation_gain: float = 3.0
+    view_habituation_leak_per_frame: float = 0.995
     evidence_gain: float = 4.0
+    memory_gain: float = 3.0
     starvation_sec: float = 30.0
 
 
@@ -186,11 +242,29 @@ class DoorDynamics:
 
 
 @dataclass(frozen=True)
+class MemoryDynamics:
+    orientation_sec: float = 4.0
+    ring_resting_left: float = 0.069
+    ring_resting_right: float = 0.321
+    ring_sighting_left: float = 15.7
+    ring_sighting_right: float = 33.8
+    defence_sec: float = 15.0
+    threat_per_escape: float = 1.0
+    vigilance_sec: float = 30.0
+
+
+@dataclass(frozen=True)
 class CameraButton:
     name: str
     x: int
     y: int
     side: str
+    figure_span_mse: float = 1500.0
+    defensive: bool = True
+    pursue_to: str | None = None
+    loom_share_floor: float = 0.10
+    loom_share_span: float = 0.30
+    wide_field_share: float = 0.80
 
 
 @dataclass(frozen=True)
@@ -209,20 +283,23 @@ class TabletVision:
     cell_pixels: int = 5
     strongest_cells: int = 3
     start_raise_patience_sec: float = 6.0
+    start_raise_attempts: int = 3
     capture_delay_sec: float = 0.03
     map_ready_sec: float = 0.4
     raise_settle_sec: float = 1.2
     switch_settle_sec: float = 0.5
     reference_sweep_sec: float = 3.0
     reference_frames: int = 24
+    look_recovery_sec: float = 30.0
     noise_margin: float = 1.5
-    figure_span_mse: float = 1500.0
-    object_memory_sec: float = 10.0
     lower_settle_sec: float = 0.35
     first_camera: str = '1C'
     cameras: tuple = (
-        CameraButton('1C', 925, 484, 'left'),
+        CameraButton('1C', 925, 484, 'left', pursue_to='2A'),
+        CameraButton('4B', 1087, 641, 'right', defensive=False),
+        CameraButton('2A', 983, 599, 'left', defensive=False),
     )
+    watched: tuple = ('1C', '4B')
 
 
 @dataclass(frozen=True)
@@ -231,6 +308,8 @@ class CellPopulations:
     figure: tuple = ('LC9', 'LC31a')
     loom_size: tuple = ('LPLC2',)
     loom_speed: tuple = ('LC4',)
+    wide_field: tuple = ('MeTu4a', 'MeTu4b', 'MeTu4c', 'MeTu4d')
+    orientation: tuple = ('ER3d', 'ER3p_a', 'ER3p_b')
     giant_fiber: tuple = ('DNp01',)
     looming_escape: tuple = ('DNp04',)
     explore: tuple = ('DNp09',)
@@ -275,13 +354,18 @@ MOTOR_CALIBRATION = MotorCalibration()
 SIMULATION_PARAMS = SimulationParams()
 FORAGING_PARAMS = ForagingParams()
 VISION_DYNAMICS = VisionDynamics()
+HALLWAY_VISION = HallwayVision()
+NIGHT_END = NightEnd()
 NEURAL_PARAMS = NeuralParams()
 CAMERA_DETECTION = CameraDetection()
 BRAIN_VIEW = BrainView()
 GAME_LAUNCHER = GameLauncher()
+FRAME_RECORDING = FrameRecording()
+NIGHT_AUDIT = NightAudit()
 EXPLORE_DYNAMICS = ExploreDynamics()
 SEARCH_DYNAMICS = SearchDynamics()
 DOOR_DYNAMICS = DoorDynamics()
+MEMORY_DYNAMICS = MemoryDynamics()
 SENSORY_NEURONS = SensoryNeurons()
 CELL_POPULATIONS = CellPopulations()
 TABLET_VISION = TabletVision()

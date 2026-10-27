@@ -22,13 +22,14 @@ class ConnectomeTelemetry:
         }
         self.door_holds = []
         self.verification_waits = []
-        self.saccade_reasons = {'drift': 0, 'evidence': 0, 'guard': 0}
+        self.saccade_reasons = {'drift': 0, 'evidence': 0, 'memory': 0, 'guard': 0}
         self.camera_causes = {'spike': 0, 'drive': 0}
         self.camera_watches = []
         self.camera_release_reasons = {'drive': 0, 'search': 0, 'cap': 0, 'escape': 0}
         self.camera_views = {}
         self.figures_remembered = {}
         self.tablet_escapes = {}
+        self.pursuits = {}
         self.look_contrast = {'left': [], 'right': []}
         self.look_frames = []
         self.look_driven = []
@@ -57,7 +58,7 @@ class ConnectomeTelemetry:
         t = clock.now() - self.start_time
         self.figures_remembered[camera] = self.figures_remembered.get(camera, 0) + 1
         self.events.append(
-            f"[{t:>6.1f}s] DNp09 fired on a figure in CAM {camera}, remembered on the {side} at {strength:.2f}."
+            f"[{t:>6.1f}s] DNp09 fired on a figure in CAM {camera}, the fly is alert on the {side} at {strength:.2f}."
         )
 
     def record_tablet_escape(self, side: str, camera: str):
@@ -66,6 +67,14 @@ class ConnectomeTelemetry:
         self.tablet_escapes[key] = self.tablet_escapes.get(key, 0) + 1
         self.events.append(
             f"[{t:>6.1f}s] DNp04 {side} fired while watching CAM {camera}. Tablet dropped for the door."
+        )
+
+    def record_pursuit(self, side: str, camera: str, followed_to: str):
+        t = clock.now() - self.start_time
+        key = f'{camera} to {followed_to}'
+        self.pursuits[key] = self.pursuits.get(key, 0) + 1
+        self.events.append(
+            f"[{t:>6.1f}s] DNp09 {side} fired on CAM {camera} behind the shut door. The gaze follows to CAM {followed_to}."
         )
 
     def record_door_hold_renewed(self, side: str, cause: str):
@@ -151,6 +160,7 @@ class ConnectomeTelemetry:
     CAUSES = {
         'drift': 'Spontaneous hemispheric drift',
         'evidence': 'What the last look revealed',
+        'memory': 'Where a figure was last seen',
         'guard': 'Starvation guard (not the connectome)',
     }
 
@@ -180,7 +190,9 @@ class ConnectomeTelemetry:
         ) or 'none'
         f.write(f"{'Figures remembered after DNp09':<38}: {remembered}\n")
         escapes = ', '.join(f'{key} x{count}' for key, count in sorted(self.tablet_escapes.items())) or 'none'
-        f.write(f"{'DNp04 escapes from the tablet':<38}: {escapes}\n\n")
+        f.write(f"{'DNp04 escapes from the tablet':<38}: {escapes}\n")
+        pursuits = ', '.join(f'{key} x{count}' for key, count in sorted(self.pursuits.items())) or 'none'
+        f.write(f"{'DNp09 pursuits behind a shut door':<38}: {pursuits}\n\n")
 
     def dump_report(self):
         duration = clock.now() - self.start_time

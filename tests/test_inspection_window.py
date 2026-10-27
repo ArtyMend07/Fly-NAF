@@ -5,6 +5,7 @@ from flynaf.night import tasks
 from flynaf.night.state import SensoryState
 
 FRAMES = config.FORAGING_PARAMS.light_inspection_frames
+QUIET_FRAMES = config.FORAGING_PARAMS.light_quiet_frames
 
 
 class TickingEngine:
@@ -55,14 +56,30 @@ def _watch(engine, vision, state, side, slam_at=None):
     return asyncio.run(scenario())
 
 
-def test_the_eye_stays_open_for_the_configured_number_of_engine_frames():
-    engine = TickingEngine()
+def test_a_driven_eye_stays_open_for_the_configured_number_of_engine_frames():
+    engine = TickingEngine(driving=True)
     state = SensoryState()
 
     _contrast, frames, _driven, fired = _watch(engine, PeakVision(), state, 'left')
 
     assert frames >= FRAMES, f'the look lasted {frames} frames, needed {FRAMES}'
     assert fired is False
+
+
+def test_an_eye_that_stays_quiet_ends_the_look_early():
+    engine = TickingEngine()
+
+    _contrast, frames, driven, fired = _watch(engine, PeakVision(), SensoryState(), 'left')
+
+    assert QUIET_FRAMES <= frames < FRAMES
+    assert driven == 0
+    assert fired is False
+
+
+def test_the_quiet_window_is_longer_than_any_gap_the_recorded_threats_left():
+    """Across every recorded night, a look in which the eye went on to fire
+    DNp01 never went more than three frames without driving it."""
+    assert QUIET_FRAMES >= 4
 
 
 def test_the_look_is_long_enough_for_the_measured_reflex_latency():

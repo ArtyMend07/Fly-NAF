@@ -1,7 +1,7 @@
 # ADR 0021: The Launcher Starts The Night Once The Brain Is Ready
 
 ## Status
-Accepted. Amends ADR 0018 on when the game window is measured.
+Accepted. Amends ADR 0018 on when the game window is measured. Amended on 2026-10-26, when the night started ending itself.
 
 ## Context
 Starting a night asked the operator for a sequence with a deadline. Open the
@@ -53,11 +53,17 @@ the operator. It never clicks a game it did not open in that run, because a
 game that was already running may be in the middle of a night, where the same
 point can land on the office.
 
+The night also ends itself. On 2026-10-26 the fly went on playing after two jumpscares, pressing door and light buttons on the static, on the Game Over picture and on the menu, where a click can land on New Game, and once for an hour and a half with the game closed. A thread reads the game window four times a second, and the power meter in its corner, read the way the night audit reads it, tells whether a night is on screen. Once the meter has been seen and then stays away for two seconds, every motor command is refused. On the six nights recorded with `--frames` the meter never stayed away for more than 0.4 seconds while a night was on, which is the tablet flipping, and it went 2 to 3 seconds after every jumpscare. A screen brighter than 30 in grey level at that point is the static that follows a jumpscare, against 12 to 15 for the office, 0 to 4 with the power gone and 16 to 19 for the Game Over picture. After a power cut the office stays dark until Freddy, 48 seconds on the night of 2026-10-21, so the fly waits up to 60 seconds for the static before it stops without one, which also covers 6 AM.
+
+The jumpscare reaches the brain as what it is to a fly, an object growing over the whole eye. LPLC2 and LC4 on both sides are driven at full rate for twenty engine frames with the inhibitors silent, and the panel shows what the connectome does with it. Measured on the engine, both DNp04 fire at the third frame and both Giant Fibers at the fourth, the panel draws the escape cascade, and the whole brain goes from about 3000 spikes a frame to between 3500 and 4400. Nothing the simulation did not produce is added. The panel stays up six seconds and the run ends.
+
 ## Consequences
 The night no longer starts before the brain can play it. On a first night that
 costs nothing, but on a continued night the animatronics are already active
 from the first second, and a fly still loading its connectome would have spent
 that time blind.
+
+A lost night ends the run a few seconds after the jumpscare, and the frame recording stops with it. A night won at 6 AM ends it within a minute, and nothing starts the next night yet. The trace records the end as a `night over` event, `dark` when the meter went and `static` when the jumpscare followed.
 
 The waits after the menu click are motor durations, the time the newspaper and
 the night card take to clear, and they are configured in `GameLauncher` rather
@@ -81,9 +87,8 @@ A 1280x720 window centred on a 1920x1080 display leaves 320 pixels on each
 side, under the 420 the full panel needs, so every night on such a display fell
 back to the 280x150 overlay inside the game. When the game is windowed and
 narrow enough, the panel now moves it to the left edge first and opens the full
-panel in the space on its right, which `BrainView.dock_game` turns off. A fixed
-position also keeps the eye references valid from one night to the next, since
-the cached layout includes where the game sits.
+panel in the space on its right, which `BrainView.dock_game` turns off. The eye
+references no longer depend on where the game sits (ADR 0018, version 1.1).
 
 The panel window is Edge in app mode, and Edge draws its own title bar inside
 the window, so removing the Windows caption left the bar in place. The page
@@ -143,3 +148,5 @@ The window has to be measured in physical pixels too. Windows reports window rec
 | 1.5 | Required the whole window title to match the game | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-30 |
 | 1.6 | Warmed the network up before the night and declared DPI awareness before the first window measurement | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
 | 1.7 | Moved a narrow game window to the left edge for the full panel and cut the browser title bar off the panel | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.8 | Pointed the note on cached eye references to ADR 0018, which no longer ties them to the window position | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 |
+| 1.9 | Ended the night when the power meter leaves the screen, stopped every motor command, and showed the jumpscare to the brain as a looming over both eyes | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |

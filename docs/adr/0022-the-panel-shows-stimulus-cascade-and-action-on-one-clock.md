@@ -1,7 +1,7 @@
 # ADR 0022: The Panel Shows Stimulus, Cascade And Action On One Clock
 
 ## Status
-Accepted. Extends ADR 0009 on where the panel sits and ADR 0016 on how the cloud is drawn.
+Accepted. Extends ADR 0009 on where the panel sits and ADR 0016 on how the cloud is drawn. Amended on 2026-10-26, when the hallway could also be read as a share of the window.
 
 ## Context
 The panel showed every neuron glowing when it fired, and nothing in it connected that glow to the game. A viewer saw a cloud and a door closing and had to take the link on trust. Any emphasis added by hand, such as a flash when the door closes or a camera move toward the escape circuit, would make the problem worse, because an effect keyed to the game reads as staged even when the brain really caused the door.
@@ -9,6 +9,8 @@ The panel showed every neuron glowing when it fired, and nothing in it connected
 Laboratories that show a brain and a behaviour together solve the same problem by putting the stimulus, the neural recording and the motor output on one time axis. The closest case is the fictively behaving larval zebrafish, which is immobilised in front of a projected world while its motor nerve is read out and the whole brain is imaged (Vladimirov et al., Nature Methods 2014). The fly here is in the same position, with Five Nights at Freddy's as the projected world. Whole-brain imaging of freely moving worms and fish is presented the same way (Nguyen et al., PNAS 2016; Cong et al., eLife 2017). Browser viewers of the FlyWire connectome such as fly-with-a-real-brain draw the spikes as a glow with an exponential tail and the synapses that carried them as lines, restricted to pairs where the presynaptic neuron fired first.
 
 What the model actually receives constrains what the panel may claim. Each hallway is one screen patch, compared against a reference, and the comparison is binary. When the mean squared error passes `mse_threshold` while the light on that side is on, the 50 neurons of that side's eye cluster are driven. There is no retinotopic image. A panel that painted the whole screen through a compound eye filter would claim a visual system the model does not have.
+
+Since 2026-10-26 `looming_eye` makes the hallway graded instead. The share of the window that differs from the empty views drives LPLC2 in proportion to its size and LC4 for the frame in which it appeared, and a change across most of the window drives only MeTu4 (ADR 0001). There is still no retinotopic image, so the panel draws the hallway the same way in both modes.
 
 ## Decision
 The panel shows three bands, and every element in them is a readout of a variable the simulation already holds. None of them is triggered by game state.
@@ -34,3 +36,4 @@ The tracer keeps a CPU copy of the weight matrix, about 120 MB, and one boolean 
 |---|---|---|---|---|---|
 | 1.0 | Recorded the stimulus, cascade and timeline bands and the rule that only simulation variables drive them | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-28 |
 | 1.1 | Added the brain outline and recorded that positions are read by root id | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-29 |
+| 1.2 | Recorded that the hallway can be graded and that the panel does not change with it | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |

@@ -40,6 +40,14 @@ and on every pull request. It runs on Windows, the platform the game runs on and
 the one where PyTorch on PyPI is the CPU build. On Linux the same package pulls
 the CUDA libraries, several gigabytes the runner would download and never use.
 
+### Amendment, 2026-10-24: a Linux job on the CPU build of PyTorch
+
+ADR 0017 made the replay and the panel run on Linux, and only the Windows runner checked them. The CUDA libraries are what kept Linux out, so the second job installs without them. `test-linux` runs on `ubuntu-24.04`, exports the locked versions with `uv export --locked`, drops the `cuda-`, `nvidia-` and `triton` lines and installs the rest with `uv pip install --torch-backend cpu`, which takes the same torch 2.13.0 from the PyTorch CPU index as `2.13.0+cpu`. Every other package stays at its locked version, and `uv pip check` found no conflict.
+
+Replayed in WSL Ubuntu 22.04 with `DISPLAY` and `WAYLAND_DISPLAY` unset, as on a runner, the environment took 1.9 GB against 5.7 GB from `uv sync --locked`, of which 2.7 GB were the NVIDIA libraries and 0.7 GB triton. ruff passed, and pytest gave 489 passed and 15 skipped for the missing FlyWire data. The runner is pinned because `ubuntu-latest` moves to Ubuntu 26.04 in November 2026 ([runner-images #14748](https://github.com/actions/runner-images/issues/14748)).
+
+The Windows job still installs with `uv sync --locked`, so the lock file is checked as a whole on the platform the game runs on, and the Linux job checks the code against the same versions.
+
 ## Consequences
 The FlyWire data cannot be redistributed, so the runner never holds it and the
 two connectome tests are reported as skipped there. Everything they check is
@@ -63,3 +71,4 @@ paths they were written with.
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | Recorded the move to the flynaf package, the pytest and ruff pipeline and the connectome marker | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.1 | Added a Linux job that installs the locked versions on the CPU build of PyTorch | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-24 |

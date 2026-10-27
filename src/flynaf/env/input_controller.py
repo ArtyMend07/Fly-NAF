@@ -7,6 +7,7 @@ from flynaf import config
 from flynaf.env import anchor, desktop
 
 _CMD_QUEUE: queue.Queue = queue.Queue()
+_HALTED = threading.Event()
 _FACING = {'side': 'centre'}
 _FACING_LOCK = threading.Lock()
 _log = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ def _pan_side(x: int) -> str:
     return 'centre'
 
 
-def _worker():
+def _worker(game_in_front=None):
     def _reach(x: int, y: int):
         side = _pan_side(x)
         moved = side != office_facing()
@@ -68,11 +69,25 @@ def _worker():
         action = cmd.get('action')
         done = cmd.get('done')
         try:
-            _dispatch(cmd, action, _reach, _click, _flip, light_state, door_state)
+            if _may_act(game_in_front, action):
+                _dispatch(cmd, action, _reach, _click, _flip, light_state, door_state)
         finally:
             if done is not None:
                 done.set()
             _CMD_QUEUE.task_done()
+
+
+def halt():
+    _HALTED.set()
+
+
+def _may_act(game_in_front, action) -> bool:
+    if _HALTED.is_set():
+        return False
+    if game_in_front is None or game_in_front():
+        return True
+    _log.warning('the game is not in front and could not be brought back, %s skipped', action)
+    return False
 
 
 def _dispatch(cmd, action, _reach, _click, _flip, light_state, door_state):
@@ -135,8 +150,9 @@ def _camera_button(name):
     return None
 
 
-def start_worker():
-    t = threading.Thread(target=_worker, daemon=True)
+def start_worker(game_in_front=None):
+    _HALTED.clear()
+    t = threading.Thread(target=_worker, args=(game_in_front,), daemon=True)
     t.start()
 
 
@@ -150,6 +166,9 @@ def _submit(**cmd) -> threading.Event:
 class FNAFController:
     def facing(self) -> str:
         return office_facing()
+
+    def halt(self):
+        halt()
 
     def trigger_left_door(self) -> threading.Event:
         return _submit(action='close_left_door')

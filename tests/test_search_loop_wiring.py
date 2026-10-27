@@ -39,10 +39,14 @@ class FakeEngine:
         self.l_motor_idx = [0]
         self.r_motor_idx = [1]
         self.explore_idx = [2]
+        self.l_explore_idx = [2]
+        self.r_explore_idx = [2]
         self.l_sensory_idx = [3]
         self.r_sensory_idx = [4]
         self.l_escape_idx = [5]
         self.r_escape_idx = [6]
+        self.l_ring_idx = [7]
+        self.r_ring_idx = [7]
         self.frames = 0
         self.driven_frames = {'left': 0, 'right': 0}
         self.warmup_activity = []

@@ -43,6 +43,12 @@ captured with, and a mismatch triggers recapture instead of loading a stale
 image. An absent fingerprint is accepted, so caches written before this change
 still load.
 
+### Amendment, 2026-10-16: references are kept by window size and never thrown away
+
+Every capture box is placed relative to the window's corner by `anchor.point`, so moving the window changes nothing in the pixels a reference holds. The fingerprint still recorded the window position, and on 2026-10-16 a night started with the game 300 pixels to the right of where the cache had been taken. The fly discarded good references and recalibrated in the middle of a night whose doors were closed. Calibration assumes both doors open, so every hallway bank came out inverted, the left door slammed on an empty hallway for the rest of the night, and the inverted banks overwrote the good ones on disk.
+
+The fingerprint now records only the capture boxes, and references live under `logs/vision_reference/<width>x<height>/`, with `eye/` for the hallways and `camera/` for the tablet. A window of another size gets a folder of its own, so going back to the first size finds its references again. A calibration that has to replace a folder moves the old one into `archive/` with a timestamp instead of overwriting it (`env/reference_store.py`). The CAM 1C and CAM 4B banks are kept the same way, so the start-of-night raise of ADR 0026 only happens for a camera whose bank is missing.
+
 ## Consequences
 The calibration step is no longer required for an ordinary setup, and the
 1280x720 requirement becomes a recommendation rather than a precondition. The
@@ -62,3 +68,4 @@ the anchor logs the scale factors it derived when it attaches.
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---|---|---|---|---|---|
 | 1.0 | Recorded the move from absolute pixels to window-relative targets | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-24 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-24 |
+| 1.1 | References kept per window size and archived instead of overwritten, with the window position dropped from the fingerprint and the camera banks cached too | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-16 |

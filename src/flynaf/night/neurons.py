@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from flynaf import config
 
 SIDES = ('left', 'right')
-STIMULUS_ROLES = ('eye', 'figure', 'loom_size', 'loom_speed')
-READOUT_ROLES = ('giant_fiber', 'looming_escape')
+STIMULUS_ROLES = ('eye', 'wide_field', 'figure', 'loom_size', 'loom_speed')
+HALLWAY_ROLES = ('eye', 'wide_field')
+READOUT_ROLES = ('giant_fiber', 'looming_escape', 'orientation', 'explore')
 
 
 @dataclass(frozen=True)
@@ -46,10 +47,19 @@ def build_neuron_map(cell_index, to_indices) -> NeuronMap:
     return NeuronMap(inputs, outputs)
 
 
+def side_of(population: str) -> str:
+    return population.rsplit('_', 1)[1]
+
+
 def stimulus_rates(neurons: NeuronMap, state, base_rate_hz: float):
-    yield neurons.inputs['eye_left'], base_rate_hz * state.left_rate
-    yield neurons.inputs['eye_right'], base_rate_hz * state.right_rate
+    graded = {side_of(population) for population in state.hallway_drive}
+    for side in SIDES:
+        if side in graded:
+            continue
+        rate = state.left_rate if side == 'left' else state.right_rate
+        for role in HALLWAY_ROLES:
+            yield neurons.inputs[f'{role}_{side}'], base_rate_hz * rate
     yield neurons.inputs['inhibitors_left'], state.cam_inhib
     yield neurons.inputs['inhibitors_right'], state.cam_inhib
-    for population, level in state.tablet_drive.items():
+    for population, level in (*state.hallway_drive.items(), *state.tablet_drive.items()):
         yield neurons.inputs[population], base_rate_hz * level

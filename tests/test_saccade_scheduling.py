@@ -1,4 +1,7 @@
+import pytest
+
 from flynaf import config
+from flynaf.night.memory import quickened
 from flynaf.search_drive import SearchDrive
 
 SPAN = 100          # 50 sensory neurons x 2 steps per frame
@@ -193,6 +196,29 @@ def test_the_guard_still_bounds_the_blind_window():
     looks = feed(drive, clock, int((P.starvation_sec + 2.0) / DT), membrane_diff=0.0)
     assert looks, 'a perfectly balanced brain left both doors unwatched forever'
     assert looks[0][2] == 'guard'
+
+
+@pytest.mark.parametrize('arousal', [0.0, 0.5, 1.0])
+def test_an_alert_fly_leaves_no_door_unwatched_for_as_long(arousal):
+    """Arousal shortened the pauses between raises and between light checks
+    but not the longest a door could go unchecked, so on the night 4 of
+    2026-10-21 a fly alarmed by Foxy raised the tablet every twelve seconds
+    and left the right door alone for 34, long enough for Chica to walk in."""
+    drive = SearchDrive(SPAN)
+    longest = quickened(P.starvation_sec, arousal)
+    first = next(frame * DT for frame in range(int((P.starvation_sec + 1.0) / DT))
+                 if drive.update(0.0, 0, 0, DT, frame * DT, True, arousal=arousal))
+    assert first == pytest.approx(longest, abs=DT)
+    assert drive.reason == 'guard'
+
+
+def test_a_door_is_overdue_once_its_longest_wait_has_passed():
+    drive = SearchDrive(SPAN)
+    assert not drive.overdue(0.0)
+    drive.update(0.0, 0, 0, DT, 0.0, False, arousal=1.0)
+    longest = quickened(P.starvation_sec, 1.0)
+    assert not drive.overdue(longest - DT)
+    assert drive.overdue(longest + DT)
 
 
 def test_the_guard_is_not_what_normally_drives_the_fly():

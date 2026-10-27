@@ -15,6 +15,14 @@ class FrameInput:
         self.right_rate = float(payload.get('right_rate', 0.0))
         self.cam_inhib = float(payload.get('cam_inhib', 0.0))
         self.tablet_drive = dict(payload.get('tablet_drive') or {})
+        self.hallway_drive = dict(payload.get('hallway_drive') or {})
+        self.memory_drive = dict(payload.get('memory_drive') or {})
+        self.left_mse = float(payload.get('left_mse') or 0.0)
+        self.right_mse = float(payload.get('right_mse') or 0.0)
+        self.camera_open = bool(payload.get('camera_open', False))
+        self.arousal = float(payload.get('arousal', 0.0))
+        self.tablet_camera = payload.get('tablet_camera')
+        self.doors = (payload.get('door_left'), payload.get('door_right'))
         self.recorded_gf_left = bool(payload.get('gf_left', False))
         self.recorded_gf_right = bool(payload.get('gf_right', False))
         self.t = float(payload.get('t', 0.0))
@@ -33,7 +41,7 @@ def _reflex_latencies(driven: list) -> list:
     return latencies
 
 
-def replay(trace_path: str, device: str = 'cpu') -> dict:
+def replay(trace_path: str, device: str = 'cpu', watch=None, engine=None) -> dict:
     from flynaf.night.engine import ConnectomeEngine
     from flynaf.night.state import SensoryState
 
@@ -42,7 +50,7 @@ def replay(trace_path: str, device: str = 'cpu') -> dict:
         raise SystemExit('the trace has no frames in it: %s' % trace_path)
 
     _log.info('replaying %d frames from %s', len(frames), os.path.basename(trace_path))
-    engine = ConnectomeEngine(device)
+    engine = engine or ConnectomeEngine(device)
     engine.settle()
     state = SensoryState()
 
@@ -57,8 +65,11 @@ def replay(trace_path: str, device: str = 'cpu') -> dict:
         state.right_rate = recorded.right_rate
         state.cam_inhib = recorded.cam_inhib
         state.tablet_drive = recorded.tablet_drive
+        state.hallway_drive = recorded.hallway_drive
 
         spikes = engine.step(state, recorded.t)
+        if watch is not None:
+            watch(engine, recorded, spikes)
         fired_left = bool(spikes[0, engine.l_motor_idx].any())
         fired_right = bool(spikes[0, engine.r_motor_idx].any())
         if recorded.tablet_drive:

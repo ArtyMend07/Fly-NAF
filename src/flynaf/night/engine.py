@@ -16,7 +16,7 @@ def has_settled(activity: list, window: int, growth_ratio: float) -> bool:
 
 
 class ConnectomeEngine:
-    def __init__(self, device: str, cell_index: CellTypeIndex | None = None):
+    def __init__(self, device: str, cell_index: CellTypeIndex | None = None, rewire=None):
         self._device = device
         self._adapter = BrainAdapter(
             config.COMPLETENESS_CSV,
@@ -27,6 +27,8 @@ class ConnectomeEngine:
         self.neurons = build_neuron_map(
             cell_index or CellTypeIndex.load(), self._adapter.map_neuron_ids_to_indices,
         )
+        if rewire is not None:
+            self._adapter.weights = rewire(self._adapter.weights, self.neurons)
         self._adapter.initialize_model(exc_indices=self.neurons.stimulus_indices())
 
         self._rates = torch.zeros(1, self._adapter.num_neurons, device=device)
@@ -112,10 +114,26 @@ class ConnectomeEngine:
         return self.neurons.outputs['explore']
 
     @property
+    def l_explore_idx(self):
+        return self.neurons.outputs['explore_left']
+
+    @property
+    def r_explore_idx(self):
+        return self.neurons.outputs['explore_right']
+
+    @property
     def l_sensory_idx(self):
         return self.neurons.inputs['eye_left']
 
     @property
     def r_sensory_idx(self):
         return self.neurons.inputs['eye_right']
+
+    @property
+    def l_ring_idx(self):
+        return self.neurons.outputs['orientation_left']
+
+    @property
+    def r_ring_idx(self):
+        return self.neurons.outputs['orientation_right']
 

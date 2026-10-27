@@ -22,6 +22,7 @@ import torch
 import torch.nn as nn
 
 from flynaf import config
+from flynaf.neural.propagation import propagation_for
 
 _P = config.NEURAL_PARAMS
 
@@ -154,6 +155,7 @@ class FlyBrainModel(nn.Module):
         self.batch = batch
         self.size = size
         self.weights = weights
+        self.propagate = propagation_for(weights, device)
         self.neurons = AlphaLIF(batch, size, exc_indices=exc_indices, device=device)
         self.poisson = PoissonSpikeGenerator(device=device)
         self.scale = _P.w_scale
@@ -167,11 +169,7 @@ class FlyBrainModel(nn.Module):
             poisson_spikes = self.poisson(sensory_rates)
             voltage_stim = self.scale * poisson_spikes
 
-            weighted_spikes = torch.matmul(
-                self.spikes,
-                self.weights.transpose(0, 1)
-            )
-            recurrent_input = self.scale * weighted_spikes
+            recurrent_input = self.scale * self.propagate(self.spikes)
 
             self.conductance, self.delay_buffer, self.spikes, self.v, self.refrac = self.neurons(
                 recurrent_input,

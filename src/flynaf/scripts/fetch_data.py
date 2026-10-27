@@ -31,13 +31,14 @@ This downloads roughly 140 MB of third party data that is deliberately not part
 of this repository.
 
   fly-brain                 GPL v2 or later, from eonsystemspbc
-  FlyWire 783 connectome    CC BY-NC 4.0, non commercial, attribution required
+  FlyWire 783 connectome    CC BY 4.0 for the connectivity dump, CC BY-NC 4.0
+                            for the community's edits and annotations
   flywire_annotations       no licence file at all
   FlyWire brain mesh        GPL v3, from navis-flybrains
 
-The FlyWire terms are not the same as this project's GPL v3, which is why the
-data cannot ship here and why you fetch it yourself. Using it commercially is
-not permitted, and FlyWire asks to be cited.
+Part of the FlyWire data is non commercial, a restriction this project's GPL v3
+cannot carry, which is why the data cannot ship here and why you fetch it
+yourself. Treat it as non commercial, and FlyWire asks to be cited.
 """
 
 

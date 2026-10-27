@@ -1,3 +1,4 @@
+import glob
 import json
 import logging
 import os
@@ -8,14 +9,22 @@ from flynaf import config
 
 _log = logging.getLogger(__name__)
 
-TRACE_VERSION = 2
+TRACE_VERSION = 5
+
+
+TRACES_FOLDER = os.path.join(config.PROJECT_ROOT, 'logs', 'traces')
 
 
 def default_path() -> str:
-    folder = os.path.join(config.PROJECT_ROOT, 'logs', 'traces')
-    os.makedirs(folder, exist_ok=True)
+    os.makedirs(TRACES_FOLDER, exist_ok=True)
     stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    return os.path.join(folder, 'trace_%s.jsonl' % stamp)
+    return os.path.join(TRACES_FOLDER, 'trace_%s.jsonl' % stamp)
+
+
+def latest_trace(folder: str = TRACES_FOLDER) -> str | None:
+    dated = glob.glob(os.path.join(folder, 'trace_[0-9]*.jsonl'))
+    traces = sorted(path for path in dated if os.path.getsize(path) > 0)
+    return traces[-1] if traces else None
 
 
 def _settings() -> dict:
@@ -31,6 +40,10 @@ def _settings() -> dict:
         'mse_threshold': foraging.mse_threshold,
         'starvation_sec': search.starvation_sec,
     }
+
+
+def _rounded(drive: dict) -> dict:
+    return {name: round(float(level), 4) for name, level in drive.items()}
 
 
 class SessionRecorder:
@@ -76,8 +89,12 @@ class SessionRecorder:
                 'escape_left': bool(state.l_escape),
                 'escape_right': bool(state.r_escape),
                 'explore_spike': bool(state.explore_spike),
+                'door_left': bool(state.door_closed['left']),
+                'door_right': bool(state.door_closed['right']),
                 'tablet_camera': state.tablet_camera,
-                'tablet_drive': {name: round(float(level), 4) for name, level in state.tablet_drive.items()},
+                'tablet_drive': _rounded(state.tablet_drive),
+                'hallway_drive': _rounded(state.hallway_drive),
+                'arousal': round(float(state.arousal), 3),
                 'eye_membrane_diff': round(float(engine.eye_membrane_diff), 4),
                 'explore_membrane': round(float(engine.explore_membrane), 4),
             })

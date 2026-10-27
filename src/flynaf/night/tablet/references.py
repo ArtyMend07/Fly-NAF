@@ -2,27 +2,46 @@ import asyncio
 import logging
 
 from flynaf import clock, config
+from flynaf.env import reference_store
 from flynaf.night.monitor import put_tablet, put_tablet_down, screen_shows
 from flynaf.night.motor import await_motor
+from flynaf.night.tablet.gaze import watched_cameras
 
 _log = logging.getLogger(__name__)
 
 
-async def capture_camera_references(feed, controller, vision, params=None) -> bool:
+async def capture_camera_references(feed, controller, vision, params=None, folder: str | None = None) -> bool:
     params = params or config.TABLET_VISION
-    if not await _raise_at_night_start(vision, controller, params):
+    folder = folder or reference_store.layout_folder('camera')
+    missing = [camera.name for camera in watched_cameras(params) if not feed.load_reference(camera.name, folder)]
+    if not missing:
+        return True
+    if not await _raise_once_the_night_is_on(vision, controller, params):
         _log.warning('the camera map did not appear for the camera references, so the fly '
                      'will raise the tablet tonight without reading the feed')
-        await _lower(vision, controller)
         return False
 
     feed.activate()
     try:
-        recorded = [await _record(feed, controller, camera.name, params) for camera in params.cameras]
+        recorded = {camera: await _record(feed, controller, camera, params) for camera in missing}
     finally:
         feed.deactivate()
         await _lower(vision, controller)
-    return all(recorded)
+    for camera, captured in recorded.items():
+        if captured:
+            feed.save_reference(camera, folder)
+    return all(recorded.values())
+
+
+async def _raise_once_the_night_is_on(vision, controller, params) -> bool:
+    for attempt in range(1, params.start_raise_attempts + 1):
+        if await _raise_at_night_start(vision, controller, params):
+            return True
+        await _lower(vision, controller)
+        if attempt < params.start_raise_attempts:
+            _log.info('the camera map did not come up on attempt %d, the night may still be '
+                      'opening, raising again', attempt)
+    return False
 
 
 async def _raise_at_night_start(vision, controller, params) -> bool:

@@ -1,6 +1,7 @@
 import logging
 
 from flynaf import config
+from flynaf.night.memory import DefensiveState
 from flynaf.night.state import MotorRefrac, SensoryState
 
 _log = logging.getLogger(__name__)
@@ -9,11 +10,12 @@ SIDES = ('left', 'right')
 
 
 class DoorControl:
-    def __init__(self, controller, telemetry, state: SensoryState):
+    def __init__(self, controller, telemetry, state: SensoryState, defence: DefensiveState | None = None):
         dynamics = config.DOOR_DYNAMICS
         self._controller = controller
         self._telemetry = telemetry
         self._state = state
+        self._defence = defence or DefensiveState()
         self._hold_leak = dynamics.hold_leak_per_frame
         self._release_threshold = dynamics.release_threshold
         self._motion_settle = dynamics.motion_settle_sec
@@ -23,6 +25,8 @@ class DoorControl:
         self.closed = {side: False for side in SIDES}
         self._closed_at = {side: 0.0 for side in SIDES}
         self._renewed_at = {side: 0.0 for side in SIDES}
+        self._alarm_camera = {side: None for side in SIDES}
+        self._alarm_at = {side: 0.0 for side in SIDES}
         self._calm_at = {side: None for side in SIDES}
         self._hold = {side: 0.0 for side in SIDES}
         self._moving = {side: None for side in SIDES}
@@ -37,10 +41,13 @@ class DoorControl:
         setattr(self._refrac, side, now + self._motor_sec)
         return moved
 
-    def slam(self, side: str, now: float, cause: str):
+    def slam(self, side: str, now: float, cause: str, camera: str | None = None):
         self._hold[side] = 1.0
         self._renewed_at[side] = now
         self._calm_at[side] = None
+        if camera is not None:
+            self._alarm_camera[side] = camera
+            self._alarm_at[side] = now
         if self.closed[side]:
             _log.info('%s %s fired behind the closed door, hold renewed', side, cause)
             self._telemetry.record_door_hold_renewed(side, cause)
@@ -59,7 +66,7 @@ class DoorControl:
             if not self.closed[side]:
                 continue
             self._hold[side] *= decay
-            if self._hold[side] >= self._release_threshold:
+            if self._held(side, now):
                 continue
             if self._calm_at[side] is None:
                 self._calm_at[side] = now
@@ -67,18 +74,27 @@ class DoorControl:
                 continue
             self._release(side, now)
 
+    def _held(self, side: str, now: float) -> bool:
+        return max(self._hold[side], self._defence.level(now, side)) >= self._release_threshold
+
     def _tablet_in_the_way(self) -> bool:
         return self._state.camera_open or self._state.tablet_seen
 
     def _verified_clear(self, side: str) -> bool:
-        return self._state.cleared_at[side] > self._renewed_at[side]
+        if self._state.cleared_at[side] <= self._renewed_at[side]:
+            return False
+        camera = self._alarm_camera[side]
+        return camera is None or self._state.view_cleared_at.get(camera, 0.0) > self._alarm_at[side]
 
     def _release(self, side: str, now: float):
         held = now - self._closed_at[side]
         waited = now - self._calm_at[side]
-        _log.info('%s escape drive decayed and the last look found the hallway empty, '
-                  'door released after %.1fs', side, held)
+        camera = self._alarm_camera[side]
+        seen = f'the hallway and camera {camera}' if camera else 'the hallway'
+        _log.info('%s escape drive and defensive state decayed and the last looks found %s empty, '
+                  'door released after %.1fs', side, seen, held)
         self._telemetry.record_door_release(side, held, waited)
+        self._alarm_camera[side] = None
         self.closed[side] = False
         self._state.door_closed[side] = False
         self._calm_at[side] = None

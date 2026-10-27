@@ -1,7 +1,7 @@
 # 0001. Use Grayscale Brightness Thresholding for Threat Detection
 
 ## Status
-Accepted. Amended on 2026-10-01, when the single empty-hallway reference and its MSE threshold were replaced by a bank of calibrated views.
+Accepted. Amended on 2026-10-01, when the single empty-hallway reference and its MSE threshold were replaced by a bank of calibrated views, and on 2026-10-26, when the hallway could also be read as a share of the window that drives LPLC2 and LC4 with a level.
 
 ## Context
 The project requires detecting an animatronic at either door in FNAF 1. Exact RGB signatures did not survive screen capture, with compression, purple shifts and the BGR order of `mss` all moving the values, and a full-screen object detector would have competed for CPU with the 138,000-neuron simulation. The first version read the mean brightness of a 10x10 box at Bonnie's spawn point. It was later replaced by the mean squared error between each hallway patch and a reference of that hallway captured empty with the light on, with a threat declared above 1500.
@@ -19,14 +19,21 @@ The distance of a frame is its MSE to the nearest view in the bank for the door'
 
 The light button is read off the screen. It measured 93 to 97 in grey level off and 186 to 196 on, and the fly treats it as lit above 140. After asking for a light, the fly reads the button twice 80 ms apart and presses it again only when both readings disagree, at most twice, and the press records the state the screen confirmed rather than flipping the controller's belief. A light that will not come on is logged, which in FNAF 1 means an animatronic is already in the office or the power is gone.
 
+Since 2026-10-26 a second eye can read the same comparison. The threshold above decides in Python how much difference is enough and then drives every LPLC2 and LC4 neuron of that side at full rate, while the brain can make that decision itself: driven at a fraction of its rate from a settled network, the left eye cluster leaves DNp01 silent below about a sixth within a look and answers sooner the stronger the drive (experiment 20). The Giant Fiber of a fly sums the size of a looming object, supplied entirely by LPLC2, and its angular velocity, supplied by LC4 (Ache et al. 2019), and LPLC2 ignores wide-field motion and a plain change of brightness (Klapoetke et al. 2017).
+
+With `looming_eye = 1` the frame and its nearest view are downscaled and blurred as the tablet does, cut into 40-pixel cells, and the share of cells whose mean squared difference passes 100 is the size of what is there. That share drives LPLC2 and the MeTu4 wide-field neurons at `(share − 0.10) / 0.30`, the floor and span the tablet uses, and LC4 by how fast the share grew over the last engine frame, so an animatronic found by the light reads as one that appeared and drives LC4 for one frame. A share of 0.60 or more drives MeTu4 alone. The default stays at 0 until a live night has been run with 1.
+
 ## Consequences
 - The eye detected Bonnie live at 118 against the new threshold and closed the left door, the first animatronic among all the threat images the project has saved. Replayed through the new code, the recorded frames gave 17 detections out of 17 windows with Bonnie in the doorway and none out of 52 empty windows.
 - The first night after the change spends about 70 seconds calibrating with both doors briefly closed and no hallway watched, which is long enough on a continued night for an animatronic to walk in. One recorded night was lost that way.
 - The banks are images of the operator's own game, kept under `logs/` and never committed.
 - Chica in the right window and Bonnie's shadow behind a closed left door have not been measured against the bank yet. Both thresholds start at 40, and `measure_door_window.py` measures the closed views.
 - The light check adds up to a few hundred milliseconds to a look when a correction is needed and nothing when the light is where the controller believes it is.
+- Of the 112 detections the threshold eye saved between 2026-10-01 and 2026-10-22, the 38 with an animatronic at a door all still drive LPLC2 with the looming eye. Of the 70 with no animatronic, each of which drove the whole cluster at full rate, 62 covered most of the window and go to MeTu4 alone, which does not fire the Giant Fiber, and 4 fall below the floor. The office panned aside and the closed window gone dark still pass (experiment 20).
+- The looming eye answers Bonnie in the doorway about 0.3 seconds later than the threshold, and a faint shadow behind the closed left door, at a share of 0.13, no longer fires DNp01. It still drives the eye, so the look at it is not a clear look and the door stays shut.
 
 | Version | Description | Author(s) | Date | Reviewer(s) | Review Date |
 |---------|-------------|-----------|------|-------------|-------------|
 | 1.0 | Initial version | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-09-02 |
 | 1.1 | Replaced the single reference with a bank of calibrated views, measured the threshold against Bonnie, and checked the light on screen | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-01 |
+| 1.2 | Added the looming eye, which reads the hallway as a share of the window and leaves to the network how much is enough | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 | [Artur Mendonça Arruda](https://github.com/ArtyMend07) | 2026-10-26 |
